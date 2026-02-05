@@ -50,13 +50,13 @@ jobs:
         working-directory: ui/desktop
         run: npm ci
 
-      - name: Build Rust FFI
-        run: cargo build --release --package goose-ffi
+      - name: Build Rust server
+        run: cargo build --release --bin goosed
 
-      - name: Copy FFI library
+      - name: Copy server binary
         run: |
           mkdir -p ui/desktop/src/bin
-          cp target/release/libgoose_ffi.so ui/desktop/src/bin/
+          cp target/release/goosed ui/desktop/src/bin/
 
       - name: Package Linux app
         working-directory: ui/desktop

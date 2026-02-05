@@ -60,15 +60,15 @@ jobs:
 
       - name: Build CLI (portable)
         run: |
-          cargo build --release --target ${{ matrix.target }} --package goose-cli
-          cargo build --release --target ${{ matrix.target }} --package goose-server
+          cargo build --release --target ${{ matrix.target }} --bin goose
+          cargo build --release --target ${{ matrix.target }} --bin goosed
 
       - name: Package portable release (Unix)
         if: matrix.os != 'windows-latest'
         run: |
           mkdir -p goose-portable-${{ matrix.name }}
-          cp target/${{ matrix.target }}/release/goose-cli goose-portable-${{ matrix.name }}/goose
-          cp target/${{ matrix.target }}/release/goose-server goose-portable-${{ matrix.name }}/
+          cp target/${{ matrix.target }}/release/goose goose-portable-${{ matrix.name }}/goose
+          cp target/${{ matrix.target }}/release/goosed goose-portable-${{ matrix.name }}/
           cp README.md LICENSE goose-portable-${{ matrix.name }}/
           tar -czf goose-portable-${{ matrix.name }}.tar.gz goose-portable-${{ matrix.name }}
 
@@ -76,8 +76,8 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           New-Item -ItemType Directory -Force -Path goose-portable-${{ matrix.name }}
-          Copy-Item target/${{ matrix.target }}/release/goose-cli.exe goose-portable-${{ matrix.name }}/goose.exe
-          Copy-Item target/${{ matrix.target }}/release/goose-server.exe goose-portable-${{ matrix.name }}/
+          Copy-Item target/${{ matrix.target }}/release/goose.exe goose-portable-${{ matrix.name }}/goose.exe
+          Copy-Item target/${{ matrix.target }}/release/goosed.exe goose-portable-${{ matrix.name }}/
           Copy-Item README.md,LICENSE goose-portable-${{ matrix.name }}/
           Compress-Archive -Path goose-portable-${{ matrix.name }} -DestinationPath goose-portable-${{ matrix.name }}.zip
 
