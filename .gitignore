@@ -78,3 +78,6 @@ external/
 
 # Temporary test projects with vulnerable dependencies
 goose/temp/
+
+# Local build outputs (use releases instead)
+build-output/
