@@ -3457,7 +3457,7 @@ mod tests {
                 .await;
 
             // Wait for the shell task to complete
-            let result: Result<Result<(), _>, _> = timeout(Duration::from_secs(5), shell_task).await;
+            let result = timeout(Duration::from_secs(5), shell_task).await;
             let elapsed = start_time.elapsed();
 
             // Verify the task completed due to cancellation (not timeout)
@@ -3539,7 +3539,7 @@ mod tests {
                 .await;
 
             // Wait for completion
-            let result: Result<Result<(), _>, _> = timeout(Duration::from_secs(5), shell_task).await;
+            let result = timeout(Duration::from_secs(5), shell_task).await;
             let elapsed = start_time.elapsed();
 
             assert!(result.is_ok(), "Shell task should complete within timeout");
