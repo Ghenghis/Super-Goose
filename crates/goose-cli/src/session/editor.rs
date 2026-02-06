@@ -309,6 +309,7 @@ with multiple lines.
 
     #[test]
     fn test_symlink_raii_cleanup_on_panic() {
+        #[cfg(unix)]
         use std::os::unix::fs;
         use std::panic;
 
@@ -352,6 +353,7 @@ with multiple lines.
 
     #[test]
     fn test_symlink_creation_and_cleanup() {
+        #[cfg(unix)]
         use std::os::unix::fs;
 
         let messages = vec!["## User: Test message"];

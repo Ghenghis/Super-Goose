@@ -41,18 +41,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-#[cfg(test)]
-use std::time::{Duration, Instant};
-
 use xcap::{Monitor, Window};
 
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     sync::RwLock,
 };
-
-#[cfg(test)]
-use tokio::time::timeout;
 use tokio_stream::{wrappers::SplitStream, StreamExt as _};
 use tokio_util::sync::CancellationToken;
 
