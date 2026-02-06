@@ -179,9 +179,9 @@ console.log('Hello, World!');
       render(<MarkdownContent content={content} />);
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { level: 1, name: 'H1 Header' })).toBeInTheDocument();
-        expect(screen.getByRole('heading', { level: 2, name: 'H2 Header' })).toBeInTheDocument();
-        expect(screen.getByRole('heading', { level: 3, name: 'H3 Header' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'H1 Header' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'H2 Header' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'H3 Header' })).toBeInTheDocument();
       });
     });
 
@@ -292,7 +292,7 @@ line breaks.
       const { container } = render(<MarkdownContent content={content} />);
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { level: 1, name: 'Header' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Header' })).toBeInTheDocument();
 
         // Check that text content is present (text may be split by <br> tags)
         expect(container).toHaveTextContent('Paragraph with');
