@@ -1,8 +1,22 @@
-# Only auto-format desktop TS code if relevant files are modified
-if git diff --cached --name-only | grep -q "^ui/desktop/"; then
-  if [ -d "ui/desktop" ]; then
-    cd ui/desktop && npx lint-staged
-  else
-    echo "Warning: ui/desktop directory does not exist, skipping lint-staged"
-  fi
+#!/usr/bin/env sh
+echo "🔍 Running pre-commit quality checks..."
+
+# Check for incomplete code markers (TODO, FIXME, HACK, XXX)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx|rs)$' || true)
+
+if [ -n "$STAGED_FILES" ]; then
+    echo "Checking for incomplete code markers..."
+    
+    for FILE in $STAGED_FILES; do
+        if [ -f "$FILE" ] && grep -nE '(TODO|FIXME|HACK|XXX):' "$FILE" 2>/dev/null; then
+            echo ""
+            echo "❌ ERROR: Found incomplete code markers in $FILE"
+            echo "Please complete all TODOs before committing."
+            echo ""
+            echo "If you must commit with TODOs, use: git commit --no-verify"
+            exit 1
+        fi
+    done
 fi
+
+echo "✅ Pre-commit checks passed!"

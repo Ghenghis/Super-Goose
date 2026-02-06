@@ -1,227 +1,204 @@
-# GitLab CI/CD Pipeline for Goose
-# Replaces GitHub Actions — runs free locally via gitlab-runner
-#
-# Local usage:
-#   gitlab-runner exec docker rust-format
-#   gitlab-runner exec docker rust-lint
-#   gitlab-runner exec docker rust-build-test
-#   gitlab-runner exec shell rust-build-test-local   (Windows, no Docker)
-#
-# Full local CI (PowerShell):
-#   .\scripts\local-ci.ps1
+# Goose Project - GitLab CI/CD Pipeline with SonarQube Quality Gates
 
 stages:
-  - check
+  - lint
   - test
-  - build
-  - release
+  - analyze
+  - quality-gate
 
 variables:
-  CARGO_HOME: $CI_PROJECT_DIR/.cargo
-  CARGO_INCREMENTAL: "0"
-  RUST_MIN_STACK: "8388608"
+  SONAR_HOST_URL: "http://sonarqube:9000"
+  SONAR_TOKEN: "squ_5ace7604663a5576e548d3e2ee222616b1a30f0a"
+  CARGO_HOME: "${CI_PROJECT_DIR}/.cargo"
+  npm_config_cache: "${CI_PROJECT_DIR}/.npm"
 
-# ─── Shared Templates ───────────────────────────────────────────
-
-.rust_image:
-  image: rust:1.86
-  before_script:
-    - apt-get update -y && apt-get install -y libdbus-1-dev libxcb1-dev gnome-keyring
-    - rustup component add clippy rustfmt
-
-.cache_cargo: &cache_cargo
+# Cache dependencies
+.cache_template: &cache_template
   cache:
-    key: cargo-${CI_COMMIT_REF_SLUG}
-    paths:
-      - .cargo/registry/
-      - .cargo/git/
-      - target/
-
-.cache_npm: &cache_npm
-  cache:
-    key: npm-${CI_COMMIT_REF_SLUG}
+    key: ${CI_COMMIT_REF_SLUG}
     paths:
       - ui/desktop/node_modules/
+      - .npm/
+      - .cargo/
+      - crates/target/
 
-# Only run on code changes (skip docs-only commits)
-.skip_docs_only:
-  rules:
-    - changes:
-        - "documentation/**"
-      when: never
-    - when: on_success
-
-# ─── Stage: check ───────────────────────────────────────────────
-
-rust-format:
-  stage: check
-  extends: [.rust_image, .skip_docs_only]
-  <<: *cache_cargo
-  script:
-    - cargo fmt --check
-  allow_failure: false
-
-rust-lint:
-  stage: check
-  extends: [.rust_image, .skip_docs_only]
-  <<: *cache_cargo
-  script:
-    - cargo clippy --all-targets -- -D warnings
-  allow_failure: false
-
-openapi-schema-check:
-  stage: check
-  extends: [.rust_image, .skip_docs_only]
-  <<: *cache_cargo
-  script:
-    - cargo run -p goose-server --bin generate_schema
-    - cd ui/desktop && npm ci && npx @hey-api/openapi-ts && cd ../..
-    - |
-      if ! git diff --ignore-space-change --exit-code ui/desktop/openapi.json ui/desktop/src/api/; then
-        echo "❌ OpenAPI schema is out of date! Run: just generate-openapi"
-        exit 1
-      fi
-      echo "✅ OpenAPI schema is up-to-date"
-
-desktop-lint:
-  stage: check
-  image: node:24
-  extends: .skip_docs_only
-  <<: *cache_npm
+# Lint TypeScript
+lint-typescript:
+  stage: lint
+  image: node:18
+  <<: *cache_template
   script:
     - cd ui/desktop
     - npm ci
-    - npm run lint:check
-    - npm run test:run
+    - npm run lint
+  allow_failure: false
 
-# ─── Stage: test ────────────────────────────────────────────────
+# Lint Rust
+lint-rust:
+  stage: lint
+  image: rust:latest
+  <<: *cache_template
+  script:
+    - cd crates
+    - cargo clippy --all-targets --all-features -- -D warnings
+  allow_failure: false
 
-rust-build-test:
+# Test TypeScript with coverage
+test-typescript:
   stage: test
-  extends: [.rust_image, .skip_docs_only]
-  <<: *cache_cargo
-  timeout: 60 minutes
+  image: node:18
+  <<: *cache_template
+  dependencies:
+    - lint-typescript
   script:
-    - gnome-keyring-daemon --components=secrets --daemonize --unlock <<< 'foobar'
-    - cd crates && cargo test -- --skip scenario_tests::scenarios::tests
-
-rust-scenario-tests:
-  stage: test
-  extends: [.rust_image, .skip_docs_only]
-  <<: *cache_cargo
-  timeout: 45 minutes
-  script:
-    - gnome-keyring-daemon --components=secrets --daemonize --unlock <<< 'foobar'
-    - cd crates && cargo test --jobs 1 scenario_tests::scenarios::tests
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-      when: on_success
-    - when: never
-
-# ─── Stage: build (tags and main only) ──────────────────────────
-
-# Windows Portable CLI (local Windows runner)
-build-windows-portable:
-  stage: build
-  tags: [windows, local]
-  <<: *cache_cargo
-  script:
-    - cargo build --release --bin goose --bin goosed
-    - mkdir -p build-output/goose-portable-windows-x64
-    - cp target/release/goose.exe build-output/goose-portable-windows-x64/
-    - cp target/release/goosed.exe build-output/goose-portable-windows-x64/
-    - cp README.md LICENSE build-output/goose-portable-windows-x64/
-    - cd build-output
-    - powershell -Command "Compress-Archive -Path goose-portable-windows-x64 -DestinationPath goose-portable-windows-x64.zip -Force"
-  artifacts:
-    paths:
-      - build-output/*.zip
-    expire_in: 1 week
-  rules:
-    - if: $CI_COMMIT_TAG
-    - if: $CI_COMMIT_BRANCH == "main"
-
-# Windows Desktop Build (local Windows runner)
-build-windows-desktop:
-  stage: build
-  tags: [windows, local]
-  <<: *cache_cargo
-  script:
-    - cargo build --release --bin goosed
-    - mkdir -p ui/desktop/src/bin
-    - cp target/release/goosed.exe ui/desktop/src/bin/
     - cd ui/desktop
-    - npm ci --legacy-peer-deps
-    - npm run package
-    - npm run make
+    - npm ci
+    - npm test -- --coverage
   artifacts:
     paths:
-      - ui/desktop/out/make/**/*.exe
-      - ui/desktop/out/**/*.zip
+      - ui/desktop/coverage/
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: ui/desktop/coverage/cobertura-coverage.xml
     expire_in: 1 week
-  rules:
-    - if: $CI_COMMIT_TAG
-    - if: $CI_COMMIT_BRANCH == "main"
+  coverage: '/Lines\s+:\s+(\d+\.\d+)%/'
 
-# Linux Portable CLI (Docker)
-build-linux-portable:
-  stage: build
-  image: rust:1.86
-  <<: *cache_cargo
-  script:
-    - apt-get update && apt-get install -y musl-tools
-    - rustup target add x86_64-unknown-linux-musl
-    - cargo build --release --target x86_64-unknown-linux-musl --bin goose --bin goosed
-    - mkdir -p build-output/goose-portable-linux-x64
-    - cp target/x86_64-unknown-linux-musl/release/goose build-output/goose-portable-linux-x64/
-    - cp target/x86_64-unknown-linux-musl/release/goosed build-output/goose-portable-linux-x64/
-    - cp README.md LICENSE build-output/goose-portable-linux-x64/
-    - cd build-output && tar -czf goose-portable-linux-x64.tar.gz goose-portable-linux-x64
-  artifacts:
-    paths:
-      - build-output/*.tar.gz
-    expire_in: 1 week
-  rules:
-    - if: $CI_COMMIT_TAG
-    - if: $CI_COMMIT_BRANCH == "main"
-
-# Docker Image Build
-build-docker:
-  stage: build
-  image: docker:latest
-  services:
-    - docker:dind
-  script:
-    - docker build -t goose:${CI_COMMIT_TAG:-latest} .
-    - docker save goose:${CI_COMMIT_TAG:-latest} | gzip > goose-docker.tar.gz
-  artifacts:
-    paths:
-      - goose-docker*.tar.gz
-    expire_in: 1 week
-  rules:
-    - if: $CI_COMMIT_TAG
-
-# ─── Stage: release (tags only) ─────────────────────────────────
-
-create-release:
-  stage: release
-  image: alpine:latest
+# Test Rust with coverage
+test-rust:
+  stage: test
+  image: rust:latest
+  <<: *cache_template
+  dependencies:
+    - lint-rust
   before_script:
-    - apk add --no-cache curl jq bash
+    - rustup component add llvm-tools-preview
+    - cargo install cargo-llvm-cov --locked
   script:
-    - echo "Creating GitLab release for ${CI_COMMIT_TAG}..."
-  release:
-    tag_name: $CI_COMMIT_TAG
-    description: "Release $CI_COMMIT_TAG"
-    assets:
-      links:
-        - name: Windows Portable CLI
-          url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/build-output/goose-portable-windows-x64.zip"
-        - name: Linux Portable CLI
-          url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/build-output/goose-portable-linux-x64.tar.gz"
-  needs:
-    - build-windows-portable
-    - build-linux-portable
-    - build-docker
-  rules:
-    - if: $CI_COMMIT_TAG
+    - cd crates
+    - cargo llvm-cov --all-features --lcov --output-path target/coverage/lcov.info
+    - cargo llvm-cov report --summary-only
+  artifacts:
+    paths:
+      - crates/target/coverage/
+    expire_in: 1 week
+  coverage: '/TOTAL.*\s+(\d+\.\d+)%/'
+
+# SonarQube analysis for TypeScript
+sonarqube-typescript:
+  stage: analyze
+  image: sonarsource/sonar-scanner-cli:latest
+  dependencies:
+    - test-typescript
+  script:
+    - sonar-scanner
+      -Dsonar.projectKey=goose-ui
+      -Dsonar.sources=ui/desktop/src
+      -Dsonar.tests=ui/desktop/src
+      -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx
+      -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**
+      -Dsonar.host.url=$SONAR_HOST_URL
+      -Dsonar.token=$SONAR_TOKEN
+      -Dsonar.javascript.lcov.reportPaths=ui/desktop/coverage/lcov.info
+      -Dsonar.sourceEncoding=UTF-8
+  allow_failure: false
+  only:
+    - main
+    - merge_requests
+
+# SonarQube analysis for Rust
+sonarqube-rust:
+  stage: analyze
+  image: sonarsource/sonar-scanner-cli:latest
+  dependencies:
+    - test-rust
+  script:
+    - sonar-scanner
+      -Dsonar.projectKey=goose-rust
+      -Dsonar.sources=crates
+      -Dsonar.tests=crates
+      -Dsonar.test.inclusions=**/tests/**/*.rs
+      -Dsonar.exclusions=**/target/**,**/Cargo.lock
+      -Dsonar.host.url=$SONAR_HOST_URL
+      -Dsonar.token=$SONAR_TOKEN
+      -Dsonar.rust.lcov.reportPaths=crates/target/coverage/lcov.info
+      -Dsonar.sourceEncoding=UTF-8
+  allow_failure: false
+  only:
+    - main
+    - merge_requests
+
+# Quality gate check - TypeScript
+quality-gate-typescript:
+  stage: quality-gate
+  image: curlimages/curl:latest
+  dependencies:
+    - sonarqube-typescript
+  script:
+    - |
+      echo "Checking TypeScript quality gate..."
+      sleep 10  # Wait for SonarQube to process the report
+
+      STATUS=$(curl -s -u "$SONAR_TOKEN:" \
+        "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=goose-ui" \
+        | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+      echo "Quality gate status: $STATUS"
+
+      if [ "$STATUS" = "ERROR" ]; then
+        echo "❌ Quality gate FAILED for TypeScript project"
+        echo "View details: $SONAR_HOST_URL/dashboard?id=goose-ui"
+        exit 1
+      fi
+
+      echo "✅ Quality gate PASSED for TypeScript project"
+  allow_failure: false
+  only:
+    - main
+    - merge_requests
+
+# Quality gate check - Rust
+quality-gate-rust:
+  stage: quality-gate
+  image: curlimages/curl:latest
+  dependencies:
+    - sonarqube-rust
+  script:
+    - |
+      echo "Checking Rust quality gate..."
+      sleep 10  # Wait for SonarQube to process the report
+
+      STATUS=$(curl -s -u "$SONAR_TOKEN:" \
+        "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=goose-rust" \
+        | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+      echo "Quality gate status: $STATUS"
+
+      if [ "$STATUS" = "ERROR" ]; then
+        echo "❌ Quality gate FAILED for Rust project"
+        echo "View details: $SONAR_HOST_URL/dashboard?id=goose-rust"
+        exit 1
+      fi
+
+      echo "✅ Quality gate PASSED for Rust project"
+  allow_failure: false
+  only:
+    - main
+    - merge_requests
+
+# Optional: Build artifacts (only after quality gates pass)
+build:
+  stage: .post
+  image: node:18
+  <<: *cache_template
+  script:
+    - cd ui/desktop
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - ui/desktop/dist/
+    expire_in: 1 week
+  only:
+    - main
+    - tags

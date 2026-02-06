@@ -1,0 +1,34 @@
+#!/usr/bin/env sh
+echo "🔍 Running pre-push quality gate check..."
+
+# Run SonarQube analysis on UI
+echo "Analyzing TypeScript codebase..."
+cd ui
+/c/sonarscanner/bin/sonar-scanner.bat -Dsonar.login=squ_5ace7604663a5576e548d3e2ee222616b1a30f0a || {
+    echo "❌ SonarQube analysis failed"
+    exit 1
+}
+cd ..
+
+# Check quality gate status
+echo "Checking quality gate status..."
+GATE_STATUS=$(curl -s -u "squ_5ace7604663a5576e548d3e2ee222616b1a30f0a:" \
+  "http://localhost:9000/api/qualitygates/project_status?projectKey=goose-ui" \
+  | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+if [ "$GATE_STATUS" = "ERROR" ]; then
+    echo ""
+    echo "❌ Quality gate FAILED!"
+    echo "📊 View details: http://localhost:9000/dashboard?id=goose-ui"
+    echo ""
+    echo "Common issues:"
+    echo "- Blocker/Critical violations"
+    echo "- Code coverage below 80%"
+    echo "- Code duplication above 3%"
+    echo ""
+    echo "Fix issues and try again, or use: git push --no-verify"
+    exit 1
+fi
+
+echo "✅ Quality gate PASSED!"
+echo "📊 Dashboard: http://localhost:9000/dashboard?id=goose-ui"

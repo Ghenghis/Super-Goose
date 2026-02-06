@@ -20,6 +20,25 @@ const cfg = {
     env: {
       NODE_ENV: 'development',
     },
+    // Code coverage configuration
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'html', 'json-summary'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.{test,spec}.{ts,tsx}',
+        'src/test/**',
+        'src/types/**',
+        'src/**/*.d.ts',
+        'src/**/index.ts',
+      ],
+      all: true,
+      lines: 80,
+      functions: 80,
+      branches: 80,
+      statements: 80,
+    },
   },
 } satisfies Record<string, any>
 
