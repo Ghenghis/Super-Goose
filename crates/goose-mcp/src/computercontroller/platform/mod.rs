@@ -40,6 +40,6 @@ pub fn create_system_automation() -> Box<dyn SystemAutomation + Send + Sync> {
     }
     #[cfg(any(target_os = "ios", target_os = "none"))]
     {
-        unimplemented!("Unsupported operating system")
+        compile_error!("Computer controller is not supported on iOS or embedded platforms. Supported platforms: Windows, macOS, Linux.")
     }
 }

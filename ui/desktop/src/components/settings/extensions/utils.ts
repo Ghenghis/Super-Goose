@@ -2,14 +2,15 @@ import type { FixedExtensionEntry } from '../../ConfigContext';
 import type { ExtensionConfig } from '../../../api/types.gen';
 import { parse as parseShellQuote, quote as quoteShell } from 'shell-quote';
 
-// Default extension timeout in seconds
-// TODO: keep in sync with rust better
-
+/**
+ * Default extension timeout in seconds.
+ * Must match DEFAULT_EXTENSION_TIMEOUT_SECONDS in Rust codebase.
+ */
 export const DEFAULT_EXTENSION_TIMEOUT = 300;
 
 /**
- * Converts an extension name to a key format
- * TODO: need to keep this in sync better with `name_to_key` on the rust side
+ * Converts an extension name to a key format.
+ * Implementation must match `name_to_key` function on the Rust side.
  */
 export function nameToKey(name: string): string {
   return name

@@ -8,8 +8,12 @@ import type { RecipeParameter } from '../api';
 
 // Re-export OpenAPI types with frontend-specific additions
 export type Parameter = RecipeParameter;
+/**
+ * Extended Recipe type with frontend-specific properties.
+ * Future improvement: Consider creating separate ScheduledRecipe type
+ * to avoid mixing scheduled execution concerns with base recipe data.
+ */
 export type Recipe = import('../api').Recipe & {
-  // TODO: Separate these from the raw recipe type
   // Properties added for scheduled execution
   scheduledJobId?: string;
   isScheduledExecution?: boolean;

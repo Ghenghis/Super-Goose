@@ -663,7 +663,8 @@ export function useChatStream({
           },
           throwOnError: true,
         });
-        // TODO(Douwe): get this from the server instead of emulating it here
+        // Update local session state with recipe values.
+        // Future optimization: Server could return updated session in API response.
         dispatch({
           type: 'SET_SESSION',
           payload: {

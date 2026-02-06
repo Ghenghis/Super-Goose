@@ -3,7 +3,9 @@ export const DEFAULT_IFRAME_HEIGHT = 200;
 /**
  * Fetch the MCP App proxy URL from the Electron backend.
  * The proxy enforces CSP as a security boundary for sandboxed apps.
- * TODO(Douwe): make this work better with the generated API rather than poking around
+ *
+ * Note: Currently uses direct Electron IPC. Future improvement could
+ * integrate with generated API client for consistent request handling.
  */
 export async function fetchMcpAppProxyUrl(
   csp?: {

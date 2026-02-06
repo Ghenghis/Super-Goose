@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { getTools } from '../../api';
 
-// TODO(Douwe): return this as part of the start agent request
+/**
+ * Fetches tool count for a session.
+ *
+ * Note: In a future optimization, this could be returned as part of the
+ * start agent request to eliminate this separate API call.
+ */
 export const useToolCount = (sessionId: string) => {
   const [toolCount, setToolCount] = useState<number | null>(null);
 

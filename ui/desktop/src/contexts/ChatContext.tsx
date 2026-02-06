@@ -2,7 +2,10 @@ import React, { createContext, useContext, ReactNode } from 'react';
 import { ChatType } from '../types/chat';
 import { Recipe } from '../recipe';
 
-// TODO(Douwe): We should not need this anymore
+/**
+ * Default title for new chat sessions.
+ * May be deprecated in future if chat titles are generated server-side.
+ */
 export const DEFAULT_CHAT_TITLE = 'New Chat';
 
 interface ChatContextType {
