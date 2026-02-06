@@ -84,6 +84,7 @@ impl LmStudioProvider {
             "lmstudio".to_string(),
             api_client,
             model,
+            String::new(),
         )))
     }
 }
@@ -116,6 +117,7 @@ impl ProviderDef for LmStudioProvider {
                 "lmstudio".to_string(),
                 api_client,
                 model,
+                String::new(),
             ))
         })
     }
