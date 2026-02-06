@@ -41,12 +41,18 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+#[cfg(all(test, unix))]
+use std::time::{Duration, Instant};
+
 use xcap::{Monitor, Window};
 
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     sync::RwLock,
 };
+
+#[cfg(all(test, unix))]
+use tokio::time::timeout;
 use tokio_stream::{wrappers::SplitStream, StreamExt as _};
 use tokio_util::sync::CancellationToken;
 
@@ -3451,7 +3457,7 @@ mod tests {
                 .await;
 
             // Wait for the shell task to complete
-            let result = timeout(Duration::from_secs(5), shell_task).await;
+            let result: Result<Result<(), _>, _> = timeout(Duration::from_secs(5), shell_task).await;
             let elapsed = start_time.elapsed();
 
             // Verify the task completed due to cancellation (not timeout)
@@ -3533,7 +3539,7 @@ mod tests {
                 .await;
 
             // Wait for completion
-            let result = timeout(Duration::from_secs(5), shell_task).await;
+            let result: Result<Result<(), _>, _> = timeout(Duration::from_secs(5), shell_task).await;
             let elapsed = start_time.elapsed();
 
             assert!(result.is_ok(), "Shell task should complete within timeout");
