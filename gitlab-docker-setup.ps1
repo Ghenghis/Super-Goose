@@ -23,7 +23,8 @@ function Install-GitLab {
     try {
         docker --version | Out-Null
         Write-Host "  ✓ Docker is installed" -ForegroundColor Green
-    } catch {
+    }
+    catch {
         Write-Host "  ✗ Docker not found! Installing..." -ForegroundColor Red
         winget install Docker.DockerDesktop
         Write-Host "  Please restart Docker Desktop and run this script again" -ForegroundColor Yellow
@@ -101,11 +102,13 @@ function Get-Status {
             Write-Host ""
             Write-Host "Root password:" -ForegroundColor Yellow
             docker exec -it $GitLabContainer cat /etc/gitlab/initial_root_password 2>$null
-        } else {
+        }
+        else {
             Write-Host "  ✗ GitLab is STOPPED" -ForegroundColor Red
             Write-Host "  Run: .\gitlab-docker-setup.ps1 -Start" -ForegroundColor Yellow
         }
-    } else {
+    }
+    else {
         Write-Host "  ✗ GitLab not installed" -ForegroundColor Red
         Write-Host "  Run: .\gitlab-docker-setup.ps1 -Install" -ForegroundColor Yellow
     }
@@ -134,7 +137,8 @@ function Uninstall-GitLab {
         Remove-Item -Path $shortcut -Force -ErrorAction SilentlyContinue
 
         Write-Host "  ✓ GitLab uninstalled" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "  Cancelled" -ForegroundColor Yellow
     }
 }
@@ -175,14 +179,19 @@ function Show-Help {
 # Main execution
 if ($Install) {
     Install-GitLab
-} elseif ($Start) {
+}
+elseif ($Start) {
     Start-GitLab
-} elseif ($Stop) {
+}
+elseif ($Stop) {
     Stop-GitLab
-} elseif ($Status) {
+}
+elseif ($Status) {
     Get-Status
-} elseif ($Uninstall) {
+}
+elseif ($Uninstall) {
     Uninstall-GitLab
-} else {
+}
+else {
     Show-Help
 }
