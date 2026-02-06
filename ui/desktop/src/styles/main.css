@@ -298,6 +298,7 @@
   animation: sidebar-item-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   /* Use will-change sparingly and remove after animation */
   will-change: transform, opacity;
+  animation-fill-mode: forwards;
 }
 
 .sidebar-item:nth-child(1) {
@@ -322,10 +323,7 @@
   animation-delay: 0.5s;
 }
 
-/* Remove will-change after animation completes */
-.sidebar-item {
-  animation-fill-mode: forwards;
-}
+/* Merged: animation-fill-mode combined with initial .sidebar-item definition above */
 
 @media (prefers-reduced-motion: reduce) {
   .sidebar-item {
@@ -486,27 +484,7 @@
   background-color: var(--color-neutral-500);
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-neutral-200);
-  border-radius: 4px;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: var(--color-neutral-400);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-neutral-300);
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-neutral-500);
-}
+/* Duplicate scrollbar styles removed - consolidated above */
 
 body {
   background-color: var(--background-default);
