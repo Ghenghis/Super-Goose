@@ -42,6 +42,26 @@ Object.assign(navigator, {
   },
 });
 
+// Mock localStorage and sessionStorage
+const storageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+  key: vi.fn(),
+  length: 0,
+};
+
+Object.defineProperty(window, 'localStorage', {
+  value: storageMock,
+  writable: true,
+});
+
+Object.defineProperty(window, 'sessionStorage', {
+  value: { ...storageMock },
+  writable: true,
+});
+
 // Mock window.electron for renderer process
 Object.defineProperty(window, 'electron', {
   writable: true,

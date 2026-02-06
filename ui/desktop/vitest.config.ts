@@ -16,6 +16,10 @@ const cfg = {
     setupFiles: ['./src/test/setup.ts'],
     css: true,
     include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
+    // React 19 requires NODE_ENV=development for act() to be available
+    env: {
+      NODE_ENV: 'development',
+    },
   },
 } satisfies Record<string, any>
 
