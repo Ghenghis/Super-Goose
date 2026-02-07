@@ -1,4 +1,5 @@
 pub mod adversarial;
+pub mod evolution;
 mod agent;
 pub(crate) mod apps_extension;
 mod builtin_skills;
@@ -47,6 +48,12 @@ pub use adversarial::{
     AdversarialConfig, AdversarialRole, CoachAgent, CoachConfig, CoachReview, IssueCategory,
     IssueSeverity, PlayerAgent, PlayerConfig, PlayerResult, QualityStandards, ReviewCycle,
     ReviewFeedback, ReviewIssue, ReviewOutcome, ReviewStats,
+};
+pub use evolution::{
+    DisclosureLayer, DisclosureStrategy, EvolutionConfig, EvolutionResult, EvolutionStrategy,
+    LayeredContext, MemoryContext, MemoryRetrieval, MetricsTracker, OptimizationConfig,
+    OptimizationResult, PromptOptimizer, PromptPerformance, PromptVariation, ReflexionQuery,
+    SuccessMetrics,
 };
 pub use agent::{
     Agent, AgentConfig, AgentEvent, CritiqueDecision, ExecutionMode, ExtensionLoadResult,
