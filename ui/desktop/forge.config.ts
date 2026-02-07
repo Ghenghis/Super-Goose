@@ -44,7 +44,7 @@ module.exports = {
       config: {
         repository: {
           owner: process.env.GITHUB_OWNER || 'Ghenghis',
-          name: process.env.GITHUB_REPO || 'goose',
+          name: process.env.GITHUB_REPO || 'Super-Goose',
         },
         prerelease: false,
         draft: true,
@@ -65,10 +65,10 @@ module.exports = {
     {
       name: '@electron-forge/maker-deb',
       config: {
-        name: 'Goose',
-        bin: 'Goose',
-        maintainer: 'Block, Inc.',
-        homepage: 'https://block.github.io/goose/',
+        name: 'Super-Goose',
+        bin: 'Super-Goose',
+        maintainer: 'Ghenghis',
+        homepage: 'https://Ghenghis.github.io/Super-Goose/',
         categories: ['Development'],
         desktopTemplate: './forge.deb.desktop',
         options: {
@@ -80,10 +80,10 @@ module.exports = {
     {
       name: '@electron-forge/maker-rpm',
       config: {
-        name: 'Goose',
-        bin: 'Goose',
-        maintainer: 'Block, Inc.',
-        homepage: 'https://block.github.io/goose/',
+        name: 'Super-Goose',
+        bin: 'Super-Goose',
+        maintainer: 'Ghenghis',
+        homepage: 'https://Ghenghis.github.io/Super-Goose/',
         categories: ['Development'],
         desktopTemplate: './forge.rpm.desktop',
         options: {
@@ -99,10 +99,10 @@ module.exports = {
         options: {
           categories: ['Development'],
           icon: 'src/images/icon.png',
-          homepage: 'https://block.github.io/goose/',
+          homepage: 'https://Ghenghis.github.io/Super-Goose/',
           runtimeVersion: '25.08',
           baseVersion: '25.08',
-          bin: 'Goose',
+          bin: 'Super-Goose',
           modules: [
             {
               name: 'libbz2-shim',
