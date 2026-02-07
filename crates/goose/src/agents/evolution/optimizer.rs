@@ -4,8 +4,7 @@
 //! meta-prompting techniques inspired by TextGrad.
 
 use super::memory_integration::{MemoryContext, MemoryRetrieval, ReflexionQuery};
-use super::metrics::{MetricsTracker, PromptPerformance};
-use super::progressive_disclosure::{DisclosureStrategy, LayeredContext};
+use super::metrics::MetricsTracker;
 use super::{EvolutionConfig, EvolutionResult, EvolutionStrategy};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -190,7 +189,7 @@ impl PromptOptimizer {
         debug!("Generating prompt optimization via meta-prompting");
 
         // Build meta-prompt for optimization
-        let meta_prompt = self.build_meta_prompt(
+        let _meta_prompt = self.build_meta_prompt(
             original_prompt,
             task_description,
             memory_context,
@@ -351,8 +350,10 @@ mod tests {
 
     #[test]
     fn test_prompt_optimizer_custom_config() {
-        let mut config = OptimizationConfig::default();
-        config.min_improvement = 0.2;
+        let config = OptimizationConfig {
+            min_improvement: 0.2,
+            ..Default::default()
+        };
 
         let optimizer = PromptOptimizer::with_config(config);
         assert_eq!(optimizer.config().min_improvement, 0.2);

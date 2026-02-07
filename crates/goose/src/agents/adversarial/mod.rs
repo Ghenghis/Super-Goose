@@ -17,7 +17,6 @@ pub use coach::{CoachAgent, CoachConfig, CoachReview, ReviewIssue, IssueSeverity
 pub use player::{PlayerAgent, PlayerConfig, PlayerResult};
 pub use review::{ReviewCycle, ReviewOutcome, ReviewFeedback, ReviewStats};
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 /// Agent role in adversarial system

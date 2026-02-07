@@ -66,7 +66,7 @@ impl PostCodeValidator {
         for file in files {
             if file.ends_with(".ts") || file.ends_with(".tsx") {
                 let output = Command::new("npx")
-                    .args(&["tsc", "--noEmit", file])
+                    .args(["tsc", "--noEmit", file])
                     .current_dir("ui/desktop")
                     .output();
 
@@ -81,7 +81,7 @@ impl PostCodeValidator {
                 }
             } else if file.ends_with(".rs") {
                 let output = Command::new("rustc")
-                    .args(&["--parse-only", file])
+                    .args(["--parse-only", file])
                     .output();
 
                 if let Ok(output) = output {
@@ -196,7 +196,7 @@ impl PostCodeValidator {
 
         if !ts_files.is_empty() {
             let output = Command::new("npm")
-                .args(&["run", "lint:check"])
+                .args(["run", "lint:check"])
                 .current_dir("ui/desktop")
                 .output();
 
@@ -219,7 +219,7 @@ impl PostCodeValidator {
 
         if !rs_files.is_empty() {
             let output = Command::new("cargo")
-                .args(&["clippy", "--all-targets", "--", "-D", "warnings"])
+                .args(["clippy", "--all-targets", "--", "-D", "warnings"])
                 .output();
 
             if let Ok(output) = output {
@@ -251,7 +251,7 @@ impl PostCodeValidator {
 
         if has_ts {
             let output = Command::new("npx")
-                .args(&["tsc", "--noEmit"])
+                .args(["tsc", "--noEmit"])
                 .current_dir("ui/desktop")
                 .output();
 
@@ -269,7 +269,7 @@ impl PostCodeValidator {
         let has_rs = files.iter().any(|f| f.ends_with(".rs"));
 
         if has_rs {
-            let output = Command::new("cargo").args(&["check"]).output();
+            let output = Command::new("cargo").args(["check"]).output();
 
             if let Ok(output) = output {
                 if !output.status.success() {
@@ -298,7 +298,7 @@ impl PostCodeValidator {
         // Try TypeScript build
         if Path::new("ui/desktop/package.json").exists() {
             let output = Command::new("npm")
-                .args(&["run", "build"])
+                .args(["run", "build"])
                 .current_dir("ui/desktop")
                 .output();
 
@@ -315,7 +315,7 @@ impl PostCodeValidator {
         // Try Rust build
         if Path::new("Cargo.toml").exists() {
             let output = Command::new("cargo")
-                .args(&["build", "--release"])
+                .args(["build", "--release"])
                 .output();
 
             if let Ok(output) = output {

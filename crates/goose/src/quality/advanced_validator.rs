@@ -3,16 +3,13 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::Path;
 use regex::Regex;
 
-pub struct AdvancedValidator {
-    strict_mode: bool,
-}
+pub struct AdvancedValidator {}
 
 impl AdvancedValidator {
     pub fn new() -> Self {
-        Self { strict_mode: true }
+        Self {}
     }
 
     /// CRITICAL CHECK #1: API Contract Validation
@@ -76,7 +73,7 @@ impl AdvancedValidator {
         // First pass: find all exports
         for file in files {
             if file.ends_with(".tsx") || file.ends_with(".ts") {
-                let content = fs::read_to_string(file)?;
+                let content = fs::read_to_string(file).map_err(|e| e.to_string())?;
 
                 if content.contains("export default") || content.contains("export const") {
                     let component_name = self.extract_component_name(file, &content);
@@ -90,7 +87,7 @@ impl AdvancedValidator {
         // Second pass: find all imports
         for file in files {
             if file.ends_with(".tsx") || file.ends_with(".ts") {
-                let content = fs::read_to_string(file)?;
+                let content = fs::read_to_string(file).map_err(|e| e.to_string())?;
 
                 let imports = self.extract_imports(&content);
                 for import in imports {
@@ -141,7 +138,7 @@ impl AdvancedValidator {
 
         for file in files {
             if file.ends_with(".tsx") || file.ends_with(".ts") {
-                let content = fs::read_to_string(file)?;
+                let content = fs::read_to_string(file).map_err(|e| e.to_string())?;
 
                 // Find all useState declarations
                 let state_vars = self.extract_state_variables(&content);
@@ -199,9 +196,12 @@ impl AdvancedValidator {
     pub async fn validate_event_handlers(&self, files: &[String]) -> Result<ValidationResult, String> {
         let mut issues = Vec::new();
 
+        // Compile regex once outside the loop for performance
+        let debug_handler_re = Regex::new(r"on\w+\s*=\s*\{?\(\)\s*=>\s*console\.log").unwrap();
+
         for file in files {
             if file.ends_with(".tsx") {
-                let content = fs::read_to_string(file)?;
+                let content = fs::read_to_string(file).map_err(|e| e.to_string())?;
 
                 // Check for empty handlers: onClick={() => {}}
                 if content.contains("=> {}") || content.contains("=> { }") {
@@ -214,7 +214,6 @@ impl AdvancedValidator {
                 }
 
                 // Check for debug-only handlers: onClick={() => console.log(...)}
-                let debug_handler_re = Regex::new(r"on\w+\s*=\s*\{?\(\)\s*=>\s*console\.log").unwrap();
                 if debug_handler_re.is_match(&content) {
                     issues.push(ValidationIssue {
                         file: file.clone(),
@@ -302,12 +301,12 @@ impl AdvancedValidator {
         // Read all router files
         let mut router_content = String::new();
         for router_file in router_files {
-            router_content.push_str(&fs::read_to_string(router_file)?);
+            router_content.push_str(&fs::read_to_string(router_file).map_err(|e| e.to_string())?);
         }
 
         // Check if each page component is referenced in router
         for page in &page_components {
-            let component_name = self.extract_component_name(page, &fs::read_to_string(page)?);
+            let component_name = self.extract_component_name(page, &fs::read_to_string(page).map_err(|e| e.to_string())?);
 
             if let Some(name) = component_name {
                 if !router_content.contains(&name) {
@@ -353,12 +352,13 @@ impl AdvancedValidator {
         let fetch_re = Regex::new(r#"fetch\(['"`](/[^'"`]+)['"`]"#).unwrap();
         for cap in fetch_re.captures_iter(content) {
             let endpoint = cap.get(1).unwrap().as_str().to_string();
-            let line = content[..cap.get(0).unwrap().start()].lines().count();
+            let match_start = cap.get(0).unwrap().start();
+            let line = content.get(..match_start).unwrap_or(content).lines().count();
 
             calls.push(ApiCall {
                 endpoint,
                 line,
-                has_error_handling: self.has_error_handling_around(content, cap.get(0).unwrap().start()),
+                has_error_handling: self.has_error_handling_around(content, match_start),
             });
         }
 
@@ -366,12 +366,13 @@ impl AdvancedValidator {
         let axios_re = Regex::new(r#"axios\.(get|post|put|delete)\(['"`](/[^'"`]+)['"`]"#).unwrap();
         for cap in axios_re.captures_iter(content) {
             let endpoint = cap.get(2).unwrap().as_str().to_string();
-            let line = content[..cap.get(0).unwrap().start()].lines().count();
+            let match_start = cap.get(0).unwrap().start();
+            let line = content.get(..match_start).unwrap_or(content).lines().count();
 
             calls.push(ApiCall {
                 endpoint,
                 line,
-                has_error_handling: self.has_error_handling_around(content, cap.get(0).unwrap().start()),
+                has_error_handling: self.has_error_handling_around(content, match_start),
             });
         }
 
@@ -429,9 +430,9 @@ impl AdvancedValidator {
 
     fn has_error_handling_around(&self, content: &str, pos: usize) -> bool {
         // Look for .catch() or try-catch within reasonable distance
-        let context_start = if pos > 200 { pos - 200 } else { 0 };
+        let context_start = pos.saturating_sub(200);
         let context_end = std::cmp::min(pos + 200, content.len());
-        let context = &content[context_start..context_end];
+        let context = content.get(context_start..context_end).unwrap_or("");
 
         context.contains(".catch(") || context.contains("try {")
     }
@@ -518,7 +519,8 @@ impl AdvancedValidator {
 
         for cap in use_state_re.captures_iter(content) {
             let name = cap.get(1).unwrap().as_str().to_string();
-            let line = content[..cap.get(0).unwrap().start()].lines().count();
+            let match_start = cap.get(0).unwrap().start();
+            let line = content.get(..match_start).unwrap_or(content).lines().count();
 
             vars.push(StateVariable { name, line });
         }
@@ -546,7 +548,8 @@ impl AdvancedValidator {
 
         for cap in handler_re.captures_iter(content) {
             let body = cap.get(1).unwrap().as_str().to_string();
-            let line = content[..cap.get(0).unwrap().start()].lines().count();
+            let match_start = cap.get(0).unwrap().start();
+            let line = content.get(..match_start).unwrap_or(content).lines().count();
 
             handlers.push(EventHandler {
                 name: "onClick".to_string(), // Simplified

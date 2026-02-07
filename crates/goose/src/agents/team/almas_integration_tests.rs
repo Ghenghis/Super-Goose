@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::agents::team::{
-        AlmasRole, CapabilityEnforcer, Handoff, HandoffManager, Operation, RoleConfig,
+        AlmasRole, CapabilityEnforcer, Handoff, HandoffManager, Operation,
     };
     use std::fs;
     use std::path::PathBuf;
@@ -113,7 +113,7 @@ mod tests {
     /// Test failure scenario with rollback to Developer
     #[test]
     fn test_qa_failure_rollback() {
-        let temp_dir = TempDir::new().unwrap();
+        let _temp_dir = TempDir::new().unwrap();
 
         // Start at QA role
         let mut manager = HandoffManager::new(AlmasRole::Qa);
@@ -280,7 +280,7 @@ mod tests {
     /// Test Deployer as final role (no further handoffs)
     #[test]
     fn test_deployer_final_role() {
-        let temp_dir = TempDir::new().unwrap();
+        let _temp_dir = TempDir::new().unwrap();
 
         let mut manager = HandoffManager::new(AlmasRole::Deployer);
 

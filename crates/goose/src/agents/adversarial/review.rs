@@ -6,7 +6,7 @@
 use super::coach::{CoachAgent, CoachReview};
 use super::player::{PlayerAgent, PlayerResult};
 use super::AdversarialConfig;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use tracing::{debug, info, warn};
@@ -360,8 +360,10 @@ mod tests {
 
     #[test]
     fn test_review_cycle_custom_config() {
-        let mut config = AdversarialConfig::default();
-        config.max_review_cycles = 5;
+        let config = AdversarialConfig {
+            max_review_cycles: 5,
+            ..Default::default()
+        };
 
         let cycle = ReviewCycle::with_config(config);
         assert_eq!(cycle.config().max_review_cycles, 5);
@@ -393,8 +395,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_review_cycle_max_cycles() {
-        let mut config = AdversarialConfig::default();
-        config.max_review_cycles = 2;
+        let config = AdversarialConfig {
+            max_review_cycles: 2,
+            ..Default::default()
+        };
 
         let mut cycle = ReviewCycle::with_config(config);
 

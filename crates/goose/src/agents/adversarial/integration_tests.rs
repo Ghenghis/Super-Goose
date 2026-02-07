@@ -28,8 +28,10 @@ mod tests {
     /// Test workflow with custom configuration
     #[tokio::test]
     async fn test_custom_configuration() {
-        let mut config = AdversarialConfig::default();
-        config.max_review_cycles = 5;
+        let mut config = AdversarialConfig {
+            max_review_cycles: 5,
+            ..Default::default()
+        };
         config.player_config.temperature = 0.8;
         config.coach_config.temperature = 0.2;
         config.coach_config.quality_standards = QualityStandards::strict();
@@ -97,7 +99,7 @@ mod tests {
 
         // Second execution (should incorporate feedback)
         let result2 = player.execute_task("Write improved code").await.unwrap();
-        let review2 = coach.review_work(&result2).await.unwrap();
+        let _review2 = coach.review_work(&result2).await.unwrap();
 
         assert_eq!(player.task_count(), 2);
         assert_eq!(coach.review_count(), 2);
@@ -305,8 +307,10 @@ mod tests {
     /// Test self-improvement disabled
     #[tokio::test]
     async fn test_self_improvement_disabled() {
-        let mut config = AdversarialConfig::default();
-        config.enable_self_improvement = false;
+        let config = AdversarialConfig {
+            enable_self_improvement: false,
+            ..Default::default()
+        };
 
         let cycle = ReviewCycle::with_config(config);
 
@@ -316,8 +320,10 @@ mod tests {
     /// Test max cycles enforcement
     #[tokio::test]
     async fn test_max_cycles_enforcement() {
-        let mut config = AdversarialConfig::default();
-        config.max_review_cycles = 2;
+        let config = AdversarialConfig {
+            max_review_cycles: 2,
+            ..Default::default()
+        };
 
         let mut cycle = ReviewCycle::with_config(config);
 
@@ -335,12 +341,10 @@ mod tests {
     async fn test_issue_severity_and_categories() {
         use crate::agents::adversarial::{IssueCategory, IssueSeverity};
 
-        let severities = vec![
-            IssueSeverity::Critical,
+        let severities = [IssueSeverity::Critical,
             IssueSeverity::Major,
             IssueSeverity::Minor,
-            IssueSeverity::Info,
-        ];
+            IssueSeverity::Info];
 
         let categories = vec![
             IssueCategory::CompilationError,
@@ -368,7 +372,7 @@ mod tests {
     /// Test comprehensive workflow with metadata tracking
     #[tokio::test]
     async fn test_comprehensive_workflow_with_metadata() {
-        use std::path::PathBuf;
+        
 
         let mut cycle = ReviewCycle::new();
 

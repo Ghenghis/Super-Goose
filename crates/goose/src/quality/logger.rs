@@ -86,7 +86,7 @@ impl ValidationLogger {
 
         // Add to issues collection
         self.issues.entry(detail.issue_type.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(detail.clone());
 
         // Write to log file

@@ -3,9 +3,8 @@
 
 use super::{
     PostCodeValidator, AdvancedValidator, SonarQubeConfig,
-    ValidationReport, ValidationResult, CheckResult,
+    ValidationReport, ValidationResult,
 };
-use std::collections::HashMap;
 use std::time::Instant;
 
 pub struct ComprehensiveValidator {
@@ -199,24 +198,35 @@ impl ComprehensiveValidator {
     async fn validate_dependencies(&self) -> Result<ValidationResult, String> {
         // Run npm audit and cargo audit to check for vulnerable dependencies
         use std::process::Command;
+        use super::advanced_validator::{ValidationIssue, Severity};
         let mut issues = Vec::new();
 
         // Check npm dependencies if package.json exists
         if std::path::Path::new("ui/desktop/package.json").exists() {
-            if let Ok(output) = Command::new("npm").args(&["audit", "--audit-level=moderate"]).current_dir("ui/desktop").output() {
+            if let Ok(output) = Command::new("npm").args(["audit", "--audit-level=moderate"]).current_dir("ui/desktop").output() {
                 if !output.status.success() {
-                    issues.push("npm audit found vulnerabilities in dependencies".to_string());
+                    issues.push(ValidationIssue {
+                        file: "ui/desktop/package.json".to_string(),
+                        line: 0,
+                        severity: Severity::High,
+                        message: "npm audit found vulnerabilities in dependencies".to_string(),
+                    });
                 }
             }
         }
 
         // Check cargo dependencies if Cargo.toml exists
         if std::path::Path::new("Cargo.toml").exists() {
-            if let Ok(output) = Command::new("cargo").args(&["audit"]).output() {
+            if let Ok(output) = Command::new("cargo").args(["audit"]).output() {
                 if !output.status.success() {
                     let stderr = String::from_utf8_lossy(&output.stderr);
                     if !stderr.contains("not installed") && !stderr.is_empty() {
-                        issues.push("cargo audit found vulnerabilities (install with: cargo install cargo-audit)".to_string());
+                        issues.push(ValidationIssue {
+                            file: "Cargo.toml".to_string(),
+                            line: 0,
+                            severity: Severity::High,
+                            message: "cargo audit found vulnerabilities (install with: cargo install cargo-audit)".to_string(),
+                        });
                     }
                 }
             }

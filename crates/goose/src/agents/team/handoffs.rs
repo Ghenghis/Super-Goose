@@ -3,8 +3,8 @@
 //! This module manages transitions between ALMAS specialist roles, ensuring
 //! proper validation, artifact transfer, and workflow continuity.
 
-use super::enforcer::{CapabilityEnforcer, EnforcementResult, Operation};
-use super::roles::{AlmasRole, RoleConfig};
+use super::enforcer::CapabilityEnforcer;
+use super::roles::AlmasRole;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -611,7 +611,7 @@ mod tests {
         assert!(result.valid);
         assert_eq!(result.from_role, AlmasRole::Architect);
         assert_eq!(result.to_role, AlmasRole::Developer);
-        assert!(result.passed_rules.len() > 0);
+        assert!(!result.passed_rules.is_empty());
         assert_eq!(result.failed_rules.len(), 0);
         assert_eq!(result.artifacts_transferred, 1);
     }

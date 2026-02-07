@@ -62,7 +62,6 @@ pub use capabilities::{AgentCapabilities, CapabilitiesConfig};
 pub use container::Container;
 pub use critic::{
     AggregatedCritique, Critic, CriticManager, CritiqueContext, CritiqueIssue, CritiqueResult,
-    IssueCategory, IssueSeverity,
 };
 pub use execute_commands::COMPACT_TRIGGERS;
 pub use extension::ExtensionConfig;

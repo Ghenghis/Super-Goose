@@ -1,7 +1,7 @@
 // Multi-Pass Recursive Validation System
 // State-of-the-art validation with loops, fail-safes, and auto-fix
 
-use super::{PostCodeValidator, AdvancedValidator, ValidationReport, ValidationResult};
+use super::{PostCodeValidator, AdvancedValidator};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use sha2::{Sha256, Digest};
@@ -15,7 +15,6 @@ pub struct MultiPassValidator {
     max_iterations: usize,
     current_iteration: usize,
     previous_snapshots: Vec<ValidationSnapshot>,
-    cache: ValidationCache,
     start_time: Instant,
 }
 
@@ -27,7 +26,6 @@ impl MultiPassValidator {
             max_iterations: MAX_ITERATIONS,
             current_iteration: 0,
             previous_snapshots: Vec::new(),
-            cache: ValidationCache::new(),
             start_time: Instant::now(),
         }
     }
@@ -71,15 +69,14 @@ impl MultiPassValidator {
             let snapshot = self.run_all_passes(files).await?;
 
             // FAIL-SAFE #3: Regression detection
-            if self.current_iteration > 1 {
-                if self.has_regressed(&snapshot) {
+            if self.current_iteration > 1
+                && self.has_regressed(&snapshot) {
                     println!("\n⚠️  ❌ REGRESSION DETECTED!");
                     println!("   Fixes introduced new failures - rolling back...\n");
 
                     self.rollback_last_changes()?;
                     continue;
                 }
-            }
 
             // Store snapshot
             self.previous_snapshots.push(snapshot.clone());
@@ -98,7 +95,7 @@ impl MultiPassValidator {
                     return Ok(FinalReport {
                         iterations: self.current_iteration,
                         final_snapshot: snapshot,
-                        verification: verification,
+                        verification,
                         duration: self.start_time.elapsed(),
                     });
                 } else {
@@ -257,7 +254,7 @@ impl MultiPassValidator {
         println!("🔄 Rolling back last changes using git...");
 
         let output = std::process::Command::new("git")
-            .args(&["reset", "--hard", "HEAD"])
+            .args(["reset", "--hard", "HEAD"])
             .output()
             .map_err(|e| format!("Failed to rollback: {}", e))?;
 
@@ -326,7 +323,7 @@ impl MultiPassValidator {
     }
 
     async fn quality_security_checks(&self, _files: &[String]) -> Result<PassResult, String> {
-        let mut result = PassResult::new("Quality & Security");
+        let result = PassResult::new("Quality & Security");
 
         // TODO: Implement full quality checks
 
@@ -334,7 +331,7 @@ impl MultiPassValidator {
     }
 
     async fn build_runtime_checks(&self, _files: &[String]) -> Result<PassResult, String> {
-        let mut result = PassResult::new("Build & Runtime");
+        let result = PassResult::new("Build & Runtime");
 
         // TODO: Implement build checks
 
@@ -598,8 +595,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_multipass_validator() {
-        let mut validator = MultiPassValidator::new();
-        let files = vec!["test.ts".to_string()];
+        let validator = MultiPassValidator::new();
+        let _files = ["test.ts".to_string()];
 
         // This would run full validation in real scenario
         // For test, just ensure it compiles

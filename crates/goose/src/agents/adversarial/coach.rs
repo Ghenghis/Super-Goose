@@ -301,7 +301,7 @@ impl CoachAgent {
         } else {
             // Check quality standards
             let mut quality_score = 1.0;
-            let mut issues = Vec::new();
+            let issues = Vec::new();
 
             // In production, would run actual checks here
             if self.config.quality_standards.zero_errors {
@@ -328,8 +328,8 @@ impl CoachAgent {
         };
 
         review = review
-            .with_metadata("player_provider", &player_result.metadata.get("provider").map(|s| s.as_str()).unwrap_or("unknown"))
-            .with_metadata("files_changed", &player_result.files_changed.len().to_string());
+            .with_metadata("player_provider", player_result.metadata.get("provider").map(|s| s.as_str()).unwrap_or("unknown"))
+            .with_metadata("files_changed", player_result.files_changed.len().to_string());
 
         Ok(review)
     }
@@ -351,7 +351,7 @@ impl Default for CoachAgent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    
 
     #[test]
     fn test_coach_config_default() {

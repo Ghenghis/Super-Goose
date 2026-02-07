@@ -53,7 +53,7 @@ mod tests {
     #[tokio::test]
     async fn test_progressive_disclosure_workflow() {
         let mut context = LayeredContext::new();
-        let strategy = DisclosureStrategy::default();
+        let _strategy = DisclosureStrategy::default();
 
         // Layer 1: Add compact index
         for i in 0..5 {
@@ -145,7 +145,7 @@ mod tests {
         let mut optimizer = PromptOptimizer::new();
 
         // First optimization
-        let result1 = optimizer
+        let _result1 = optimizer
             .optimize_prompt("Basic prompt", "Do the task")
             .await
             .unwrap();
@@ -244,10 +244,12 @@ mod tests {
     /// Test evolution with custom configuration
     #[tokio::test]
     async fn test_custom_evolution_config() {
-        let mut config = EvolutionConfig::default();
-        config.min_iterations = 3;
-        config.success_threshold = 0.9;
-        config.max_variations = 5;
+        let config = EvolutionConfig {
+            min_iterations: 3,
+            success_threshold: 0.9,
+            max_variations: 5,
+            ..Default::default()
+        };
 
         let opt_config = OptimizationConfig {
             evolution: config,

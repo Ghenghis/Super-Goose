@@ -16,6 +16,9 @@ pub mod handoffs;
 #[cfg(test)]
 mod almas_integration_tests;
 
+#[cfg(test)]
+mod enforcer_fix_validation_tests;
+
 pub use builder::BuilderAgent;
 pub use coordinator::{TeamConfig, TeamCoordinator, TeamResult, TeamWorkflow};
 pub use validator::ValidatorAgent;

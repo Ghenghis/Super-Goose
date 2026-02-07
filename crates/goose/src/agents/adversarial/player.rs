@@ -4,7 +4,7 @@
 //! It has full access to all tools and executes tasks, but all work is
 //! reviewed by the Coach before reaching the user.
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;

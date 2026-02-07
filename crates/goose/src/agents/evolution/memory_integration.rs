@@ -4,7 +4,7 @@
 //! prompt optimization. Uses past attempts, reflections, and outcomes to
 //! improve future prompts.
 
-use crate::agents::reflexion::{ReflectionMemory, TaskAttempt, Reflection};
+use crate::agents::reflexion::{ReflectionMemory, TaskAttempt};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -205,7 +205,7 @@ impl Default for MemoryRetrieval {
 }
 
 /// Extract patterns from Reflexion memory
-pub fn extract_patterns_from_memory(memory: &ReflectionMemory) -> Vec<String> {
+pub fn extract_patterns_from_memory(_memory: &ReflectionMemory) -> Vec<String> {
     // Placeholder: Would analyze actual Reflexion data
     // In production, this would:
     // 1. Iterate through reflection entries
@@ -224,7 +224,7 @@ pub fn calculate_success_rate(attempts: &[TaskAttempt]) -> f32 {
 
     let successes = attempts
         .iter()
-        .filter(|a| matches!(a.outcome, crate::agents::reflexion::AttemptOutcome::Success(_)))
+        .filter(|a| matches!(a.outcome, crate::agents::reflexion::AttemptOutcome::Success))
         .count();
 
     successes as f32 / attempts.len() as f32

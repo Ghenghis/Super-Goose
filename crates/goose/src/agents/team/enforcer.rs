@@ -4,11 +4,10 @@
 //! all file access, command execution, and code modification operations against
 //! the permissions defined for each ALMAS role.
 
-use super::roles::{AlmasRole, CommandPermissions, FileAccessPatterns, RoleCapabilities, RoleConfig};
+use super::roles::{AlmasRole, RoleConfig};
 use anyhow::{anyhow, Result};
 use glob::Pattern;
 use std::path::{Path, PathBuf};
-use std::collections::HashSet;
 use tracing::{debug, warn};
 
 /// Capability enforcement engine that validates operations against role permissions
@@ -42,7 +41,7 @@ pub struct EnforcementResult {
 impl CapabilityEnforcer {
     /// Create a new capability enforcer for the specified role
     pub fn new(role: AlmasRole) -> Self {
-        let role_config = RoleConfig::from_role(role);
+        let role_config = RoleConfig::for_role(role);
         Self {
             current_role: role,
             role_config,
@@ -106,7 +105,7 @@ impl CapabilityEnforcer {
     }
 
     /// Check if file read is allowed
-    fn check_read(&self, path: &Path) -> EnforcementResult {
+    pub fn check_read(&self, path: &Path) -> EnforcementResult {
         if !self.role_config.capabilities.can_read {
             return EnforcementResult {
                 allowed: false,
@@ -137,7 +136,7 @@ impl CapabilityEnforcer {
     }
 
     /// Check if file write is allowed
-    fn check_write(&self, path: &Path) -> EnforcementResult {
+    pub fn check_write(&self, path: &Path) -> EnforcementResult {
         if !self.role_config.capabilities.can_write {
             return EnforcementResult {
                 allowed: false,
@@ -168,7 +167,7 @@ impl CapabilityEnforcer {
     }
 
     /// Check if command execution is allowed
-    fn check_execute(&self, command: &str) -> EnforcementResult {
+    pub fn check_execute(&self, command: &str) -> EnforcementResult {
         if !self.role_config.capabilities.can_execute {
             return EnforcementResult {
                 allowed: false,
@@ -196,7 +195,7 @@ impl CapabilityEnforcer {
     }
 
     /// Check if code editing is allowed
-    fn check_edit_code(&self, path: &Path) -> EnforcementResult {
+    pub fn check_edit_code(&self, path: &Path) -> EnforcementResult {
         if !self.role_config.capabilities.can_edit_code {
             return EnforcementResult {
                 allowed: false,
@@ -420,7 +419,7 @@ impl CapabilityEnforcer {
             "Switching role"
         );
         self.current_role = new_role;
-        self.role_config = RoleConfig::from_role(new_role);
+        self.role_config = RoleConfig::for_role(new_role);
     }
 
     /// Batch check multiple operations
@@ -526,7 +525,7 @@ mod tests {
 
     #[test]
     fn test_file_pattern_matching() {
-        let mut config = RoleConfig::from_role(AlmasRole::Architect);
+        let mut config = RoleConfig::for_role(AlmasRole::Architect);
         config.file_access.allowed_patterns.insert("*.md".to_string());
         config.file_access.blocked_patterns.insert("SECRET.md".to_string());
 
@@ -544,7 +543,7 @@ mod tests {
 
     #[test]
     fn test_command_permission_checking() {
-        let mut config = RoleConfig::from_role(AlmasRole::Developer);
+        let mut config = RoleConfig::for_role(AlmasRole::Developer);
         config.command_permissions.allowed_commands.insert("cargo".to_string());
         config.command_permissions.blocked_commands.insert("rm".to_string());
 
