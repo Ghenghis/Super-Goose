@@ -2,6 +2,44 @@
 
 goose is a **sophisticated enterprise AI agent framework** in Rust with CLI and Electron desktop interfaces, featuring advanced multi-agent orchestration, specialist agents, and enterprise workflow automation.
 
+## Quick Reference
+
+**Primary Stacks:** Rust 1.75+ (backend) + TypeScript 5.9/React 19 (desktop)
+**Key Commands:** `just release-binary`, `just run-ui`, `cargo test`, `./scripts/clippy-lint.sh`
+**Entry Points:** Backend: `crates/goose/src/lib.rs` | Desktop: `ui/desktop/src/main.ts`
+**Tests:** `cargo test` (Rust 950+ tests) | `npm run test:run` (UI 298 tests)
+
+## Tech Stack (Complete)
+
+### Backend Stack
+- **Language**: Rust 1.75+ (2021 edition)
+- **Async Runtime**: Tokio 1.x
+- **Web Framework**: Axum 0.7
+- **Build Tool**: Cargo + Just (cross-platform commands)
+- **Testing**: Cargo test (950+ tests), cargo-nextest
+- **Linting**: Clippy (zero warnings policy) + rustfmt
+- **Quality**: SonarQube integration, Tarpaulin coverage
+- **Key Crates**: anyhow, serde, tracing, async-trait
+
+### Desktop Stack
+- **Runtime**: Electron 40.2.1
+- **UI Framework**: React 19.2.4 (functional components)
+- **Language**: TypeScript 5.9.3 (strict mode)
+- **Build**: Vite 7.3.1 + Electron Forge 7.10.2
+- **Testing**: Vitest 4.0.18 (298 tests) + Playwright 1.57.0 (E2E)
+- **Styling**: Tailwind CSS 4.1.18 + clsx for conditionals
+- **State**: React Context API + SWR 2.3.8 for data fetching
+- **Quality**: ESLint 9.39 + Prettier + Husky + lint-staged
+- **Coverage**: Vitest Coverage v8 (12.2% current, 80% target)
+
+### CI/CD Stack
+- **Platform**: GitLab CI/CD (4-stage pipeline)
+- **Quality Gate**: SonarQube Community Edition 9.9.8
+- **Coverage**: Vitest Coverage (v8) + Cargo tarpaulin/llvm-cov
+- **Pre-commit**: Husky hooks block TODO/FIXME/HACK/XXX markers
+- **Pre-push**: SonarQube analysis enforces quality gate
+- **Standards**: Zero warnings, zero blockers, zero critical issues
+
 ## Setup
 ```bash
 source bin/activate-hermit
@@ -84,15 +122,73 @@ ui/desktop/           # Electron app
 ```
 
 ## Development Loop
+
+### Rust Changes
 ```bash
-# 1. source bin/activate-hermit
-# 2. Make changes
-# 3. cargo fmt
-# 4. cargo build
-# 5. cargo test -p <crate>
-# 6. ./scripts/clippy-lint.sh
-# 7. [if server] just generate-openapi
+1. source bin/activate-hermit
+2. Make changes
+3. cargo fmt                           # format
+4. cargo build                         # compile
+5. cargo test -p <crate>               # test specific crate
+6. ./scripts/clippy-lint.sh            # zero warnings
+7. [if server changes] just generate-openapi
 ```
+
+### UI Changes
+```bash
+1. cd ui/desktop
+2. Make changes
+3. npm run typecheck                   # TypeScript validation
+4. npm run lint:check                  # ESLint (--max-warnings 0)
+5. npm run test:run                    # Vitest tests
+6. npm run format:check                # Prettier
+7. [if API changes] just generate-openapi
+```
+
+### Performance Optimization (File-Scoped Operations)
+
+**Single-File Operations (Preferred for Speed):**
+```bash
+# Type check one file
+cd ui/desktop && npx tsc --noEmit src/components/ChatView.tsx
+
+# Lint one file
+cd ui/desktop && npx eslint src/components/ChatView.tsx --fix
+
+# Test one file
+cd ui/desktop && npx vitest src/components/ChatView.test.tsx
+
+# Clippy one crate
+cargo clippy -p goose -- -D warnings
+```
+
+**Full Project (Only When Explicitly Needed):**
+```bash
+npm run typecheck     # Full type check
+npm run lint:check    # Full lint (all files)
+npm run test:run      # Full test suite (298 tests)
+./scripts/clippy-lint.sh  # All Rust warnings
+```
+
+## File Structure Map (Quick Navigation)
+
+### Key Configuration Files
+- **Rust**: `Cargo.toml`, `Cargo.lock`, `.clippy.toml`
+- **UI**: `ui/desktop/package.json`, `ui/desktop/tsconfig.json`
+- **Build**: `justfile`, `ui/desktop/forge.config.ts`, `ui/desktop/vite.config.ts`
+- **Quality**: `crates/sonar-project.properties`, `ui/sonar-project.properties`
+- **Tests**: `ui/desktop/vitest.config.ts`, `ui/desktop/playwright.config.ts`
+- **Linting**: `ui/desktop/eslint.config.js`, `.prettierrc`
+- **Git**: `.husky/pre-commit`, `.husky/pre-push`, `.gitlab-ci.yml`
+
+### When You Modify...
+| Change Type | Required Steps | Files to Update |
+|------------|---------------|-----------------|
+| **Rust core feature** | `cargo fmt` → `cargo build` → `cargo test` → `./scripts/clippy-lint.sh` | `crates/goose/src/` |
+| **Server API endpoint** | Add route → `just generate-openapi` → rebuild UI | `crates/goose-server/src/routes/` |
+| **UI component** | Create component → update `App.tsx` → add tests → lint | `ui/desktop/src/components/` |
+| **Shared types** | Update model → `just generate-openapi` → rebuild both | `crates/goose-server/src/models/` |
+| **Dependencies** | `cargo add <crate>` (Rust) | `npm install <pkg>` (UI) | `Cargo.toml`, `package.json` |
 
 ## Rules
 
@@ -122,13 +218,91 @@ Errors: Don't add error context that doesn't add useful information (e.g., `.con
 Simplicity: Avoid overly defensive code - trust Rust's type system
 Logging: Clean up existing logs, don't add more unless for errors or security events
 
-## Never
+## Common Patterns
 
-Never: Edit ui/desktop/openapi.json manually
-Never: Edit Cargo.toml use cargo add
-Never: Skip cargo fmt
-Never: Merge without ./scripts/clippy-lint.sh
-Never: Comment self-evident operations (`// Initialize`, `// Return result`), getters/setters, constructors, or standard Rust idioms
+### Adding a New Rust Crate Feature
+```bash
+1. Implement in crates/goose/src/
+2. Export in crates/goose/src/lib.rs
+3. Add tests in crates/goose/tests/
+4. cargo fmt && cargo build && cargo test
+5. ./scripts/clippy-lint.sh (zero warnings)
+6. Update AGENTS.md if workflow changes
+```
+
+### Adding a New Desktop UI Feature
+```bash
+1. Create component in ui/desktop/src/components/
+2. Add route in App.tsx if needed
+3. Add tests: vitest src/components/YourComponent.test.tsx
+4. Run quality checks: typecheck + lint + test
+5. [if API integration] just generate-openapi
+```
+
+### Adding a Server API Endpoint
+```bash
+1. Define route in crates/goose-server/src/routes/
+2. Add model in crates/goose-server/src/models/ (if needed)
+3. Implement handler logic
+4. just generate-openapi (creates ui/desktop/openapi.json)
+5. Rebuild UI to get TypeScript types
+6. Add tests for both backend and frontend
+```
+
+### Code Examples to Follow
+
+**React Components**: Copy pattern from `ui/desktop/src/components/SettingsView.tsx`
+- Functional components with TypeScript
+- Props interface above component
+- Use React Context for global state
+- clsx for conditional Tailwind classes
+
+**Rust Agent Specialists**: See `crates/goose/src/agents/specialists/code_agent.rs`
+- Implement SpecialistAgent trait
+- Use anyhow::Result for errors
+- Add comprehensive tests in tests/ folder
+- Follow existing logging patterns with tracing
+
+**IPC Communication**: See `ui/desktop/src/components/McpApps/useSandboxBridge.ts`
+- Main process exposes: `window.electron.invoke('channel-name', args)`
+- Preload defines: `ipcRenderer.invoke('channel-name', args)`
+- Type-safe with TypeScript interfaces
+
+**Forms**: Use Tanstack React Form like `ui/desktop/src/components/SettingsView.tsx`
+- Controlled components
+- Validation on submit
+- Error display patterns
+
+## Anti-Patterns (Never Do This)
+
+### Build/Config
+- ❌ Edit `ui/desktop/openapi.json` manually (always use `just generate-openapi`)
+- ❌ Edit `Cargo.toml` manually (use `cargo add <crate>` instead)
+- ❌ Edit `package.json` dependencies manually (use `npm install`)
+- ❌ Commit without `cargo fmt` and `./scripts/clippy-lint.sh`
+- ❌ Commit UI changes without `npm run typecheck` and `npm run lint:check`
+- ❌ Skip running tests before claiming task complete
+- ❌ Use `--no-verify` on git commits (bypasses quality hooks)
+
+### Code Quality
+- ❌ Add comments that restate what code does (`// Initialize variable`)
+- ❌ Comment getters/setters, constructors, or standard Rust/TypeScript idioms
+- ❌ Make booleans optional when they should default to `false` (not `Option<bool>`)
+- ❌ Add error context that doesn't add information (`.context("Failed to X")`)
+- ❌ Write defensive code that duplicates type system guarantees
+- ❌ Add logs for normal operations (only for errors or security events)
+
+### Security
+- ❌ Commit secrets, API keys, tokens, or credentials
+- ❌ Skip security validation in `crates/goose/src/guardrails/`
+- ❌ Bypass approval policies without explicit user permission
+- ❌ Store credentials in code or config files (use environment variables)
+
+### Architecture
+- ❌ Introduce new patterns without discussing trade-offs
+- ❌ Mix async/sync patterns (use Tokio consistently)
+- ❌ Create circular dependencies between crates
+- ❌ Add dependencies without checking existing alternatives
 
 ## Phase 7 Claude-Inspired Features
 
