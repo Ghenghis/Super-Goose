@@ -81,3 +81,5 @@ goose/temp/
 
 # Local build outputs (use releases instead)
 build-output/
+.scannerwork/
+hs_err_pid*.log
