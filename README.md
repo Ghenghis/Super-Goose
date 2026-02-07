@@ -13,8 +13,8 @@
   <a href="https://discord.gg/goose-oss">
     <img src="https://img.shields.io/discord/1287729918100246654?logo=discord&logoColor=white&label=Join+Us&color=blueviolet" alt="Discord">
   </a>
-  <a href="https://github.com/block/goose/actions/workflows/ci.yml">
-     <img src="https://img.shields.io/github/actions/workflow/status/block/goose/ci.yml?branch=main" alt="CI">
+  <a href="https://github.com/Ghenghis/goose/actions/workflows/ci.yml">
+     <img src="https://img.shields.io/github/actions/workflow/status/Ghenghis/goose/ci.yml?branch=main" alt="CI">
   </a>
   <img src="https://img.shields.io/badge/tests-950%2B%20passing-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/rust-1.75+-orange" alt="Rust">

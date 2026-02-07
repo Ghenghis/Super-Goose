@@ -639,15 +639,16 @@ export function setupAutoUpdater(tray?: Tray) {
     // Show native notification
     const notification = new Notification({
       title: 'Update Ready',
-      body: `Version ${info.version} will be installed when you quit Goose. Click to install now.`,
+      body: `Version ${info.version} has been downloaded. Restarting Goose to install...`,
     });
     notification.show();
 
-    // Optional: Add click handler to install immediately
-    notification.on('click', () => {
-      trackUpdateInstallInitiated(info.version, 'electron-updater', 'quit_and_install');
+    // Auto-restart after 3 seconds to give user time to see notification
+    setTimeout(() => {
+      log.info('Auto-restarting to install update:', info.version);
+      trackUpdateInstallInitiated(info.version, 'electron-updater', 'quit_and_install_auto');
       autoUpdater.quitAndInstall(false, true);
-    });
+    }, 3000);
   });
 }
 
