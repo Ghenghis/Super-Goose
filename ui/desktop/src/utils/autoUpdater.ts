@@ -646,7 +646,7 @@ export function setupAutoUpdater(tray?: Tray) {
     // Auto-restart after 3 seconds to give user time to see notification
     setTimeout(() => {
       log.info('Auto-restarting to install update:', info.version);
-      trackUpdateInstallInitiated(info.version, 'electron-updater', 'quit_and_install_auto');
+      trackUpdateInstallInitiated(info.version, 'electron-updater', 'quit_and_install');
       autoUpdater.quitAndInstall(false, true);
     }, 3000);
   });
