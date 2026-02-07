@@ -19,7 +19,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     # Only run on the canonical repo (forks don't have gh-pages permissions)
-    if: github.repository == 'block/goose'
+    if: github.repository == 'Ghenghis/Super-Goose'
     permissions:
       contents: write
 

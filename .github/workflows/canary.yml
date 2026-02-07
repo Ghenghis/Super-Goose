@@ -14,7 +14,7 @@ name: Canary
 
 # Only run on the canonical repository, skip forks
 env:
-  IS_CANONICAL_REPO: ${{ github.repository == 'block/goose' }}
+  IS_CANONICAL_REPO: ${{ github.repository == 'Ghenghis/Super-Goose' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,7 +28,7 @@ jobs:
     name: Prepare Version
     runs-on: ubuntu-latest
     # Only run on the canonical repo to prevent fork failures
-    if: github.repository == 'block/goose'
+    if: github.repository == 'Ghenghis/Super-Goose'
     outputs:
       version: ${{ steps.set-version.outputs.version }}
     steps:

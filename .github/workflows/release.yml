@@ -26,7 +26,7 @@ jobs:
   check-repo:
     runs-on: ubuntu-latest
     # Only run releases on the canonical repo
-    if: github.repository == 'block/goose'
+    if: github.repository == 'Ghenghis/Super-Goose'
     steps:
       - run: echo "Running release on canonical repo"
 

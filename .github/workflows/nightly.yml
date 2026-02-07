@@ -24,7 +24,7 @@ jobs:
     name: Prepare Version
     runs-on: ubuntu-latest
     # Only run on the canonical repo to prevent fork failures
-    if: github.repository == 'block/goose'
+    if: github.repository == 'Ghenghis/Super-Goose'
     outputs:
       version: ${{ steps.set-version.outputs.version }}
       commit_sha: ${{ steps.get-commit.outputs.commit_sha }}
@@ -77,7 +77,7 @@ jobs:
       contents: read
     with:
       version: ${{ needs.prepare-version.outputs.version }}
-      signing: true
+      signing: false
     secrets:
       OSX_CODESIGN_ROLE: ${{ secrets.OSX_CODESIGN_ROLE }}
 
@@ -92,7 +92,7 @@ jobs:
     uses: ./.github/workflows/bundle-desktop-windows.yml
     with:
       version: ${{ needs.prepare-version.outputs.version }}
-      signing: true
+      signing: false
     secrets:
       WINDOW_SIGNING_ROLE: ${{ secrets.WINDOW_SIGNING_ROLE }}
       WINDOW_SIGNING_ROLE_TAG: ${{ secrets.WINDOW_SIGNING_ROLE_TAG }}
