@@ -1,3 +1,4 @@
+pub mod adversarial;
 mod agent;
 pub(crate) mod apps_extension;
 mod builtin_skills;
@@ -42,6 +43,11 @@ mod tool_execution;
 pub mod types;
 pub mod workflow_engine;
 
+pub use adversarial::{
+    AdversarialConfig, AdversarialRole, CoachAgent, CoachConfig, CoachReview, IssueCategory,
+    IssueSeverity, PlayerAgent, PlayerConfig, PlayerResult, QualityStandards, ReviewCycle,
+    ReviewFeedback, ReviewIssue, ReviewOutcome, ReviewStats,
+};
 pub use agent::{
     Agent, AgentConfig, AgentEvent, CritiqueDecision, ExecutionMode, ExtensionLoadResult,
 };
