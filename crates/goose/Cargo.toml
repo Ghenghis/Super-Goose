@@ -86,6 +86,7 @@ sqlx = { version = "0.8", default-features = false, features = [
 ] }
 walkdir = "2.5"
 zip = "0.6"
+glob = "0.3"
 
 # For Bedrock provider
 aws-config = { version = "=1.8.12", features = ["behavior-version-latest"] }

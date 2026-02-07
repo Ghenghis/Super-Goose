@@ -9,10 +9,22 @@
 mod builder;
 mod coordinator;
 mod validator;
+pub mod roles;
+pub mod enforcer;
+pub mod handoffs;
+
+#[cfg(test)]
+mod almas_integration_tests;
 
 pub use builder::BuilderAgent;
 pub use coordinator::{TeamConfig, TeamCoordinator, TeamResult, TeamWorkflow};
 pub use validator::ValidatorAgent;
+pub use roles::{AlmasRole, RoleCapabilities, RoleConfig, FileAccessPatterns, CommandPermissions};
+pub use enforcer::{CapabilityEnforcer, Operation, EnforcementResult};
+pub use handoffs::{
+    Handoff, HandoffArtifact, HandoffContext, HandoffManager, HandoffValidationResult,
+    ValidationRule, ValidationRuleType, ArtifactType,
+};
 
 use crate::validators::ValidationResult;
 use anyhow::Result;
