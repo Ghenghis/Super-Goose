@@ -30,7 +30,7 @@ The MongoDB MCP server connects to a single MongoDB database instance using a co
 
 The MongoDB connection string follows this format:
 ```
-mongodb://username:password@hostname:27017/database
+mongodb://&lt;USERNAME&gt;:&lt;PASSWORD&gt;@hostname:27017/database
 ```
 
 Where:
@@ -66,7 +66,7 @@ Note that you'll need [Node.js](https://nodejs.org/) installed on your system to
     />
     
     :::info Configure Your Connection String
-    If needed, [update the extension](/docs/getting-started/using-extensions#updating-extension-properties) to match to your [MongoDB environment](#customizing-your-connection). For example, change the connection string in the `command` property to use the `mongodb://username:password@hostname:27017/database` format.
+    If needed, [update the extension](/docs/getting-started/using-extensions#updating-extension-properties) to match to your [MongoDB environment](#customizing-your-connection). For example, change the connection string in the `command` property to use the `mongodb://&lt;USERNAME&gt;:&lt;PASSWORD&gt;@hostname:27017/database` format.
     :::
 
   </TabItem>

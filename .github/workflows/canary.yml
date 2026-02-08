@@ -12,6 +12,9 @@ on:
 
 name: Canary
 
+permissions:
+  contents: write
+
 # Only run on the canonical repository, skip forks
 env:
   IS_CANONICAL_REPO: ${{ github.repository == 'Ghenghis/Super-Goose' }}

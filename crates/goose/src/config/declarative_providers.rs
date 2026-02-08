@@ -220,7 +220,23 @@ pub fn update_custom_provider(params: UpdateCustomProviderParams) -> Result<()> 
     Ok(())
 }
 
+/// Validate that a provider ID is safe for use in file paths (no path traversal)
+fn validate_provider_id(id: &str) -> Result<()> {
+    if id.is_empty()
+        || id.contains('/')
+        || id.contains('\\')
+        || id.contains("..")
+        || id.contains('\0')
+    {
+        return Err(anyhow::anyhow!(
+            "Invalid provider ID: must not contain path separators or traversal sequences"
+        ));
+    }
+    Ok(())
+}
+
 pub fn remove_custom_provider(id: &str) -> Result<()> {
+    validate_provider_id(id)?;
     let config = Config::global();
     let api_key_name = generate_api_key_name(id);
     let _ = config.delete_secret(&api_key_name);
@@ -236,6 +252,7 @@ pub fn remove_custom_provider(id: &str) -> Result<()> {
 }
 
 pub fn load_provider(id: &str) -> Result<LoadedProvider> {
+    validate_provider_id(id)?;
     let custom_file_path = custom_providers_dir().join(format!("{}.json", id));
 
     if custom_file_path.exists() {

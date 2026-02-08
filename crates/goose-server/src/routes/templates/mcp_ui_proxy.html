@@ -49,13 +49,26 @@
       const contentType = params.get('contentType');
       const target = params.get('url');
 
-      // Validate that the URL is a valid HTTP or HTTPS URL
+      // Validate that the URL is a valid HTTP or HTTPS URL (block javascript: and data: schemes)
       function isValidHttpUrl(string) {
         try {
           const url = new URL(string);
           return url.protocol === 'http:' || url.protocol === 'https:';
         } catch (error) {
           return false;
+        }
+      }
+
+      // Sanitize URL to prevent open redirect attacks
+      function sanitizeUrl(urlString) {
+        if (!isValidHttpUrl(urlString)) return null;
+        try {
+          const url = new URL(urlString);
+          // Block javascript: and data: URLs that could be embedded
+          if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+          return url.href;
+        } catch (e) {
+          return null;
         }
       }
 
@@ -104,18 +117,19 @@
             type: 'ui-proxy-iframe-ready'
           }, '*');
       } else if (target) {
-        if (!isValidHttpUrl(target)) {
+        const sanitizedTarget = sanitizeUrl(target);
+        if (!sanitizedTarget) {
           document.body.textContent = 'Error: invalid URL. Only HTTP and HTTPS URLs are allowed.';
         } else {
           const inner = document.createElement('iframe');
-          inner.src = target;
+          inner.src = sanitizedTarget;
           inner.style = 'width:100%; height:100%; border:none;';
           // Default external URL sandbox; can be adjusted later by protocol if needed
           inner.setAttribute('sandbox', 'allow-same-origin allow-scripts');
           document
             .body
             .appendChild(inner);
-          const urlOrigin = new URL(target).origin;
+          const urlOrigin = new URL(sanitizedTarget).origin;
 
           window.addEventListener('message', (event) => {
             if (event.source === window.parent) {

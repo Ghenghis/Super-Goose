@@ -264,24 +264,24 @@ function handleToolRequest(data) {
     
     const headerDiv = document.createElement('div');
     headerDiv.className = 'tool-header';
-    headerDiv.innerHTML = `🔧 <strong>${data.tool_name}</strong>`;
-    
+    headerDiv.innerHTML = `🔧 <strong>${escapeHtml(data.tool_name)}</strong>`;
+
     const contentDiv = document.createElement('div');
     contentDiv.className = 'tool-content';
-    
+
     // Format the arguments
     if (data.tool_name === 'developer__shell' && data.arguments.command) {
         contentDiv.innerHTML = `<pre><code>${escapeHtml(data.arguments.command)}</code></pre>`;
     } else if (data.tool_name === 'developer__text_editor') {
         const action = data.arguments.command || 'unknown';
         const path = data.arguments.path || 'unknown';
-        contentDiv.innerHTML = `<div class="tool-param"><strong>action:</strong> ${action}</div>`;
+        contentDiv.innerHTML = `<div class="tool-param"><strong>action:</strong> ${escapeHtml(action)}</div>`;
         contentDiv.innerHTML += `<div class="tool-param"><strong>path:</strong> ${escapeHtml(path)}</div>`;
         if (data.arguments.file_text) {
             contentDiv.innerHTML += `<div class="tool-param"><strong>content:</strong> <pre><code>${escapeHtml(data.arguments.file_text.substring(0, 200))}${data.arguments.file_text.length > 200 ? '...' : ''}</code></pre></div>`;
         }
     } else {
-        contentDiv.innerHTML = `<pre><code>${JSON.stringify(data.arguments, null, 2)}</code></pre>`;
+        contentDiv.innerHTML = `<pre><code>${escapeHtml(JSON.stringify(data.arguments, null, 2))}</code></pre>`;
     }
     
     toolDiv.appendChild(headerDiv);
@@ -346,8 +346,8 @@ function handleToolConfirmation(data) {
     confirmDiv.innerHTML = `
         <div class="tool-confirm-header">⚠️ Tool Confirmation Required</div>
         <div class="tool-confirm-content">
-            <strong>${data.tool_name}</strong> wants to execute with:
-            <pre><code>${JSON.stringify(data.arguments, null, 2)}</code></pre>
+            <strong>${escapeHtml(data.tool_name)}</strong> wants to execute with:
+            <pre><code>${escapeHtml(JSON.stringify(data.arguments, null, 2))}</code></pre>
         </div>
         <div class="tool-confirm-note">Auto-approved in web mode (UI coming soon)</div>
     `;
