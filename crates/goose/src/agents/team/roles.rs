@@ -186,10 +186,12 @@ impl RoleCapabilities {
 /// File access patterns for role-based file restrictions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileAccessPatterns {
-    /// File patterns this role is allowed to access
+    /// File patterns this role is allowed to access (read)
     pub allowed_patterns: HashSet<String>,
-    /// File patterns this role is explicitly blocked from
+    /// File patterns this role is explicitly blocked from (read and write)
     pub blocked_patterns: HashSet<String>,
+    /// File patterns that are read-only (can read but not write)
+    pub read_only_patterns: HashSet<String>,
 }
 
 impl FileAccessPatterns {
@@ -284,6 +286,12 @@ impl FileAccessPatterns {
         allowed.insert("DEPLOYMENT_REPORT.md".to_string());
         allowed.insert("ROLLBACK_PLAN.md".to_string());
         allowed.insert("releases/**/*".to_string());
+        // Allow reading deployment configuration files
+        allowed.insert("**/Dockerfile".to_string());
+        allowed.insert("**/*.dockerfile".to_string());
+        allowed.insert("**/docker-compose.yml".to_string());
+        allowed.insert("**/docker-compose.yaml".to_string());
+        allowed.insert("**/.dockerignore".to_string());
 
         let mut blocked = HashSet::new();
         blocked.insert("**/src/**/*.rs".to_string());

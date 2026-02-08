@@ -1,0 +1,44 @@
+# Project Soul Dependencies (2026 SOTA Stack)
+
+# Core Voice Engine
+moshi-python>=0.2.0           # Kyutai Moshi native speech-to-speech
+torch>=2.1.0                  # PyTorch for Moshi
+torchaudio>=2.1.0             # Audio processing
+sounddevice>=0.4.6            # Audio I/O
+scipy>=1.11.0                 # Signal processing
+
+# Memory System
+mem0ai>=0.1.0                 # Personal memory management
+qdrant-client>=1.7.0          # Vector database (local)
+sentence-transformers>=2.3.0  # Local embeddings
+chromadb>=0.4.22              # Alternative vector DB
+
+# Emotion & NLP
+transformers>=4.36.0          # HuggingFace models
+librosa>=0.10.1               # Audio feature extraction
+pyannote.audio>=3.1.0         # Speaker/emotion analysis
+
+# Super-Goose Integration
+websockets>=12.0              # Event system
+aiohttp>=3.9.0                # Async HTTP client
+pyyaml>=6.0.1                 # Config management
+watchdog>=3.0.0               # File system monitoring
+
+# UI (Orb)
+pygame>=2.5.2                 # Minimal UI framework
+pillow>=10.2.0                # Image processing
+numpy>=1.26.0                 # Math operations
+
+# Utilities
+asyncio>=3.4.3                # Async programming
+python-dotenv>=1.0.0          # Environment variables
+cryptography>=41.0.7          # Memory encryption
+loguru>=0.7.2                 # Better logging
+typer>=0.9.0                  # CLI framework
+rich>=13.7.0                  # Terminal formatting
+
+# Development
+pytest>=7.4.0                 # Testing
+pytest-asyncio>=0.21.0        # Async testing
+black>=23.12.0                # Code formatting
+mypy>=1.8.0                   # Type checking

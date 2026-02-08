@@ -1,0 +1,332 @@
+name: CI (Redesigned - Smart & Fast)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel in-progress runs for same PR/branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  #─────────────────────────────────────────────────────────────
+  # STAGE 1: Detect what changed (< 10 seconds)
+  #─────────────────────────────────────────────────────────────
+  detect-changes:
+    name: 🔍 Detect Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      docs-only: ${{ steps.filter.outputs.docs-only }}
+      rust-changed: ${{ steps.filter.outputs.rust }}
+      typescript-changed: ${{ steps.filter.outputs.typescript }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docs-only:
+              - '**.md'
+              - 'docs/**'
+              - '!crates/**'
+              - '!ui/**'
+              - '!.github/**'
+              - '!bin/**'
+              - '!scripts/**'
+
+            rust:
+              - 'crates/**/*.rs'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'bin/**'
+              - 'scripts/**'
+
+            typescript:
+              - 'ui/**/*.ts'
+              - 'ui/**/*.tsx'
+              - 'ui/**/*.js'
+              - 'ui/**/*.jsx'
+              - 'ui/**/package.json'
+              - 'ui/**/package-lock.json'
+
+  #─────────────────────────────────────────────────────────────
+  # DOCS ONLY PATH (fastest - 1-2 minutes)
+  #─────────────────────────────────────────────────────────────
+  docs-check:
+    name: 📝 Documentation Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docs-only == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ✅ Documentation Only
+        run: |
+          echo "✅ Only documentation files changed"
+          echo "✅ Skipping code builds and tests"
+          echo "✅ CI PASSED - Documentation changes require no testing"
+
+  #─────────────────────────────────────────────────────────────
+  # CODE PATH - STAGE 2: LINT (Fast fail - 2-5 minutes)
+  #─────────────────────────────────────────────────────────────
+  lint-rust:
+    name: 🦀 Lint Rust Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docs-only != 'true' && needs.detect-changes.outputs.rust-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Check Formatting
+        run: cargo fmt --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+  lint-typescript:
+    name: 📦 Lint TypeScript Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docs-only != 'true' && needs.detect-changes.outputs.typescript-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/desktop/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: ui/desktop
+
+      - name: Run ESLint
+        run: npm run lint:check
+        working-directory: ui/desktop
+
+  #─────────────────────────────────────────────────────────────
+  # CODE PATH - STAGE 3: BUILD (3-10 minutes, parallel)
+  #─────────────────────────────────────────────────────────────
+  build-rust:
+    name: 🔨 Build Rust Project
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [detect-changes, lint-rust]
+    if: needs.detect-changes.outputs.docs-only != 'true' && needs.detect-changes.outputs.rust-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y libdbus-1-dev gnome-keyring libxcb1-dev
+
+      - name: Build All Crates (Release)
+        run: cargo build --all --release
+        env:
+          CARGO_INCREMENTAL: 0
+
+  build-typescript:
+    name: 🔨 Build TypeScript Project
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    needs: [detect-changes, lint-typescript]
+    if: needs.detect-changes.outputs.docs-only != 'true' && needs.detect-changes.outputs.typescript-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/desktop/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: ui/desktop
+
+      - name: Build Desktop App
+        run: npm run build
+        working-directory: ui/desktop
+
+  #─────────────────────────────────────────────────────────────
+  # CODE PATH - STAGE 4: TEST (5-15 minutes, parallel)
+  #─────────────────────────────────────────────────────────────
+  test-rust-unit:
+    name: 🧪 Test Rust (Unit Tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    needs: [detect-changes, build-rust]
+    if: needs.detect-changes.outputs.docs-only != 'true' && needs.detect-changes.outputs.rust-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y libdbus-1-dev gnome-keyring libxcb1-dev
+
+      - name: Run Unit Tests
+        run: |
+          gnome-keyring-daemon --components=secrets --daemonize --unlock <<< 'test'
+          cargo test --lib --all -- --skip scenario_tests
+        working-directory: crates
+        env:
+          RUST_BACKTRACE: 1
+          RUST_MIN_STACK: 8388608
+          CARGO_INCREMENTAL: 0
+
+  test-rust-integration:
+    name: 🧪 Test Rust (Integration Tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [detect-changes, build-rust]
+    if: needs.detect-changes.outputs.docs-only != 'true' && needs.detect-changes.outputs.rust-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y libdbus-1-dev gnome-keyring libxcb1-dev
+
+      - name: Run Integration Tests
+        run: |
+          gnome-keyring-daemon --components=secrets --daemonize --unlock <<< 'test'
+          cargo test --test '*' --all -- --skip scenario_tests
+        working-directory: crates
+        env:
+          RUST_BACKTRACE: 1
+          RUST_MIN_STACK: 8388608
+          CARGO_INCREMENTAL: 0
+
+  test-typescript:
+    name: 🧪 Test TypeScript (Unit Tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [detect-changes, build-typescript]
+    if: needs.detect-changes.outputs.docs-only != 'true' && needs.detect-changes.outputs.typescript-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/desktop/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: ui/desktop
+
+      - name: Run Tests
+        run: npm run test:run
+        working-directory: ui/desktop
+
+  #─────────────────────────────────────────────────────────────
+  # STAGE 5: FINAL STATUS (Always runs)
+  #─────────────────────────────────────────────────────────────
+  ci-status:
+    name: ✅ CI Status
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs:
+      - detect-changes
+      - docs-check
+      - test-rust-unit
+      - test-rust-integration
+      - test-typescript
+    if: always()
+    steps:
+      - name: Check CI Result
+        run: |
+          echo "══════════════════════════════════════════════════"
+          echo "          CI STATUS SUMMARY"
+          echo "══════════════════════════════════════════════════"
+          echo ""
+          echo "Changes Detected:"
+          echo "  Docs Only: ${{ needs.detect-changes.outputs.docs-only }}"
+          echo "  Rust Changed: ${{ needs.detect-changes.outputs.rust-changed }}"
+          echo "  TypeScript Changed: ${{ needs.detect-changes.outputs.typescript-changed }}"
+          echo ""
+          echo "Job Results:"
+          echo "  docs-check: ${{ needs.docs-check.result }}"
+          echo "  test-rust-unit: ${{ needs.test-rust-unit.result }}"
+          echo "  test-rust-integration: ${{ needs.test-rust-integration.result }}"
+          echo "  test-typescript: ${{ needs.test-typescript.result }}"
+          echo ""
+
+          # Determine overall status
+          if [[ "${{ needs.docs-check.result }}" == "success" ]] || \
+             [[ "${{ needs.test-rust-unit.result }}" == "success" && \
+                "${{ needs.test-rust-integration.result }}" == "success" && \
+                "${{ needs.test-typescript.result }}" == "success" ]]; then
+            echo "✅ ══════════════════════════════════════════════════"
+            echo "✅          CI PASSED - ALL CHECKS SUCCESSFUL        "
+            echo "✅ ══════════════════════════════════════════════════"
+            exit 0
+          elif [[ "${{ needs.docs-check.result }}" == "skipped" && \
+                  "${{ needs.test-rust-unit.result }}" == "skipped" && \
+                  "${{ needs.test-rust-integration.result }}" == "skipped" && \
+                  "${{ needs.test-typescript.result }}" == "skipped" ]]; then
+            echo "⚠️  ══════════════════════════════════════════════════"
+            echo "⚠️           NO TESTS RAN (likely docs-only)        "
+            echo "⚠️  ══════════════════════════════════════════════════"
+            # Docs-only changes that passed docs-check
+            if [[ "${{ needs.docs-check.result }}" == "success" ]]; then
+              exit 0
+            fi
+            exit 1
+          else
+            echo "❌ ══════════════════════════════════════════════════"
+            echo "❌          CI FAILED - CHECK LOGS ABOVE            "
+            echo "❌ ══════════════════════════════════════════════════"
+            exit 1
+          fi

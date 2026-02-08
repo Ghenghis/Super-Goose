@@ -1,0 +1,110 @@
+name: Build Portable Releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build (branch, tag, or SHA)'
+        required: false
+        default: 'main'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-cli-portable:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            name: linux-x64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            name: linux-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: windows-x64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            name: macos-x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            name: macos-arm64
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          fi
+
+      - name: Build CLI (portable)
+        run: |
+          cargo build --release --target ${{ matrix.target }} --bin goose
+          cargo build --release --target ${{ matrix.target }} --bin goosed
+
+      - name: Package portable release (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          mkdir -p goose-portable-${{ matrix.name }}
+          cp target/${{ matrix.target }}/release/goose goose-portable-${{ matrix.name }}/goose
+          cp target/${{ matrix.target }}/release/goosed goose-portable-${{ matrix.name }}/
+          cp README.md LICENSE goose-portable-${{ matrix.name }}/
+          tar -czf goose-portable-${{ matrix.name }}.tar.gz goose-portable-${{ matrix.name }}
+
+      - name: Package portable release (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          New-Item -ItemType Directory -Force -Path goose-portable-${{ matrix.name }}
+          Copy-Item target/${{ matrix.target }}/release/goose.exe goose-portable-${{ matrix.name }}/goose.exe
+          Copy-Item target/${{ matrix.target }}/release/goosed.exe goose-portable-${{ matrix.name }}/
+          Copy-Item README.md,LICENSE goose-portable-${{ matrix.name }}/
+          Compress-Archive -Path goose-portable-${{ matrix.name }} -DestinationPath goose-portable-${{ matrix.name }}.zip
+
+      - name: Upload artifacts (Unix)
+        if: matrix.os != 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: goose-portable-${{ matrix.name }}
+          path: goose-portable-${{ matrix.name }}.tar.gz
+
+      - name: Upload artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: goose-portable-${{ matrix.name }}
+          path: goose-portable-${{ matrix.name }}.zip
+
+      - name: Upload to release if tag exists (Unix)
+        if: startsWith(github.ref, 'refs/tags/') && matrix.os != 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: goose-portable-${{ matrix.name }}.tar.gz
+          tag_name: ${{ github.ref_name }}
+
+      - name: Upload to release if tag exists (Windows)
+        if: startsWith(github.ref, 'refs/tags/') && matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: goose-portable-${{ matrix.name }}.zip
+          tag_name: ${{ github.ref_name }}
