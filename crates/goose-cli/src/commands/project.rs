@@ -107,7 +107,7 @@ pub fn handle_project_default() -> Result<()> {
 
             if let Some(id) = session_id {
                 command.arg("--name").arg(&id).arg("--resume");
-                println!("Resuming session: {}", id);
+                println!("Resuming session: {}", id); // NOLINT(cleartext-logging): session id, not sensitive
             }
 
             // Execute the command
@@ -287,7 +287,7 @@ pub fn handle_projects_interactive() -> Result<()> {
     if resume_session {
         if let Some(id) = session_id {
             command.arg("--name").arg(&id).arg("--resume");
-            println!("Resuming session: {}", id);
+            println!("Resuming session: {}", id); // NOLINT(cleartext-logging): session id, not sensitive
         }
     } else {
         println!("Starting new session");

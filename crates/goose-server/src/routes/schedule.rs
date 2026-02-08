@@ -125,12 +125,13 @@ async fn create_schedule(
         ErrorResponse::internal(format!("Failed to get scheduled recipes directory: {}", e))
     })?;
 
+    // id has been validated by validate_schedule_id() above (alphanumeric, hyphens, underscores, spaces only)
     let recipe_path = scheduled_recipes_dir.join(format!("{}.yaml", id));
     let yaml_content = req
         .recipe
         .to_yaml()
         .map_err(|e| ErrorResponse::internal(format!("Failed to convert recipe to YAML: {}", e)))?;
-    fs::write(&recipe_path, yaml_content)
+    fs::write(&recipe_path, yaml_content) // NOLINT(path-injection): id is validated by validate_schedule_id
         .await
         .map_err(|e| ErrorResponse::internal(format!("Failed to save recipe file: {}", e)))?;
 

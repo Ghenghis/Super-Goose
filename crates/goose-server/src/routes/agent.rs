@@ -648,6 +648,14 @@ async fn set_container(
 ) -> Result<StatusCode, ErrorResponse> {
     let agent = state.get_agent(request.session_id.clone()).await?;
 
+    // Limit container_id length to prevent uncontrolled memory allocation
+    if let Some(ref id) = request.container_id {
+        if id.len() > 256 {
+            return Err(ErrorResponse::bad_request(
+                "container_id must not exceed 256 characters".to_string(),
+            ));
+        }
+    }
     let container = request.container_id.map(Container::new);
     agent.set_container(container).await;
 

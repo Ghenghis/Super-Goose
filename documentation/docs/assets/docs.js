@@ -60,8 +60,13 @@ XMLHttpRequest.prototype.open = function () {
   let url = arguments[1]; // The second argument is the URL
 
   this.addEventListener('loadend', function (e) {
-    if (url.includes("https://codeserver.sq.dev/api/v1/health")) {
-      return;
+    try {
+      const parsedUrl = new URL(url, window.location.origin);
+      if (parsedUrl.hostname === "codeserver.sq.dev" && parsedUrl.pathname === "/api/v1/health") {
+        return;
+      }
+    } catch (e) {
+      // If URL parsing fails, continue with the handler
     }
 
     console.log(url);

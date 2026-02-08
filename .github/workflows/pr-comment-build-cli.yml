@@ -11,6 +11,7 @@ on:
 
 # permissions needed for reacting to IssueOps commands on PRs
 permissions:
+  contents: read
   pull-requests: write
   checks: read
 
@@ -43,7 +44,9 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
-        
+        with:
+          persist-credentials: false
+
       - name: Get PR head SHA with gh
         id: set_head_sha
         run: |

@@ -299,6 +299,7 @@ mod tests {
     #[tokio::test]
     async fn test_openai_compatible_providers_config_keys() {
         let providers_list = providers().await;
+        // NOLINT(cleartext-logging): these are environment variable names for API keys, not actual secret values
         let required_api_key_cases = vec![
             ("groq", "GROQ_API_KEY"),
             ("mistral", "MISTRAL_API_KEY"),

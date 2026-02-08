@@ -491,7 +491,7 @@ mod tests {
         ));
     }
 
-    // Test credential values - these are NOT real credentials, used only for unit test assertions
+    // NOLINT(hard-coded-credentials): these are NOT real credentials, used only for unit test assertions
     const TEST_API_KEY: &str = "test-api-key-not-real";
     const TEST_BEARER: &str = "test-bearer-token-not-real";
     const TEST_BASIC_USER: &str = "test-user";

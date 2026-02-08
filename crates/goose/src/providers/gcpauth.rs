@@ -243,6 +243,8 @@ impl AdcCredentials {
         let client = reqwest::Client::new();
         let metadata_path = "/computeMetadata/v1/instance/service-accounts/default/token";
 
+        // NOLINT(non-https-url): GCP metadata server requires HTTP; HTTPS is not supported.
+        // The metadata server (169.254.169.254) is a link-local service only accessible from within the VM.
         let response = client
             .get(format!("{}{}", base_url, metadata_path))
             .header("Metadata-Flavor", "Google")
@@ -773,6 +775,7 @@ iXVBc2YmAuU8hiOFUPxtyQfNzG5fQ0rhJSewdtyWxIadJSLj6fsK+AEsNQ==
 
     #[tokio::test]
     async fn test_token_refresh_race_condition() {
+        // NOLINT(cleartext-logging): test-only mock token values, not real credentials
         let auth = Arc::new(GcpAuth {
             credentials: AdcCredentials::ServiceAccount(mock_service_account()),
             client: reqwest::Client::new(),

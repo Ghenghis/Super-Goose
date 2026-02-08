@@ -11,7 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const matter = require('gray-matter');
 
 // Configuration
@@ -44,7 +44,7 @@ function cloneAgentSkillsRepo() {
   
   // Shallow clone the repository
   try {
-    execSync(`git clone --depth 1 ${AGENT_SKILLS_REPO} ${CLONED_REPO_DIR}`, {
+    execFileSync('git', ['clone', '--depth', '1', AGENT_SKILLS_REPO, CLONED_REPO_DIR], {
       stdio: 'pipe',
       timeout: 60000 // 60 second timeout
     });

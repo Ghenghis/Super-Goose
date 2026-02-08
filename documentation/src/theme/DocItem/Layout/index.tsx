@@ -86,7 +86,14 @@ function CopyPageButton(): ReactNode {
           if (node.nodeName === 'IFRAME') {
             const src = (node as HTMLElement).getAttribute('src') || '';
             // Check if it's a video embed (YouTube, Vimeo, etc.)
-            return src.includes('youtube.com') || src.includes('vimeo.com') || src.includes('youtu.be');
+            try {
+              const hostname = new URL(src).hostname;
+              return hostname === 'youtube.com' || hostname === 'www.youtube.com' ||
+                     hostname === 'vimeo.com' || hostname === 'www.vimeo.com' ||
+                     hostname === 'youtu.be' || hostname === 'www.youtu.be';
+            } catch {
+              return false;
+            }
           }
           if (node.nodeName === 'VIDEO') {
             return true;

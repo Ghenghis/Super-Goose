@@ -220,6 +220,7 @@ pub async fn handle_session_export(
 }
 
 pub async fn handle_diagnostics(session_id: &str, output_path: Option<PathBuf>) -> Result<()> {
+    // NOLINT(cleartext-logging): session_id is a non-sensitive identifier
     println!(
         "Generating diagnostics bundle for session '{}'...",
         session_id

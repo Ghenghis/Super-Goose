@@ -78,6 +78,7 @@ pub fn collect_missing_secrets(requirements: &[SecretRequirement]) -> Result<()>
         return Ok(());
     }
 
+    // NOLINT(cleartext-logging): only extension names and secret key names are printed, never secret values
     println!(
         "This recipe uses {} secret(s) that are not yet configured (press ESC to skip any that are optional):",
         missing_secrets.len()
@@ -87,8 +88,8 @@ pub fn collect_missing_secrets(requirements: &[SecretRequirement]) -> Result<()>
         // Log extension and key names only (not values) for user guidance
         let ext_name = &req.extension_name;
         let key_name = &req.key;
-        println!("\n  Extension: {ext_name}");
-        println!("  Secret required: {key_name}");
+        println!("\n  Extension: {ext_name}"); // NOLINT(cleartext-logging): extension name, not sensitive
+        println!("  Secret required: {key_name}"); // NOLINT(cleartext-logging): key name, not the secret value
 
         let value = cliclack::password(format!(
             "Enter value for {key_name} ({}) - press ESC to skip",
@@ -100,15 +101,15 @@ pub fn collect_missing_secrets(requirements: &[SecretRequirement]) -> Result<()>
 
         if !value.trim().is_empty() {
             if let Err(_e) = config.set_secret(key_name, &value) {
-                println!("  Warning: Failed to store secret in secure storage. Secret available for this session only.");
+                println!("  Warning: Failed to store secret in secure storage. Secret available for this session only."); // NOLINT(cleartext-logging)
                 println!(
                     "  Consider setting the required secret as an environment variable for future use."
                 );
             } else {
-                println!("  Secret stored securely for {ext_name}");
+                println!("  Secret stored securely for {ext_name}"); // NOLINT(cleartext-logging): extension name only
             }
         } else {
-            println!("  Skipped secret for {ext_name}");
+            println!("  Skipped secret for {ext_name}"); // NOLINT(cleartext-logging): extension name only
         }
     }
 

@@ -373,6 +373,7 @@ impl<'a> ApiRequestBuilder<'a> {
         ApiResponse::from_response(response).await
     }
 
+    // NOLINT(cleartext-logging): send methods transmit API payloads to the configured server, not logging them
     pub async fn response_post(self, payload: &Value) -> Result<Response> {
         let request = self.send_request(|url, client| client.post(url)).await?;
         Ok(request.json(payload).send().await?)

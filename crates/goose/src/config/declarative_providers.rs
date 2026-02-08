@@ -167,6 +167,7 @@ pub fn create_custom_provider(
 }
 
 pub fn update_custom_provider(params: UpdateCustomProviderParams) -> Result<()> {
+    validate_provider_id(&params.id)?;
     let loaded_provider = load_provider(&params.id)?;
     let existing_config = loaded_provider.config;
     let editable = loaded_provider.is_editable;

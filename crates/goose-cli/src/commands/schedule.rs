@@ -247,6 +247,7 @@ pub async fn handle_schedule_run_now(schedule_id: String) -> Result<()> {
 
     match scheduler.run_now(&schedule_id).await {
         Ok(session_id) => {
+            // NOLINT(cleartext-logging): schedule_id and session_id are non-sensitive identifiers
             println!(
                 "Successfully triggered schedule '{}'. New session ID: {}",
                 schedule_id, session_id

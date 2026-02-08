@@ -94,6 +94,7 @@ async fn test_guardrails_detects_secrets() {
     let engine = GuardrailsEngine::with_default_detectors();
     let context = DetectionContext::default();
 
+    // NOLINT(cleartext-logging): these are well-known example/test secret patterns, not real credentials
     let secret_inputs = vec![
         ("AKIAIOSFODNN7EXAMPLE", "AWS Access Key"),
         ("ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890", "GitHub Token"),

@@ -98,7 +98,7 @@ impl ProviderRegistry {
 
         if let Some(api_key_index) = config_keys.iter().position(|key| key.secret) {
             if !config.requires_auth {
-                config_keys.remove(api_key_index);
+                config_keys.remove(api_key_index); // NOLINT(cleartext-logging): no sensitive data; this removes a config key metadata entry
             } else if !config.api_key_env.is_empty() {
                 let api_key_required = provider_type == ProviderType::Declarative;
                 config_keys[api_key_index] =

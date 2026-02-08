@@ -2088,7 +2088,15 @@ async function appMain() {
       }
 
       // Remove any HTML tags for security
-      const sanitizeText = (text: string) => text.replace(/<[^>]*>/g, '');
+      const sanitizeText = (text: string) => {
+        let result = text;
+        let previous;
+        do {
+          previous = result;
+          result = result.replace(/<[^>]*>/g, '');
+        } while (result !== previous);
+        return result;
+      };
 
       console.log('NOTIFY', data);
       const notification = new Notification({
