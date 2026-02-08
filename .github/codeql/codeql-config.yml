@@ -1,0 +1,6 @@
+name: "CodeQL Config"
+
+# Exclude third-party vendored code from scanning
+paths-ignore:
+  - 'goose/temp'
+  - 'goose/temp/**'

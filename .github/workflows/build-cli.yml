@@ -27,6 +27,8 @@ permissions:
 jobs:
   build-cli:
     name: Build CLI
+    permissions:
+      contents: read
     runs-on: ${{ matrix.build-on }}
     timeout-minutes: 90
     strategy:
@@ -90,17 +92,22 @@ jobs:
         if: matrix.use-cross
         run: source ./bin/activate-hermit && cargo install cross --git https://github.com/cross-rs/cross
 
+      # Security: use read-only cache restore when building untrusted PR refs
+      # (cache-poisoning mitigation for alerts #33-35). Only save cache on
+      # trusted builds (no custom ref = default branch).
       - name: Cache Cargo artifacts (Linux/macOS)
         if: matrix.use-cross
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5  # v2.8.2
         with:
           key: ${{ matrix.architecture }}-${{ matrix.target-suffix }}
+          save-if: ${{ inputs.ref == '' }}
 
       - name: Cache Cargo artifacts (Windows)
         if: matrix.use-docker
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5  # v2.8.2
         with:
           key: ${{ matrix.architecture }}-${{ matrix.target-suffix }}
+          save-if: ${{ inputs.ref == '' }}
 
       - name: Build CLI (Linux/macOS)
         if: matrix.use-cross
