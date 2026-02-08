@@ -215,6 +215,7 @@ concurrency:
 jobs:
   review-pr:
     if: |
+      github.repository == 'Ghenghis/Super-Goose' &&
       github.event.issue.pull_request &&
       startsWith(github.event.comment.body, '/goose') &&
       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
