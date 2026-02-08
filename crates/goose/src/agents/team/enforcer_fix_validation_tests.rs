@@ -65,7 +65,7 @@ fn test_enforcer_switch_role_uses_for_role() {
 fn test_check_read_is_public() {
     let enforcer = CapabilityEnforcer::new(AlmasRole::Developer);
     let path = Path::new("test.txt");
-    
+
     // This should compile - check_read is now public
     let result = enforcer.check_read(path);
     assert!(result.allowed); // Developer with no restrictions allows all
@@ -77,7 +77,7 @@ fn test_check_read_is_public() {
 fn test_check_write_is_public() {
     let enforcer = CapabilityEnforcer::new(AlmasRole::Developer);
     let path = Path::new("test.txt");
-    
+
     // This should compile - check_write is now public
     let result = enforcer.check_write(path);
     assert!(result.allowed); // Developer with no restrictions allows all
@@ -88,13 +88,16 @@ fn test_check_write_is_public() {
 #[test]
 fn test_check_execute_is_public() {
     let enforcer = CapabilityEnforcer::new(AlmasRole::Developer);
-    
+
     // This should compile - check_execute is now public
     // NOTE: Developer has specific allowed commands, so random command may fail
     // Testing public access, not specific permissions
     let result = enforcer.check_execute("echo test");
     // Don't assert result - just verify the method is accessible
-    assert_eq!(result.operation, Operation::Execute("echo test".to_string()));
+    assert_eq!(
+        result.operation,
+        Operation::Execute("echo test".to_string())
+    );
 }
 
 /// Test that check_edit_code() is now public and accessible
@@ -102,7 +105,7 @@ fn test_check_execute_is_public() {
 fn test_check_edit_code_is_public() {
     let enforcer = CapabilityEnforcer::new(AlmasRole::Developer);
     let path = Path::new("src/main.rs");
-    
+
     // This should compile - check_edit_code is now public
     let result = enforcer.check_edit_code(path);
     assert!(result.allowed); // Developer can edit code with no restrictions
@@ -117,7 +120,7 @@ fn test_check_edit_code_is_public() {
 #[test]
 fn test_developer_full_access() {
     let enforcer = CapabilityEnforcer::new(AlmasRole::Developer);
-    
+
     // Developer has empty allowed_patterns, so ALL files allowed
     assert!(enforcer.check_read(Path::new("src/main.rs")).allowed);
     assert!(enforcer.check_write(Path::new("src/main.rs")).allowed);
@@ -130,12 +133,12 @@ fn test_developer_full_access() {
 #[test]
 fn test_architect_restricted_file_access() {
     let enforcer = CapabilityEnforcer::new(AlmasRole::Architect);
-    
+
     // Architect has ALLOWED_PATTERNS, so only specific files allowed
     // Should allow docs (PLAN.md is in allowed list)
     assert!(enforcer.check_read(Path::new("PLAN.md")).allowed);
     assert!(enforcer.check_write(Path::new("PLAN.md")).allowed);
-    
+
     // Should block code files (not in allowed patterns)
     assert!(!enforcer.check_read(Path::new("src/main.rs")).allowed);
     assert!(!enforcer.check_edit_code(Path::new("src/main.rs")).allowed);
@@ -145,13 +148,17 @@ fn test_architect_restricted_file_access() {
 #[test]
 fn test_qa_test_focused_access() {
     let enforcer = CapabilityEnforcer::new(AlmasRole::Qa);
-    
+
     // QA can access test files (in allowed patterns)
     assert!(enforcer.check_read(Path::new("tests/test_main.rs")).allowed);
-    
+
     // QA cannot edit code (capability disabled)
-    assert!(!enforcer.check_edit_code(Path::new("tests/test_main.rs")).allowed);
-    
+    assert!(
+        !enforcer
+            .check_edit_code(Path::new("tests/test_main.rs"))
+            .allowed
+    );
+
     // QA blocked from src files (in blocked patterns)
     assert!(!enforcer.check_read(Path::new("src/main.rs")).allowed);
 }
@@ -160,14 +167,18 @@ fn test_qa_test_focused_access() {
 #[test]
 fn test_security_audit_focused_access() {
     let enforcer = CapabilityEnforcer::new(AlmasRole::Security);
-    
+
     // Security can access security reports (in allowed patterns)
     assert!(enforcer.check_read(Path::new("SECURITY_SCAN.md")).allowed);
     assert!(enforcer.check_write(Path::new("SECURITY_SCAN.md")).allowed);
-    
+
     // Security cannot edit code (capability disabled)
-    assert!(!enforcer.check_edit_code(Path::new("SECURITY_SCAN.md")).allowed);
-    
+    assert!(
+        !enforcer
+            .check_edit_code(Path::new("SECURITY_SCAN.md"))
+            .allowed
+    );
+
     // Security blocked from src files (in blocked patterns)
     assert!(!enforcer.check_read(Path::new("src/main.rs")).allowed);
 }
@@ -176,14 +187,14 @@ fn test_security_audit_focused_access() {
 #[test]
 fn test_deployer_deploy_focused_access() {
     let enforcer = CapabilityEnforcer::new(AlmasRole::Deployer);
-    
+
     // Deployer can access release docs (in allowed patterns)
     assert!(enforcer.check_read(Path::new("RELEASE_NOTES.md")).allowed);
     assert!(enforcer.check_write(Path::new("RELEASE_NOTES.md")).allowed);
-    
+
     // Deployer cannot edit code (capability disabled)
     assert!(!enforcer.check_edit_code(Path::new("Dockerfile")).allowed);
-    
+
     // Deployer blocked from src files (in blocked patterns)
     assert!(!enforcer.check_read(Path::new("src/main.rs")).allowed);
 }
@@ -203,7 +214,9 @@ fn test_enforcement_logic_still_works() {
     // Architect blocked from editing (capability disabled)
     let arch_edit = architect.check_edit_code(code_file);
     assert!(!arch_edit.allowed);
-    assert!(arch_edit.reason.contains("does not have code editing permission"));
+    assert!(arch_edit
+        .reason
+        .contains("does not have code editing permission"));
 
     // Developer allowed to edit (capability enabled + no file restrictions)
     let dev_edit = developer.check_edit_code(code_file);

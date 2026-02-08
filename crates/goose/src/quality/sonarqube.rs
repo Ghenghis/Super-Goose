@@ -55,12 +55,7 @@ impl SonarQubeConfig {
             .arg(format!("-Dsonar.sources={}", path))
             .arg("-Dsonar.scm.disabled=true")
             .output()
-            .map_err(|e| {
-                format!(
-                    "Failed to run sonar-scanner (is it installed?): {}",
-                    e
-                )
-            })?;
+            .map_err(|e| format!("Failed to run sonar-scanner (is it installed?): {}", e))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -115,18 +110,13 @@ impl SonarQubeConfig {
                 if condition.status == "ERROR" {
                     println!(
                         "  ❌ {}: {} (threshold: {})",
-                        condition.metric_key,
-                        condition.actual_value,
-                        condition.error_threshold
+                        condition.metric_key, condition.actual_value, condition.error_threshold
                     );
                 }
             }
 
             println!("\n📊 View full report:");
-            println!(
-                "   {}/dashboard?id={}",
-                self.host_url, self.project_key
-            );
+            println!("   {}/dashboard?id={}", self.host_url, self.project_key);
         } else {
             println!("✅ Quality gate PASSED!");
         }

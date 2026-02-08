@@ -189,11 +189,7 @@ impl MetricsTracker {
     }
 
     /// Compare two prompts
-    pub fn compare(
-        &self,
-        prompt_id_a: &str,
-        prompt_id_b: &str,
-    ) -> Option<f32> {
+    pub fn compare(&self, prompt_id_a: &str, prompt_id_b: &str) -> Option<f32> {
         let perf_a = self.performances.get(prompt_id_a)?;
         let perf_b = self.performances.get(prompt_id_b)?;
 

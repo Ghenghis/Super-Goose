@@ -136,7 +136,7 @@ impl RoleCapabilities {
     pub fn qa() -> Self {
         Self {
             can_read: true,
-            can_write: true, // Only test files and reports
+            can_write: true,   // Only test files and reports
             can_execute: true, // Only test commands
             can_edit_code: false,
             can_delete: false,
@@ -149,7 +149,7 @@ impl RoleCapabilities {
     pub fn security() -> Self {
         Self {
             can_read: true,
-            can_write: true, // Only security reports
+            can_write: true,   // Only security reports
             can_execute: true, // Only security tools
             can_edit_code: false,
             can_delete: false,
@@ -162,7 +162,7 @@ impl RoleCapabilities {
     pub fn deployer() -> Self {
         Self {
             can_read: true,
-            can_write: true, // Only deployment reports
+            can_write: true,   // Only deployment reports
             can_execute: true, // Build and deploy commands
             can_edit_code: false,
             can_delete: false,
@@ -576,11 +576,11 @@ mod tests {
     #[test]
     fn test_file_pattern_matching() {
         let patterns = FileAccessPatterns::architect();
-        
+
         // Allowed files
         assert!(patterns.is_file_allowed("PLAN.md"));
         assert!(patterns.is_file_allowed("ARCHITECTURE.md"));
-        
+
         // Blocked files
         assert!(!patterns.is_file_allowed("src/main.rs"));
         assert!(!patterns.is_file_allowed("package.json"));
@@ -589,11 +589,11 @@ mod tests {
     #[test]
     fn test_command_permissions() {
         let perms = CommandPermissions::developer();
-        
+
         // Allowed commands
         assert!(perms.is_command_allowed("cargo test"));
         assert!(perms.is_command_allowed("cargo build --release"));
-        
+
         // Blocked commands
         assert!(!perms.is_command_allowed("git push origin main"));
         assert!(!perms.is_command_allowed("cargo publish"));

@@ -3,9 +3,9 @@
 #[cfg(test)]
 mod tests {
     use crate::agents::adversarial::{
-        AdversarialConfig, CoachAgent, CoachConfig, CoachReview, IssueSeverity, IssueCategory,
-        PlayerAgent, PlayerConfig, PlayerResult, QualityStandards, ReviewCycle, ReviewOutcome,
-        ReviewIssue,
+        AdversarialConfig, CoachAgent, CoachConfig, CoachReview, IssueCategory, IssueSeverity,
+        PlayerAgent, PlayerConfig, PlayerResult, QualityStandards, ReviewCycle, ReviewIssue,
+        ReviewOutcome,
     };
 
     /// Test complete adversarial workflow with approval
@@ -327,10 +327,7 @@ mod tests {
 
         let mut cycle = ReviewCycle::with_config(config);
 
-        let stats = cycle
-            .execute_with_review("Test task")
-            .await
-            .unwrap();
+        let stats = cycle.execute_with_review("Test task").await.unwrap();
 
         // Should not exceed max cycles
         assert!(stats.total_cycles <= 2);
@@ -341,10 +338,12 @@ mod tests {
     async fn test_issue_severity_and_categories() {
         use crate::agents::adversarial::{IssueCategory, IssueSeverity};
 
-        let severities = [IssueSeverity::Critical,
+        let severities = [
+            IssueSeverity::Critical,
             IssueSeverity::Major,
             IssueSeverity::Minor,
-            IssueSeverity::Info];
+            IssueSeverity::Info,
+        ];
 
         let categories = vec![
             IssueCategory::CompilationError,
@@ -372,8 +371,6 @@ mod tests {
     /// Test comprehensive workflow with metadata tracking
     #[tokio::test]
     async fn test_comprehensive_workflow_with_metadata() {
-        
-
         let mut cycle = ReviewCycle::new();
 
         let stats = cycle

@@ -1,10 +1,10 @@
 // Multi-Pass Recursive Validation System
 // State-of-the-art validation with loops, fail-safes, and auto-fix
 
-use super::{PostCodeValidator, AdvancedValidator};
+use super::{AdvancedValidator, PostCodeValidator};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use sha2::{Sha256, Digest};
 
 const MAX_ITERATIONS: usize = 5;
 const MAX_VALIDATION_TIME: Duration = Duration::from_secs(600); // 10 minutes
@@ -62,21 +62,23 @@ impl MultiPassValidator {
             }
 
             println!("\n╔══════════════════════════════════════════════════════════════╗");
-            println!("║  ITERATION {} / {}                                          ║", self.current_iteration, self.max_iterations);
+            println!(
+                "║  ITERATION {} / {}                                          ║",
+                self.current_iteration, self.max_iterations
+            );
             println!("╚══════════════════════════════════════════════════════════════╝\n");
 
             // Run all validation passes
             let snapshot = self.run_all_passes(files).await?;
 
             // FAIL-SAFE #3: Regression detection
-            if self.current_iteration > 1
-                && self.has_regressed(&snapshot) {
-                    println!("\n⚠️  ❌ REGRESSION DETECTED!");
-                    println!("   Fixes introduced new failures - rolling back...\n");
+            if self.current_iteration > 1 && self.has_regressed(&snapshot) {
+                println!("\n⚠️  ❌ REGRESSION DETECTED!");
+                println!("   Fixes introduced new failures - rolling back...\n");
 
-                    self.rollback_last_changes()?;
-                    continue;
-                }
+                self.rollback_last_changes()?;
+                continue;
+            }
 
             // Store snapshot
             self.previous_snapshots.push(snapshot.clone());
@@ -115,12 +117,18 @@ impl MultiPassValidator {
             }
 
             // Attempt auto-fix
-            println!("\n🔧 Attempting to auto-fix {} issues...", snapshot.total_failures);
+            println!(
+                "\n🔧 Attempting to auto-fix {} issues...",
+                snapshot.total_failures
+            );
 
             let fixed_count = self.attempt_auto_fix(&snapshot, files).await?;
 
             if fixed_count > 0 {
-                println!("✅ Auto-fixed {} / {} issues\n", fixed_count, snapshot.total_failures);
+                println!(
+                    "✅ Auto-fixed {} / {} issues\n",
+                    fixed_count, snapshot.total_failures
+                );
             } else {
                 return Err(format!(
                     "❌ Unable to auto-fix any issues.\n\
@@ -173,7 +181,10 @@ impl MultiPassValidator {
     }
 
     /// Final verification pass - re-run everything one more time
-    async fn final_verification_pass(&self, files: &[String]) -> Result<VerificationResult, String> {
+    async fn final_verification_pass(
+        &self,
+        files: &[String],
+    ) -> Result<VerificationResult, String> {
         println!("🔍 PASS 6/6: Final Verification (Full Re-check)");
         println!("─────────────────────────────────────────────────────────────");
 
@@ -197,8 +208,10 @@ impl MultiPassValidator {
         if let Some(previous) = self.previous_snapshots.last() {
             // More failures than before = regression
             if current.total_failures > previous.total_failures {
-                println!("   ❌ Regression: {} new failures",
-                    current.total_failures - previous.total_failures);
+                println!(
+                    "   ❌ Regression: {} new failures",
+                    current.total_failures - previous.total_failures
+                );
                 return true;
             }
 
@@ -218,7 +231,11 @@ impl MultiPassValidator {
     }
 
     /// Attempt to auto-fix common issues
-    async fn attempt_auto_fix(&self, snapshot: &ValidationSnapshot, _files: &[String]) -> Result<usize, String> {
+    async fn attempt_auto_fix(
+        &self,
+        snapshot: &ValidationSnapshot,
+        _files: &[String],
+    ) -> Result<usize, String> {
         let mut fixed = 0;
 
         // Pattern 1: Empty event handlers
@@ -276,7 +293,10 @@ impl MultiPassValidator {
         result.add_check("Git clean state", self.check_git_clean());
 
         // Check dependencies installed
-        result.add_check("Dependencies installed", self.check_dependencies_installed());
+        result.add_check(
+            "Dependencies installed",
+            self.check_dependencies_installed(),
+        );
 
         // Check no file locks
         result.add_check("No file locks", self.check_no_file_locks());
@@ -304,16 +324,28 @@ impl MultiPassValidator {
         let mut result = PassResult::new("Integration & Wiring");
 
         // Use advanced validator
-        let api_result = self.advanced_validator.validate_api_contracts(files).await?;
+        let api_result = self
+            .advanced_validator
+            .validate_api_contracts(files)
+            .await?;
         result.add_check("API contracts", api_result.issues.is_empty());
 
-        let imports_result = self.advanced_validator.validate_component_imports(files).await?;
+        let imports_result = self
+            .advanced_validator
+            .validate_component_imports(files)
+            .await?;
         result.add_check("Component imports", imports_result.issues.is_empty());
 
-        let state_result = self.advanced_validator.validate_state_management(files).await?;
+        let state_result = self
+            .advanced_validator
+            .validate_state_management(files)
+            .await?;
         result.add_check("State management", state_result.issues.is_empty());
 
-        let handlers_result = self.advanced_validator.validate_event_handlers(files).await?;
+        let handlers_result = self
+            .advanced_validator
+            .validate_event_handlers(files)
+            .await?;
         result.add_check("Event handlers", handlers_result.issues.is_empty());
 
         let routes_result = self.advanced_validator.validate_routes(files).await?;
@@ -418,31 +450,31 @@ impl ValidationSnapshot {
     }
 
     pub fn calculate_totals(&mut self) {
-        self.total_failures = self.pass1.failures +
-                               self.pass2.failures +
-                               self.pass3.failures +
-                               self.pass4.failures +
-                               self.pass5.failures;
+        self.total_failures = self.pass1.failures
+            + self.pass2.failures
+            + self.pass3.failures
+            + self.pass4.failures
+            + self.pass5.failures;
 
-        self.total_warnings = self.pass1.warnings +
-                               self.pass2.warnings +
-                               self.pass3.warnings +
-                               self.pass4.warnings +
-                               self.pass5.warnings;
+        self.total_warnings = self.pass1.warnings
+            + self.pass2.warnings
+            + self.pass3.warnings
+            + self.pass4.warnings
+            + self.pass5.warnings;
 
-        self.total_passed = self.pass1.passed +
-                             self.pass2.passed +
-                             self.pass3.passed +
-                             self.pass4.passed +
-                             self.pass5.passed;
+        self.total_passed = self.pass1.passed
+            + self.pass2.passed
+            + self.pass3.passed
+            + self.pass4.passed
+            + self.pass5.passed;
     }
 
     pub fn has_issue_pattern(&self, pattern: &str) -> bool {
-        self.pass1.details.iter().any(|d| d.contains(pattern)) ||
-        self.pass2.details.iter().any(|d| d.contains(pattern)) ||
-        self.pass3.details.iter().any(|d| d.contains(pattern)) ||
-        self.pass4.details.iter().any(|d| d.contains(pattern)) ||
-        self.pass5.details.iter().any(|d| d.contains(pattern))
+        self.pass1.details.iter().any(|d| d.contains(pattern))
+            || self.pass2.details.iter().any(|d| d.contains(pattern))
+            || self.pass3.details.iter().any(|d| d.contains(pattern))
+            || self.pass4.details.iter().any(|d| d.contains(pattern))
+            || self.pass5.details.iter().any(|d| d.contains(pattern))
     }
 }
 
@@ -488,8 +520,10 @@ impl PassResult {
         if self.all_passed() {
             println!("  ✅ {} passed", self.name);
         } else {
-            println!("  ❌ {} - {} failures, {} warnings",
-                self.name, self.failures, self.warnings);
+            println!(
+                "  ❌ {} - {} failures, {} warnings",
+                self.name, self.failures, self.warnings
+            );
         }
     }
 }
@@ -505,11 +539,11 @@ pub struct VerificationResult {
 
 impl VerificationResult {
     pub fn is_clean(&self) -> bool {
-        self.pass1.all_passed() &&
-        self.pass2.all_passed() &&
-        self.pass3.all_passed() &&
-        self.pass4.all_passed() &&
-        self.pass5.all_passed()
+        self.pass1.all_passed()
+            && self.pass2.all_passed()
+            && self.pass3.all_passed()
+            && self.pass4.all_passed()
+            && self.pass5.all_passed()
     }
 }
 

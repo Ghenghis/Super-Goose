@@ -1,9 +1,9 @@
 // Advanced Validation - Critical Missing Checks
 // Implements the top 10 critical validations to make Goose foolproof
 
+use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use regex::Regex;
 
 pub struct AdvancedValidator {}
 
@@ -14,7 +14,10 @@ impl AdvancedValidator {
 
     /// CRITICAL CHECK #1: API Contract Validation
     /// Ensures frontend API calls match backend endpoints
-    pub async fn validate_api_contracts(&self, files: &[String]) -> Result<ValidationResult, String> {
+    pub async fn validate_api_contracts(
+        &self,
+        files: &[String],
+    ) -> Result<ValidationResult, String> {
         let mut issues = Vec::new();
 
         for file in files {
@@ -63,7 +66,10 @@ impl AdvancedValidator {
 
     /// CRITICAL CHECK #2: Component Import/Export Validation
     /// Ensures all components are properly imported and no orphans exist
-    pub async fn validate_component_imports(&self, files: &[String]) -> Result<ValidationResult, String> {
+    pub async fn validate_component_imports(
+        &self,
+        files: &[String],
+    ) -> Result<ValidationResult, String> {
         let mut issues = Vec::new();
 
         // Build a map of all exports
@@ -78,7 +84,10 @@ impl AdvancedValidator {
                 if content.contains("export default") || content.contains("export const") {
                     let component_name = self.extract_component_name(file, &content);
                     if let Some(name) = component_name {
-                        exported_components.entry(name).or_default().push(file.clone());
+                        exported_components
+                            .entry(name)
+                            .or_default()
+                            .push(file.clone());
                     }
                 }
             }
@@ -133,7 +142,10 @@ impl AdvancedValidator {
 
     /// CRITICAL CHECK #3: State Management Validation
     /// Ensures state is properly created, updated, and used
-    pub async fn validate_state_management(&self, files: &[String]) -> Result<ValidationResult, String> {
+    pub async fn validate_state_management(
+        &self,
+        files: &[String],
+    ) -> Result<ValidationResult, String> {
         let mut issues = Vec::new();
 
         for file in files {
@@ -179,7 +191,8 @@ impl AdvancedValidator {
                         file: file.clone(),
                         line: 0,
                         severity: Severity::High,
-                        message: "Direct state mutation detected - use setState instead".to_string(),
+                        message: "Direct state mutation detected - use setState instead"
+                            .to_string(),
                     });
                 }
             }
@@ -193,7 +206,10 @@ impl AdvancedValidator {
 
     /// CRITICAL CHECK #4: Event Handler Completeness
     /// Ensures event handlers are not empty or debug-only
-    pub async fn validate_event_handlers(&self, files: &[String]) -> Result<ValidationResult, String> {
+    pub async fn validate_event_handlers(
+        &self,
+        files: &[String],
+    ) -> Result<ValidationResult, String> {
         let mut issues = Vec::new();
 
         // Compile regex once outside the loop for performance
@@ -209,7 +225,8 @@ impl AdvancedValidator {
                         file: file.clone(),
                         line: 0,
                         severity: Severity::High,
-                        message: "Empty event handler found - handlers must have implementation".to_string(),
+                        message: "Empty event handler found - handlers must have implementation"
+                            .to_string(),
                     });
                 }
 
@@ -306,7 +323,10 @@ impl AdvancedValidator {
 
         // Check if each page component is referenced in router
         for page in &page_components {
-            let component_name = self.extract_component_name(page, &fs::read_to_string(page).map_err(|e| e.to_string())?);
+            let component_name = self.extract_component_name(
+                page,
+                &fs::read_to_string(page).map_err(|e| e.to_string())?,
+            );
 
             if let Some(name) = component_name {
                 if !router_content.contains(&name) {
@@ -314,10 +334,7 @@ impl AdvancedValidator {
                         file: page.clone(),
                         line: 0,
                         severity: Severity::High,
-                        message: format!(
-                            "Page component '{}' not registered in router",
-                            name
-                        ),
+                        message: format!("Page component '{}' not registered in router", name),
                     });
                 }
             }
@@ -353,7 +370,11 @@ impl AdvancedValidator {
         for cap in fetch_re.captures_iter(content) {
             let endpoint = cap.get(1).unwrap().as_str().to_string();
             let match_start = cap.get(0).unwrap().start();
-            let line = content.get(..match_start).unwrap_or(content).lines().count();
+            let line = content
+                .get(..match_start)
+                .unwrap_or(content)
+                .lines()
+                .count();
 
             calls.push(ApiCall {
                 endpoint,
@@ -367,7 +388,11 @@ impl AdvancedValidator {
         for cap in axios_re.captures_iter(content) {
             let endpoint = cap.get(2).unwrap().as_str().to_string();
             let match_start = cap.get(0).unwrap().start();
-            let line = content.get(..match_start).unwrap_or(content).lines().count();
+            let line = content
+                .get(..match_start)
+                .unwrap_or(content)
+                .lines()
+                .count();
 
             calls.push(ApiCall {
                 endpoint,
@@ -394,9 +419,9 @@ impl AdvancedValidator {
 
         // Common route definition patterns to search for
         let patterns = vec![
-            format!("\"{}\"", endpoint),  // String literal
-            format!("'{}'", endpoint),     // Single quote
-            format!("path = \"{}\"", endpoint),  // Actix/Axum path attribute
+            format!("\"{}\"", endpoint),        // String literal
+            format!("'{}'", endpoint),          // Single quote
+            format!("path = \"{}\"", endpoint), // Actix/Axum path attribute
         ];
 
         // Recursively search for endpoint definition
@@ -510,7 +535,8 @@ impl AdvancedValidator {
 
         let mut visited = HashSet::new();
         let mut rec_stack = HashSet::new();
-        has_cycle(file, &import_graph, &mut visited, &mut rec_stack).map_or(Ok(None), |c| Ok(Some(c)))
+        has_cycle(file, &import_graph, &mut visited, &mut rec_stack)
+            .map_or(Ok(None), |c| Ok(Some(c)))
     }
 
     fn extract_state_variables(&self, content: &str) -> Vec<StateVariable> {
@@ -520,7 +546,11 @@ impl AdvancedValidator {
         for cap in use_state_re.captures_iter(content) {
             let name = cap.get(1).unwrap().as_str().to_string();
             let match_start = cap.get(0).unwrap().start();
-            let line = content.get(..match_start).unwrap_or(content).lines().count();
+            let line = content
+                .get(..match_start)
+                .unwrap_or(content)
+                .lines()
+                .count();
 
             vars.push(StateVariable { name, line });
         }
@@ -549,7 +579,11 @@ impl AdvancedValidator {
         for cap in handler_re.captures_iter(content) {
             let body = cap.get(1).unwrap().as_str().to_string();
             let match_start = cap.get(0).unwrap().start();
-            let line = content.get(..match_start).unwrap_or(content).lines().count();
+            let line = content
+                .get(..match_start)
+                .unwrap_or(content)
+                .lines()
+                .count();
 
             handlers.push(EventHandler {
                 name: "onClick".to_string(), // Simplified

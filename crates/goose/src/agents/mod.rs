@@ -1,5 +1,4 @@
 pub mod adversarial;
-pub mod evolution;
 mod agent;
 pub(crate) mod apps_extension;
 mod builtin_skills;
@@ -9,6 +8,7 @@ pub(crate) mod code_execution_extension;
 pub mod container;
 pub mod critic;
 pub mod done_gate;
+pub mod evolution;
 pub mod execute_commands;
 pub mod extension;
 pub mod extension_malware_check;
@@ -49,12 +49,6 @@ pub use adversarial::{
     IssueSeverity, PlayerAgent, PlayerConfig, PlayerResult, QualityStandards, ReviewCycle,
     ReviewFeedback, ReviewIssue, ReviewOutcome, ReviewStats,
 };
-pub use evolution::{
-    DisclosureLayer, DisclosureStrategy, EvolutionConfig, EvolutionResult, EvolutionStrategy,
-    LayeredContext, MemoryContext, MemoryRetrieval, MetricsTracker, OptimizationConfig,
-    OptimizationResult, PromptOptimizer, PromptPerformance, PromptVariation, ReflexionQuery,
-    SuccessMetrics,
-};
 pub use agent::{
     Agent, AgentConfig, AgentEvent, CritiqueDecision, ExecutionMode, ExtensionLoadResult,
 };
@@ -62,6 +56,12 @@ pub use capabilities::{AgentCapabilities, CapabilitiesConfig};
 pub use container::Container;
 pub use critic::{
     AggregatedCritique, Critic, CriticManager, CritiqueContext, CritiqueIssue, CritiqueResult,
+};
+pub use evolution::{
+    DisclosureLayer, DisclosureStrategy, EvolutionConfig, EvolutionResult, EvolutionStrategy,
+    LayeredContext, MemoryContext, MemoryRetrieval, MetricsTracker, OptimizationConfig,
+    OptimizationResult, PromptOptimizer, PromptPerformance, PromptVariation, ReflexionQuery,
+    SuccessMetrics,
 };
 pub use execute_commands::COMPACT_TRIGGERS;
 pub use extension::ExtensionConfig;

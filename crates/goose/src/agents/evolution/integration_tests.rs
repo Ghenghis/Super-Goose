@@ -3,9 +3,9 @@
 #[cfg(test)]
 mod tests {
     use crate::agents::evolution::{
-        DisclosureStrategy, EvolutionConfig, LayeredContext, MemoryContext, MemoryRetrieval,
-        MetricsTracker, OptimizationConfig, PromptOptimizer, PromptVariation, ReflexionQuery,
-        SuccessMetrics, DisclosureLayer, CompactEntry, TimelineEntry, FullDetailsEntry,
+        CompactEntry, DisclosureLayer, DisclosureStrategy, EvolutionConfig, FullDetailsEntry,
+        LayeredContext, MemoryContext, MemoryRetrieval, MetricsTracker, OptimizationConfig,
+        PromptOptimizer, PromptVariation, ReflexionQuery, SuccessMetrics, TimelineEntry,
     };
 
     /// Test complete prompt optimization workflow
@@ -192,9 +192,15 @@ mod tests {
     async fn test_memory_optimization_hints() {
         let mut memory = MemoryContext::empty();
 
-        memory.successful_patterns.push("Use TDD approach".to_string());
-        memory.successful_patterns.push("Write small functions".to_string());
-        memory.failed_patterns.push("Large monolithic functions".to_string());
+        memory
+            .successful_patterns
+            .push("Use TDD approach".to_string());
+        memory
+            .successful_patterns
+            .push("Write small functions".to_string());
+        memory
+            .failed_patterns
+            .push("Large monolithic functions".to_string());
         memory.insights.push("Testing improves quality".to_string());
         memory.success_rate = 0.85;
         memory.attempts_analyzed = 10;
@@ -305,7 +311,9 @@ mod tests {
         assert!(!empty.is_useful());
 
         let mut with_patterns = MemoryContext::empty();
-        with_patterns.successful_patterns.push("Pattern".to_string());
+        with_patterns
+            .successful_patterns
+            .push("Pattern".to_string());
         assert!(with_patterns.is_useful());
 
         let mut with_insights = MemoryContext::empty();

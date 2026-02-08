@@ -28,9 +28,9 @@ impl Default for DisclosureStrategy {
     fn default() -> Self {
         Self {
             enabled: true,
-            layer1_max_tokens: 1000,  // ~10-20 compact results
-            layer2_max_tokens: 3000,  // Timeline context
-            layer3_max_tokens: 8000,  // Full details for selected items
+            layer1_max_tokens: 1000, // ~10-20 compact results
+            layer2_max_tokens: 3000, // Timeline context
+            layer3_max_tokens: 8000, // Full details for selected items
             auto_promote: true,
         }
     }
@@ -64,11 +64,7 @@ pub struct CompactEntry {
 
 impl CompactEntry {
     /// Create a new compact entry
-    pub fn new(
-        id: impl Into<String>,
-        title: impl Into<String>,
-        score: f32,
-    ) -> Self {
+    pub fn new(id: impl Into<String>, title: impl Into<String>, score: f32) -> Self {
         Self {
             id: id.into(),
             title: title.into(),
@@ -251,12 +247,8 @@ impl LayeredContext {
     /// Check if can promote based on token budget
     pub fn can_promote(&self, strategy: &DisclosureStrategy) -> bool {
         match self.current_layer {
-            DisclosureLayer::CompactIndex => {
-                self.tokens_used < strategy.layer1_max_tokens
-            }
-            DisclosureLayer::Timeline => {
-                self.tokens_used < strategy.layer2_max_tokens
-            }
+            DisclosureLayer::CompactIndex => self.tokens_used < strategy.layer1_max_tokens,
+            DisclosureLayer::Timeline => self.tokens_used < strategy.layer2_max_tokens,
             DisclosureLayer::FullDetails => false,
         }
     }
@@ -321,8 +313,7 @@ mod tests {
 
     #[test]
     fn test_compact_entry() {
-        let entry = CompactEntry::new("id1", "Test entry", 0.95)
-            .with_type("reflection");
+        let entry = CompactEntry::new("id1", "Test entry", 0.95).with_type("reflection");
 
         assert_eq!(entry.id, "id1");
         assert_eq!(entry.title, "Test entry");

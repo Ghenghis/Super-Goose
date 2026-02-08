@@ -105,10 +105,7 @@ impl MemoryContext {
         }
 
         if !self.insights.is_empty() {
-            hints.push(format!(
-                "Key insights: {}",
-                self.insights.join("; ")
-            ));
+            hints.push(format!("Key insights: {}", self.insights.join("; ")));
         }
 
         hints.push(format!(
@@ -154,7 +151,8 @@ impl MemoryRetrieval {
         let context = self.retrieve_internal(query).await?;
 
         // Cache the result
-        self.query_cache.insert(query.task_pattern.clone(), context.clone());
+        self.query_cache
+            .insert(query.task_pattern.clone(), context.clone());
 
         Ok(context)
     }
@@ -170,16 +168,26 @@ impl MemoryRetrieval {
 
         // Simulate pattern extraction
         if query.task_pattern.contains("test") {
-            context.successful_patterns.push("Write tests first".to_string());
-            context.insights.push("TDD approach yields higher quality".to_string());
+            context
+                .successful_patterns
+                .push("Write tests first".to_string());
+            context
+                .insights
+                .push("TDD approach yields higher quality".to_string());
             context.success_rate = 0.85;
             context.attempts_analyzed = 10;
         }
 
         if query.task_pattern.contains("refactor") {
-            context.successful_patterns.push("Small incremental changes".to_string());
-            context.failed_patterns.push("Large sweeping refactors".to_string());
-            context.insights.push("Refactor in small steps with tests".to_string());
+            context
+                .successful_patterns
+                .push("Small incremental changes".to_string());
+            context
+                .failed_patterns
+                .push("Large sweeping refactors".to_string());
+            context
+                .insights
+                .push("Refactor in small steps with tests".to_string());
             context.success_rate = 0.75;
             context.attempts_analyzed = 8;
         }

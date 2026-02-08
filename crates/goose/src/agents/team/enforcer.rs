@@ -119,16 +119,16 @@ impl CapabilityEnforcer {
             // File not in allowed_patterns - check if it's in read_only_patterns
             // (read-only files are readable but not writable)
             let path_str = path.to_string_lossy();
-            let is_read_only = self
-                .role_config
-                .file_access
-                .read_only_patterns
-                .iter()
-                .any(|pattern_str| {
-                    Pattern::new(pattern_str)
-                        .map(|p| p.matches(&path_str))
-                        .unwrap_or(false)
-                });
+            let is_read_only =
+                self.role_config
+                    .file_access
+                    .read_only_patterns
+                    .iter()
+                    .any(|pattern_str| {
+                        Pattern::new(pattern_str)
+                            .map(|p| p.matches(&path_str))
+                            .unwrap_or(false)
+                    });
 
             if !is_read_only {
                 return EnforcementResult {
@@ -156,7 +156,10 @@ impl CapabilityEnforcer {
         if !self.role_config.capabilities.can_write {
             return EnforcementResult {
                 allowed: false,
-                reason: format!("Role {:?} does not have write permission", self.current_role),
+                reason: format!(
+                    "Role {:?} does not have write permission",
+                    self.current_role
+                ),
                 operation: Operation::Write(path.to_path_buf()),
                 role: self.current_role,
             };
@@ -206,7 +209,10 @@ impl CapabilityEnforcer {
         if !self.role_config.capabilities.can_execute {
             return EnforcementResult {
                 allowed: false,
-                reason: format!("Role {:?} does not have execute permission", self.current_role),
+                reason: format!(
+                    "Role {:?} does not have execute permission",
+                    self.current_role
+                ),
                 operation: Operation::Execute(command.to_string()),
                 role: self.current_role,
             };
@@ -268,7 +274,10 @@ impl CapabilityEnforcer {
         if !self.role_config.capabilities.can_delete {
             return EnforcementResult {
                 allowed: false,
-                reason: format!("Role {:?} does not have delete permission", self.current_role),
+                reason: format!(
+                    "Role {:?} does not have delete permission",
+                    self.current_role
+                ),
                 operation: Operation::Delete(path.to_path_buf()),
                 role: self.current_role,
             };
@@ -333,7 +342,10 @@ impl CapabilityEnforcer {
         if !self.role_config.capabilities.can_search {
             return EnforcementResult {
                 allowed: false,
-                reason: format!("Role {:?} does not have search permission", self.current_role),
+                reason: format!(
+                    "Role {:?} does not have search permission",
+                    self.current_role
+                ),
                 operation: Operation::Search(path.to_path_buf()),
                 role: self.current_role,
             };
@@ -424,7 +436,12 @@ impl CapabilityEnforcer {
         }
 
         // If allowed commands is empty, allow all (except blocked)
-        if self.role_config.command_permissions.allowed_commands.is_empty() {
+        if self
+            .role_config
+            .command_permissions
+            .allowed_commands
+            .is_empty()
+        {
             return true;
         }
 
@@ -464,7 +481,10 @@ impl CapabilityEnforcer {
 
     /// Batch check multiple operations
     pub fn check_operations(&self, operations: &[Operation]) -> Vec<EnforcementResult> {
-        operations.iter().map(|op| self.check_operation(op)).collect()
+        operations
+            .iter()
+            .map(|op| self.check_operation(op))
+            .collect()
     }
 
     /// Batch enforce multiple operations, returning the first error encountered
@@ -501,7 +521,9 @@ mod tests {
         let enforcer = CapabilityEnforcer::new(AlmasRole::Architect);
         let result = enforcer.check_edit_code(Path::new("src/main.rs"));
         assert!(!result.allowed);
-        assert!(result.reason.contains("does not have code editing permission"));
+        assert!(result
+            .reason
+            .contains("does not have code editing permission"));
     }
 
     #[test]
@@ -566,8 +588,14 @@ mod tests {
     #[test]
     fn test_file_pattern_matching() {
         let mut config = RoleConfig::for_role(AlmasRole::Architect);
-        config.file_access.allowed_patterns.insert("*.md".to_string());
-        config.file_access.blocked_patterns.insert("SECRET.md".to_string());
+        config
+            .file_access
+            .allowed_patterns
+            .insert("*.md".to_string());
+        config
+            .file_access
+            .blocked_patterns
+            .insert("SECRET.md".to_string());
 
         let enforcer = CapabilityEnforcer::with_config(AlmasRole::Architect, config);
 
@@ -584,8 +612,14 @@ mod tests {
     #[test]
     fn test_command_permission_checking() {
         let mut config = RoleConfig::for_role(AlmasRole::Developer);
-        config.command_permissions.allowed_commands.insert("cargo".to_string());
-        config.command_permissions.blocked_commands.insert("rm".to_string());
+        config
+            .command_permissions
+            .allowed_commands
+            .insert("cargo".to_string());
+        config
+            .command_permissions
+            .blocked_commands
+            .insert("rm".to_string());
 
         let enforcer = CapabilityEnforcer::with_config(AlmasRole::Developer, config);
 

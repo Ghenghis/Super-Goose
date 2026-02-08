@@ -149,7 +149,8 @@ impl PromptOptimizer {
         // Create original variation
         let original = PromptVariation::new("v0", original_prompt);
         self.variations.push(original.clone());
-        self.metrics_tracker.track_prompt(&original.id, original_prompt);
+        self.metrics_tracker
+            .track_prompt(&original.id, original_prompt);
 
         // Retrieve memory context if enabled
         let memory_context = if self.config.use_memory {
@@ -161,11 +162,7 @@ impl PromptOptimizer {
 
         // Generate optimized variations using meta-prompting
         let optimized = self
-            .generate_optimization(
-                original_prompt,
-                task_description,
-                memory_context.as_ref(),
-            )
+            .generate_optimization(original_prompt, task_description, memory_context.as_ref())
             .await?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
@@ -189,11 +186,8 @@ impl PromptOptimizer {
         debug!("Generating prompt optimization via meta-prompting");
 
         // Build meta-prompt for optimization
-        let _meta_prompt = self.build_meta_prompt(
-            original_prompt,
-            task_description,
-            memory_context,
-        );
+        let _meta_prompt =
+            self.build_meta_prompt(original_prompt, task_description, memory_context);
 
         // Placeholder: Would call actual LLM provider for meta-prompting
         // In production, this would:
@@ -207,21 +201,19 @@ impl PromptOptimizer {
 
         // Create optimized variation
         let original_var = &self.variations[0];
-        let optimized_var = PromptVariation::evolve(
-            "v1",
-            &optimized_prompt,
-            original_var,
-            rationale,
-        );
+        let optimized_var =
+            PromptVariation::evolve("v1", &optimized_prompt, original_var, rationale);
 
         self.variations.push(optimized_var.clone());
 
         // Calculate improvement (placeholder)
         let improvement = 0.15; // 15% improvement
 
-        Ok(EvolutionResult::new(original_prompt, optimized_prompt, improvement)
-            .with_iterations(1)
-            .with_strategy(EvolutionStrategy::Hybrid))
+        Ok(
+            EvolutionResult::new(original_prompt, optimized_prompt, improvement)
+                .with_iterations(1)
+                .with_strategy(EvolutionStrategy::Hybrid),
+        )
     }
 
     /// Build meta-prompt for optimization
@@ -294,9 +286,7 @@ impl PromptOptimizer {
     /// Get best performing variation
     pub fn get_best_variation(&self) -> Option<&PromptVariation> {
         let best_perf = self.metrics_tracker.get_best_prompt()?;
-        self.variations
-            .iter()
-            .find(|v| v.id == best_perf.prompt_id)
+        self.variations.iter().find(|v| v.id == best_perf.prompt_id)
     }
 
     /// Get all variations
@@ -392,11 +382,7 @@ mod tests {
     fn test_meta_prompt_building() {
         let optimizer = PromptOptimizer::new();
 
-        let meta_prompt = optimizer.build_meta_prompt(
-            "Do the task",
-            "Write tests",
-            None,
-        );
+        let meta_prompt = optimizer.build_meta_prompt("Do the task", "Write tests", None);
 
         assert!(meta_prompt.contains("Do the task"));
         assert!(meta_prompt.contains("Write tests"));
@@ -411,11 +397,8 @@ mod tests {
         memory.successful_patterns.push("TDD approach".to_string());
         memory.insights.push("Write tests first".to_string());
 
-        let meta_prompt = optimizer.build_meta_prompt(
-            "Write code",
-            "Implement feature",
-            Some(&memory),
-        );
+        let meta_prompt =
+            optimizer.build_meta_prompt("Write code", "Implement feature", Some(&memory));
 
         assert!(meta_prompt.contains("Historical Context"));
         assert!(meta_prompt.contains("TDD approach"));

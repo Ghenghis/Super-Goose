@@ -28,10 +28,7 @@ impl PostCodeValidator {
         println!("╚══════════════════════════════════════════╝\n");
 
         // Step 1: Syntax Check
-        report.add_check(
-            "Syntax Check",
-            self.check_syntax(files_changed).await?,
-        );
+        report.add_check("Syntax Check", self.check_syntax(files_changed).await?);
 
         // Step 2: TODO/FIXME Scan
         report.add_check(
@@ -80,9 +77,7 @@ impl PostCodeValidator {
                     }
                 }
             } else if file.ends_with(".rs") {
-                let output = Command::new("rustc")
-                    .args(["--parse-only", file])
-                    .output();
+                let output = Command::new("rustc").args(["--parse-only", file]).output();
 
                 if let Ok(output) = output {
                     if !output.status.success() {
@@ -120,12 +115,7 @@ impl PostCodeValidator {
                             || line.contains(&format!("/*{}", marker))
                             || line.contains(&format!("#{}", marker))
                         {
-                            issues.push(format!(
-                                "{}:{}: {}",
-                                file,
-                                line_num + 1,
-                                line.trim()
-                            ));
+                            issues.push(format!("{}:{}: {}", file, line_num + 1, line.trim()));
                         }
                     }
                 }
@@ -159,10 +149,7 @@ impl PostCodeValidator {
 
                     // Check for state that's never updated
                     if self.has_unused_state(&content) {
-                        issues.push(format!(
-                            "{}: State defined but never updated",
-                            file
-                        ));
+                        issues.push(format!("{}: State defined but never updated", file));
                     }
 
                     // Check for imports that aren't used
@@ -247,7 +234,9 @@ impl PostCodeValidator {
         let mut issues = Vec::new();
 
         // TypeScript type checking
-        let has_ts = files.iter().any(|f| f.ends_with(".ts") || f.ends_with(".tsx"));
+        let has_ts = files
+            .iter()
+            .any(|f| f.ends_with(".ts") || f.ends_with(".tsx"));
 
         if has_ts {
             let output = Command::new("npx")
@@ -314,9 +303,7 @@ impl PostCodeValidator {
 
         // Try Rust build
         if Path::new("Cargo.toml").exists() {
-            let output = Command::new("cargo")
-                .args(["build", "--release"])
-                .output();
+            let output = Command::new("cargo").args(["build", "--release"]).output();
 
             if let Ok(output) = output {
                 if !output.status.success() {
@@ -375,8 +362,14 @@ pub struct ValidationReport {
 #[derive(Debug)]
 pub enum CheckResult {
     Pass,
-    Fail { reason: String, details: Vec<String> },
-    Warning { reason: String, details: Vec<String> },
+    Fail {
+        reason: String,
+        details: Vec<String>,
+    },
+    Warning {
+        reason: String,
+        details: Vec<String>,
+    },
 }
 
 impl ValidationReport {

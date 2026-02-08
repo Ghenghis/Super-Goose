@@ -43,7 +43,8 @@ impl Default for CoachConfig {
                 Your role is to review Player agent's work with high standards. \
                 Provide constructive criticism and ensure quality before work \
                 reaches the user. Be thorough but fair. Focus on correctness, \
-                completeness, code quality, and adherence to best practices.".to_string(),
+                completeness, code quality, and adherence to best practices."
+                .to_string(),
             read_only: true,
         }
     }
@@ -291,13 +292,12 @@ impl CoachAgent {
 
         // Basic validation based on quality standards
         let mut review = if !player_result.success {
-            CoachReview::rejected("Player task failed")
-                .with_issue(ReviewIssue {
-                    severity: IssueSeverity::Critical,
-                    category: IssueCategory::Other,
-                    description: "Task execution failed".to_string(),
-                    location: None,
-                })
+            CoachReview::rejected("Player task failed").with_issue(ReviewIssue {
+                severity: IssueSeverity::Critical,
+                category: IssueCategory::Other,
+                description: "Task execution failed".to_string(),
+                location: None,
+            })
         } else {
             // Check quality standards
             let mut quality_score = 1.0;
@@ -328,8 +328,18 @@ impl CoachAgent {
         };
 
         review = review
-            .with_metadata("player_provider", player_result.metadata.get("provider").map(|s| s.as_str()).unwrap_or("unknown"))
-            .with_metadata("files_changed", player_result.files_changed.len().to_string());
+            .with_metadata(
+                "player_provider",
+                player_result
+                    .metadata
+                    .get("provider")
+                    .map(|s| s.as_str())
+                    .unwrap_or("unknown"),
+            )
+            .with_metadata(
+                "files_changed",
+                player_result.files_changed.len().to_string(),
+            );
 
         Ok(review)
     }
@@ -351,7 +361,6 @@ impl Default for CoachAgent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_coach_config_default() {
@@ -425,8 +434,8 @@ mod tests {
     #[tokio::test]
     async fn test_coach_review_success() {
         let mut coach = CoachAgent::new();
-        let player_result = PlayerResult::success("Task completed")
-            .with_metadata("provider", "anthropic");
+        let player_result =
+            PlayerResult::success("Task completed").with_metadata("provider", "anthropic");
 
         let review = coach.review_work(&player_result).await;
         assert!(review.is_ok());
@@ -456,10 +465,22 @@ mod tests {
         let mut coach = CoachAgent::new();
 
         // Approve 3 out of 4
-        coach.review_work(&PlayerResult::success("1")).await.unwrap();
-        coach.review_work(&PlayerResult::success("2")).await.unwrap();
-        coach.review_work(&PlayerResult::failure("3")).await.unwrap();
-        coach.review_work(&PlayerResult::success("4")).await.unwrap();
+        coach
+            .review_work(&PlayerResult::success("1"))
+            .await
+            .unwrap();
+        coach
+            .review_work(&PlayerResult::success("2"))
+            .await
+            .unwrap();
+        coach
+            .review_work(&PlayerResult::failure("3"))
+            .await
+            .unwrap();
+        coach
+            .review_work(&PlayerResult::success("4"))
+            .await
+            .unwrap();
 
         assert_eq!(coach.review_count(), 4);
         assert_eq!(coach.approval_rate(), 0.75);

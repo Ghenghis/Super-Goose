@@ -1,11 +1,11 @@
 //! Smart Logging System for Quality Validation
 //! Provides detailed, structured logging with issue tracking and relationship mapping
 
+use chrono::Local;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
-use chrono::Local;
 
 pub struct ValidationLogger {
     log_dir: PathBuf,
@@ -27,11 +27,11 @@ pub struct IssueDetail {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Severity {
-    Critical,  // Blocks release
-    High,      // Must fix before merge
-    Medium,    // Should fix soon
-    Low,       // Nice to have
-    Info,      // Informational only
+    Critical, // Blocks release
+    High,     // Must fix before merge
+    Medium,   // Should fix soon
+    Low,      // Nice to have
+    Info,     // Informational only
 }
 
 impl ValidationLogger {
@@ -55,16 +55,28 @@ impl ValidationLogger {
         let mut file = File::create(&log_file_path)
             .map_err(|e| format!("Failed to create log file: {}", e))?;
 
-        writeln!(file, "╔════════════════════════════════════════════════════════════════╗")
-            .map_err(|e| e.to_string())?;
-        writeln!(file, "║  GOOSE VALIDATION LOG                                          ║")
-            .map_err(|e| e.to_string())?;
-        writeln!(file, "║  Run: {:<54} ║", run_name)
-            .map_err(|e| e.to_string())?;
-        writeln!(file, "║  Started: {:<49} ║", Local::now().format("%Y-%m-%d %H:%M:%S"))
-            .map_err(|e| e.to_string())?;
-        writeln!(file, "╚════════════════════════════════════════════════════════════════╝")
-            .map_err(|e| e.to_string())?;
+        writeln!(
+            file,
+            "╔════════════════════════════════════════════════════════════════╗"
+        )
+        .map_err(|e| e.to_string())?;
+        writeln!(
+            file,
+            "║  GOOSE VALIDATION LOG                                          ║"
+        )
+        .map_err(|e| e.to_string())?;
+        writeln!(file, "║  Run: {:<54} ║", run_name).map_err(|e| e.to_string())?;
+        writeln!(
+            file,
+            "║  Started: {:<49} ║",
+            Local::now().format("%Y-%m-%d %H:%M:%S")
+        )
+        .map_err(|e| e.to_string())?;
+        writeln!(
+            file,
+            "╚════════════════════════════════════════════════════════════════╝"
+        )
+        .map_err(|e| e.to_string())?;
         writeln!(file).map_err(|e| e.to_string())?;
 
         self.current_log_file = Some(file);
@@ -85,14 +97,19 @@ impl ValidationLogger {
         };
 
         // Add to issues collection
-        self.issues.entry(detail.issue_type.clone())
+        self.issues
+            .entry(detail.issue_type.clone())
             .or_default()
             .push(detail.clone());
 
         // Write to log file
         if let Some(file) = &mut self.current_log_file {
-            writeln!(file, "{} {} - {}", severity_icon, detail.issue_type, detail.file)
-                .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "{} {} - {}",
+                severity_icon, detail.issue_type, detail.file
+            )
+            .map_err(|e| e.to_string())?;
 
             if let Some(line) = detail.line {
                 writeln!(file, "   Line: {}", line).map_err(|e| e.to_string())?;
@@ -133,12 +150,21 @@ impl ValidationLogger {
     /// Generate summary report showing relationships and impact
     pub fn generate_summary(&mut self) -> Result<(), String> {
         if let Some(file) = &mut self.current_log_file {
-            writeln!(file, "\n╔════════════════════════════════════════════════════════════════╗")
-                .map_err(|e| e.to_string())?;
-            writeln!(file, "║  VALIDATION SUMMARY                                            ║")
-                .map_err(|e| e.to_string())?;
-            writeln!(file, "╚════════════════════════════════════════════════════════════════╝\n")
-                .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "\n╔════════════════════════════════════════════════════════════════╗"
+            )
+            .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "║  VALIDATION SUMMARY                                            ║"
+            )
+            .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "╚════════════════════════════════════════════════════════════════╝\n"
+            )
+            .map_err(|e| e.to_string())?;
 
             // Count by severity
             let mut severity_counts: HashMap<Severity, usize> = HashMap::new();
@@ -149,16 +175,36 @@ impl ValidationLogger {
             }
 
             writeln!(file, "Issues by Severity:").map_err(|e| e.to_string())?;
-            writeln!(file, "  🔴 Critical:  {}", severity_counts.get(&Severity::Critical).unwrap_or(&0))
-                .map_err(|e| e.to_string())?;
-            writeln!(file, "  🟠 High:      {}", severity_counts.get(&Severity::High).unwrap_or(&0))
-                .map_err(|e| e.to_string())?;
-            writeln!(file, "  🟡 Medium:    {}", severity_counts.get(&Severity::Medium).unwrap_or(&0))
-                .map_err(|e| e.to_string())?;
-            writeln!(file, "  🔵 Low:       {}", severity_counts.get(&Severity::Low).unwrap_or(&0))
-                .map_err(|e| e.to_string())?;
-            writeln!(file, "  ℹ️  Info:      {}", severity_counts.get(&Severity::Info).unwrap_or(&0))
-                .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "  🔴 Critical:  {}",
+                severity_counts.get(&Severity::Critical).unwrap_or(&0)
+            )
+            .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "  🟠 High:      {}",
+                severity_counts.get(&Severity::High).unwrap_or(&0)
+            )
+            .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "  🟡 Medium:    {}",
+                severity_counts.get(&Severity::Medium).unwrap_or(&0)
+            )
+            .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "  🔵 Low:       {}",
+                severity_counts.get(&Severity::Low).unwrap_or(&0)
+            )
+            .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "  ℹ️  Info:      {}",
+                severity_counts.get(&Severity::Info).unwrap_or(&0)
+            )
+            .map_err(|e| e.to_string())?;
             writeln!(file).map_err(|e| e.to_string())?;
 
             // Issues by type
@@ -189,15 +235,27 @@ impl ValidationLogger {
                 }
             }
 
-            writeln!(file, "\n╔════════════════════════════════════════════════════════════════╗")
-                .map_err(|e| e.to_string())?;
-            writeln!(file, "║  END OF VALIDATION LOG                                         ║")
-                .map_err(|e| e.to_string())?;
-            writeln!(file, "║  Completed: {:<46} ║",
-                     Local::now().format("%Y-%m-%d %H:%M:%S"))
-                .map_err(|e| e.to_string())?;
-            writeln!(file, "╚════════════════════════════════════════════════════════════════╝")
-                .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "\n╔════════════════════════════════════════════════════════════════╗"
+            )
+            .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "║  END OF VALIDATION LOG                                         ║"
+            )
+            .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "║  Completed: {:<46} ║",
+                Local::now().format("%Y-%m-%d %H:%M:%S")
+            )
+            .map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "╚════════════════════════════════════════════════════════════════╝"
+            )
+            .map_err(|e| e.to_string())?;
         }
 
         Ok(())

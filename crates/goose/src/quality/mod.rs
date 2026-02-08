@@ -1,16 +1,16 @@
 // Quality enforcement module for Goose
 // Ensures code quality through SonarQube integration and validation
 
-pub mod sonarqube;
-pub mod validator;
 pub mod advanced_validator;
 pub mod comprehensive_validator;
-pub mod multipass_validator;
 pub mod logger;
+pub mod multipass_validator;
+pub mod sonarqube;
+pub mod validator;
 
-pub use sonarqube::{SonarQubeConfig, QualityGateStatus};
-pub use validator::{PostCodeValidator, ValidationReport, CheckResult};
-pub use advanced_validator::{AdvancedValidator, ValidationResult, ValidationIssue, Severity};
-pub use comprehensive_validator::{ComprehensiveValidator, ComprehensiveReport};
-pub use multipass_validator::{MultiPassValidator, ValidationSnapshot, FinalReport};
-pub use logger::{ValidationLogger, IssueDetail, Severity as LogSeverity};
+pub use advanced_validator::{AdvancedValidator, Severity, ValidationIssue, ValidationResult};
+pub use comprehensive_validator::{ComprehensiveReport, ComprehensiveValidator};
+pub use logger::{IssueDetail, Severity as LogSeverity, ValidationLogger};
+pub use multipass_validator::{FinalReport, MultiPassValidator, ValidationSnapshot};
+pub use sonarqube::{QualityGateStatus, SonarQubeConfig};
+pub use validator::{CheckResult, PostCodeValidator, ValidationReport};

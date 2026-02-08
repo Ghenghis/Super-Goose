@@ -38,7 +38,8 @@ impl Default for PlayerConfig {
             system_prompt: "You are a Player agent in an adversarial system. \
                 Execute tasks thoroughly and efficiently. Your work will be \
                 reviewed by a Coach agent before reaching the user. Focus on \
-                implementation quality and completeness.".to_string(),
+                implementation quality and completeness."
+                .to_string(),
         }
     }
 }

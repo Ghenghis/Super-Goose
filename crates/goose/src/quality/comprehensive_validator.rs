@@ -2,8 +2,7 @@
 // Runs ALL validation checks in the correct order with detailed reporting
 
 use super::{
-    PostCodeValidator, AdvancedValidator, SonarQubeConfig,
-    ValidationReport, ValidationResult,
+    AdvancedValidator, PostCodeValidator, SonarQubeConfig, ValidationReport, ValidationResult,
 };
 use std::time::Instant;
 
@@ -55,27 +54,36 @@ impl ComprehensiveValidator {
         // Check 9: API Contract Validation
         self.run_check(&mut report, "API Contracts", || async {
             self.advanced_validator.validate_api_contracts(files).await
-        }).await;
+        })
+        .await;
 
         // Check 10: Component Import/Export
         self.run_check(&mut report, "Component Imports", || async {
-            self.advanced_validator.validate_component_imports(files).await
-        }).await;
+            self.advanced_validator
+                .validate_component_imports(files)
+                .await
+        })
+        .await;
 
         // Check 11: State Management
         self.run_check(&mut report, "State Management", || async {
-            self.advanced_validator.validate_state_management(files).await
-        }).await;
+            self.advanced_validator
+                .validate_state_management(files)
+                .await
+        })
+        .await;
 
         // Check 12: Event Handlers
         self.run_check(&mut report, "Event Handlers", || async {
             self.advanced_validator.validate_event_handlers(files).await
-        }).await;
+        })
+        .await;
 
         // Check 13: Route Registration
         self.run_check(&mut report, "Route Registration", || async {
             self.advanced_validator.validate_routes(files).await
-        }).await;
+        })
+        .await;
 
         // PHASE 3: SECURITY & DEPENDENCIES (3 checks)
         println!("\n🔒 PHASE 3: Security & Dependencies (3 checks)");
@@ -84,17 +92,20 @@ impl ComprehensiveValidator {
         // Check 14: Dependency Security
         self.run_check(&mut report, "Dependency Security", || async {
             self.validate_dependencies().await
-        }).await;
+        })
+        .await;
 
         // Check 15: Environment Variables
         self.run_check(&mut report, "Environment Variables", || async {
             self.validate_environment_vars(files).await
-        }).await;
+        })
+        .await;
 
         // Check 16: Security Scan
         self.run_check(&mut report, "Security Scan", || async {
             self.validate_security(files).await
-        }).await;
+        })
+        .await;
 
         // PHASE 4: CODE QUALITY (4 checks)
         println!("\n📊 PHASE 4: Code Quality & Complexity (4 checks)");
@@ -103,22 +114,26 @@ impl ComprehensiveValidator {
         // Check 17: Error Handling
         self.run_check(&mut report, "Error Handling", || async {
             self.validate_error_handling(files).await
-        }).await;
+        })
+        .await;
 
         // Check 18: Code Complexity
         self.run_check(&mut report, "Code Complexity", || async {
             self.validate_complexity(files).await
-        }).await;
+        })
+        .await;
 
         // Check 19: Performance
         self.run_check(&mut report, "Performance", || async {
             self.validate_performance(files).await
-        }).await;
+        })
+        .await;
 
         // Check 20: Test Coverage
         self.run_check(&mut report, "Test Coverage", || async {
             self.validate_test_coverage(files).await
-        }).await;
+        })
+        .await;
 
         // PHASE 5: DOCUMENTATION & STANDARDS (3 checks)
         println!("\n📚 PHASE 5: Documentation & Standards (3 checks)");
@@ -127,17 +142,20 @@ impl ComprehensiveValidator {
         // Check 21: Documentation
         self.run_check(&mut report, "Documentation", || async {
             self.validate_documentation(files).await
-        }).await;
+        })
+        .await;
 
         // Check 22: Accessibility
         self.run_check(&mut report, "Accessibility", || async {
             self.validate_accessibility(files).await
-        }).await;
+        })
+        .await;
 
         // Check 23: Commit Messages
         self.run_check(&mut report, "Commit Messages", || async {
             self.validate_commit_messages().await
-        }).await;
+        })
+        .await;
 
         // PHASE 6: SONARQUBE (optional)
         if self.enable_sonarqube {
@@ -197,13 +215,17 @@ impl ComprehensiveValidator {
 
     async fn validate_dependencies(&self) -> Result<ValidationResult, String> {
         // Run npm audit and cargo audit to check for vulnerable dependencies
+        use super::advanced_validator::{Severity, ValidationIssue};
         use std::process::Command;
-        use super::advanced_validator::{ValidationIssue, Severity};
         let mut issues = Vec::new();
 
         // Check npm dependencies if package.json exists
         if std::path::Path::new("ui/desktop/package.json").exists() {
-            if let Ok(output) = Command::new("npm").args(["audit", "--audit-level=moderate"]).current_dir("ui/desktop").output() {
+            if let Ok(output) = Command::new("npm")
+                .args(["audit", "--audit-level=moderate"])
+                .current_dir("ui/desktop")
+                .output()
+            {
                 if !output.status.success() {
                     issues.push(ValidationIssue {
                         file: "ui/desktop/package.json".to_string(),
@@ -238,7 +260,10 @@ impl ComprehensiveValidator {
         })
     }
 
-    async fn validate_environment_vars(&self, _files: &[String]) -> Result<ValidationResult, String> {
+    async fn validate_environment_vars(
+        &self,
+        _files: &[String],
+    ) -> Result<ValidationResult, String> {
         // TODO: Check .env.example vs actual usage
         Ok(ValidationResult {
             check_name: "Environment Variables".to_string(),
@@ -366,7 +391,11 @@ impl ComprehensiveReport {
         println!("║          COMPREHENSIVE VALIDATION SUMMARY                  ║");
         println!("╚════════════════════════════════════════════════════════════╝\n");
 
-        println!("Total Checks:    {} / {}", self.passed + self.failed + self.skipped, self.total);
+        println!(
+            "Total Checks:    {} / {}",
+            self.passed + self.failed + self.skipped,
+            self.total
+        );
         println!("✅ Passed:       {}", self.passed);
         println!("❌ Failed:       {}", self.failed);
         println!("⚠️  Skipped:      {}", self.skipped);
@@ -386,7 +415,10 @@ impl ComprehensiveReport {
         } else {
             println!("╔════════════════════════════════════════════════════════════╗");
             println!("║              ❌ VALIDATION FAILED!                         ║");
-            println!("║    Fix {} issue(s) before reporting work as done           ║", self.failed);
+            println!(
+                "║    Fix {} issue(s) before reporting work as done           ║",
+                self.failed
+            );
             println!("╚════════════════════════════════════════════════════════════╝");
 
             println!("\n📋 Issues Found:\n");
@@ -432,8 +464,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_comprehensive_validation() {
-        let validator = ComprehensiveValidator::new()
-            .with_sonarqube(false); // Skip SonarQube in tests
+        let validator = ComprehensiveValidator::new().with_sonarqube(false); // Skip SonarQube in tests
 
         let files = vec!["test.ts".to_string()];
 

@@ -13,9 +13,9 @@ pub mod review;
 #[cfg(test)]
 mod integration_tests;
 
-pub use coach::{CoachAgent, CoachConfig, CoachReview, ReviewIssue, IssueSeverity, IssueCategory};
+pub use coach::{CoachAgent, CoachConfig, CoachReview, IssueCategory, IssueSeverity, ReviewIssue};
 pub use player::{PlayerAgent, PlayerConfig, PlayerResult};
-pub use review::{ReviewCycle, ReviewOutcome, ReviewFeedback, ReviewStats};
+pub use review::{ReviewCycle, ReviewFeedback, ReviewOutcome, ReviewStats};
 
 use serde::{Deserialize, Serialize};
 

@@ -6,10 +6,10 @@
 //! - Progressive disclosure for token-efficient context retrieval
 //! - Success metrics tracking for A/B testing prompt variations
 
-pub mod optimizer;
 pub mod memory_integration;
-pub mod progressive_disclosure;
 pub mod metrics;
+pub mod optimizer;
+pub mod progressive_disclosure;
 
 #[cfg(test)]
 mod integration_tests;
@@ -18,13 +18,13 @@ mod integration_tests;
 // #[cfg(test)]
 // mod memory_integration_fix_tests;
 
-pub use optimizer::{PromptOptimizer, PromptVariation, OptimizationConfig, OptimizationResult};
-pub use memory_integration::{MemoryRetrieval, ReflexionQuery, MemoryContext};
+pub use memory_integration::{MemoryContext, MemoryRetrieval, ReflexionQuery};
+pub use metrics::{MetricsTracker, PromptPerformance, SuccessMetrics};
+pub use optimizer::{OptimizationConfig, OptimizationResult, PromptOptimizer, PromptVariation};
 pub use progressive_disclosure::{
-    DisclosureLayer, DisclosureStrategy, LayeredContext, CompactEntry, TimelineEntry,
-    FullDetailsEntry,
+    CompactEntry, DisclosureLayer, DisclosureStrategy, FullDetailsEntry, LayeredContext,
+    TimelineEntry,
 };
-pub use metrics::{SuccessMetrics, PromptPerformance, MetricsTracker};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -66,8 +66,7 @@ impl Default for EvolutionConfig {
 }
 
 /// Evolution strategy for prompt optimization
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum EvolutionStrategy {
     /// Optimize based on success rate
     SuccessRate,
@@ -79,7 +78,6 @@ pub enum EvolutionStrategy {
     #[default]
     Hybrid,
 }
-
 
 /// Result of evolution optimization
 #[derive(Debug, Clone, Serialize, Deserialize)]

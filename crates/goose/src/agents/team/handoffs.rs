@@ -152,10 +152,7 @@ impl HandoffManager {
                     if rule.required {
                         failed_rules.push(format!("{}: {}", rule.description, e));
                     } else {
-                        warnings.push(format!(
-                            "Optional rule error: {}: {}",
-                            rule.description, e
-                        ));
+                        warnings.push(format!("Optional rule error: {}: {}", rule.description, e));
                     }
                 }
             }
@@ -511,8 +508,7 @@ mod tests {
         fs::write(&code_path, "fn main() {}").unwrap();
 
         let mut manager = HandoffManager::new(AlmasRole::Developer);
-        let handoff =
-            HandoffManager::developer_to_qa("task1", "Test feature", vec![code_path]);
+        let handoff = HandoffManager::developer_to_qa("task1", "Test feature", vec![code_path]);
 
         let result = manager.execute_handoff(handoff);
         assert!(result.is_ok());
@@ -527,11 +523,8 @@ mod tests {
         let non_existent_path = PathBuf::from("/tmp/does_not_exist.md");
 
         let mut manager = HandoffManager::new(AlmasRole::Architect);
-        let handoff = HandoffManager::architect_to_developer(
-            "task1",
-            "Build feature",
-            non_existent_path,
-        );
+        let handoff =
+            HandoffManager::architect_to_developer("task1", "Build feature", non_existent_path);
 
         let result = manager.execute_handoff(handoff);
         assert!(result.is_err());

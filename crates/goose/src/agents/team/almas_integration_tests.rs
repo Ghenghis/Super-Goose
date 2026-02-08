@@ -4,9 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::agents::team::{
-        AlmasRole, CapabilityEnforcer, Handoff, HandoffManager, Operation,
-    };
+    use crate::agents::team::{AlmasRole, CapabilityEnforcer, Handoff, HandoffManager, Operation};
     use std::fs;
     use std::path::PathBuf;
     use tempfile::TempDir;
@@ -21,7 +19,11 @@ mod tests {
         assert_eq!(manager.current_role(), AlmasRole::Architect);
 
         let plan_path = temp_dir.path().join("ARCHITECTURE.md");
-        fs::write(&plan_path, "# Architecture Plan\n\n## Overview\nComplete system design").unwrap();
+        fs::write(
+            &plan_path,
+            "# Architecture Plan\n\n## Overview\nComplete system design",
+        )
+        .unwrap();
 
         // Handoff from Architect to Developer
         let handoff1 = HandoffManager::architect_to_developer(
@@ -106,7 +108,12 @@ mod tests {
 
         // Verify all handoffs succeeded
         for (i, handoff) in manager.handoff_history().iter().enumerate() {
-            println!("Handoff {}: {:?} → {:?}", i + 1, handoff.from_role, handoff.to_role);
+            println!(
+                "Handoff {}: {:?} → {:?}",
+                i + 1,
+                handoff.from_role,
+                handoff.to_role
+            );
         }
     }
 
@@ -137,11 +144,7 @@ mod tests {
         // Verify failure reason in metadata
         let last_handoff = &manager.handoff_history()[0];
         assert_eq!(
-            last_handoff
-                .context
-                .metadata
-                .get("failure_reason")
-                .unwrap(),
+            last_handoff.context.metadata.get("failure_reason").unwrap(),
             "3 test failures: login timeout, invalid token, session expiry"
         );
     }
@@ -210,10 +213,7 @@ mod tests {
         assert!(deploy_read.allowed, "Deployer should read configs");
 
         let deploy_edit = deployer_enforcer.check_edit_code(PathBuf::from("src/main.rs").as_path());
-        assert!(
-            !deploy_edit.allowed,
-            "Deployer should NOT edit source code"
-        );
+        assert!(!deploy_edit.allowed, "Deployer should NOT edit source code");
 
         let deploy_execute = deployer_enforcer.check_execute("docker build");
         assert!(deploy_execute.allowed, "Deployer should execute builds");
@@ -234,7 +234,10 @@ mod tests {
 
         let results = developer_enforcer.check_operations(&operations);
         assert_eq!(results.len(), 5);
-        assert!(results.iter().all(|r| r.allowed), "Developer should pass all operations");
+        assert!(
+            results.iter().all(|r| r.allowed),
+            "Developer should pass all operations"
+        );
 
         // Now test with QA role (should fail on Write and EditCode)
         let qa_enforcer = CapabilityEnforcer::new(AlmasRole::Qa);
@@ -299,10 +302,7 @@ mod tests {
         };
 
         let result = manager.execute_handoff(invalid_handoff);
-        assert!(
-            result.is_err(),
-            "Deployer cannot handoff (final role)"
-        );
+        assert!(result.is_err(), "Deployer cannot handoff (final role)");
     }
 
     /// Test role switching with enforcer
