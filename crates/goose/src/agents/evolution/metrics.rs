@@ -112,12 +112,21 @@ impl PromptPerformance {
 
     /// Calculate improvement over baseline
     pub fn improvement_over(&self, baseline: &PromptPerformance) -> f32 {
-        if baseline.metrics.success_rate() == 0.0 {
+        // Calculate combined score: success_rate * quality * (1 / duration)
+        // This accounts for success rate, quality, and speed
+        let baseline_score = baseline.metrics.success_rate()
+            * baseline.metrics.avg_quality
+            * (1000.0 / baseline.metrics.avg_duration_ms.max(1) as f32);
+
+        let new_score = self.metrics.success_rate()
+            * self.metrics.avg_quality
+            * (1000.0 / self.metrics.avg_duration_ms.max(1) as f32);
+
+        if baseline_score == 0.0 {
             return 0.0;
         }
 
-        (self.metrics.success_rate() - baseline.metrics.success_rate())
-            / baseline.metrics.success_rate()
+        (new_score - baseline_score) / baseline_score
     }
 }
 

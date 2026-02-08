@@ -255,10 +255,20 @@ impl FileAccessPatterns {
         allowed.insert("VULNERABILITIES.md".to_string());
         allowed.insert("COMPLIANCE_CHECK.md".to_string());
         allowed.insert("security/**/*.md".to_string());
+        // Allow reading config files for security auditing
+        allowed.insert("**/Cargo.toml".to_string());
+        allowed.insert("**/Cargo.lock".to_string());
+        allowed.insert("**/package.json".to_string());
+        allowed.insert("**/package-lock.json".to_string());
+        allowed.insert("**/.env.example".to_string());
+        allowed.insert("**/Dockerfile".to_string());
+        allowed.insert("**/*.yaml".to_string());
+        allowed.insert("**/*.yml".to_string());
 
         let mut blocked = HashSet::new();
         blocked.insert("**/src/**/*.rs".to_string());
         blocked.insert("**/src/**/*.py".to_string());
+        blocked.insert("**/.env".to_string()); // Block actual secrets
 
         Self {
             allowed_patterns: allowed,

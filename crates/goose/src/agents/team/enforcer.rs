@@ -374,17 +374,18 @@ impl CapabilityEnforcer {
 
     /// Check if command execution is allowed based on command permissions
     fn check_command_permission(&self, command: &str) -> bool {
-        // Extract the base command (first word)
-        let base_command = command.split_whitespace().next().unwrap_or(command);
-
         // Check blocked commands first (deny list takes precedence)
-        if self.role_config.command_permissions.blocked_commands.contains(base_command) {
-            debug!(
-                role = ?self.current_role,
-                command = %base_command,
-                "Command blocked by deny list"
-            );
-            return false;
+        // Check both exact match and prefix match
+        for blocked_cmd in &self.role_config.command_permissions.blocked_commands {
+            if command == blocked_cmd || command.starts_with(&format!("{} ", blocked_cmd)) {
+                debug!(
+                    role = ?self.current_role,
+                    command = %command,
+                    blocked_pattern = %blocked_cmd,
+                    "Command blocked by deny list"
+                );
+                return false;
+            }
         }
 
         // If allowed commands is empty, allow all (except blocked)
@@ -392,20 +393,24 @@ impl CapabilityEnforcer {
             return true;
         }
 
-        // Check allowed commands
-        if self.role_config.command_permissions.allowed_commands.contains(base_command) {
-            debug!(
-                role = ?self.current_role,
-                command = %base_command,
-                "Command allowed by allow list"
-            );
-            return true;
+        // Check allowed commands - match if command starts with allowed pattern
+        for allowed_cmd in &self.role_config.command_permissions.allowed_commands {
+            if command == allowed_cmd || command.starts_with(&format!("{} ", allowed_cmd)) {
+                debug!(
+                    role = ?self.current_role,
+                    command = %command,
+                    allowed_pattern = %allowed_cmd,
+                    "Command allowed by allow list"
+                );
+                return true;
+            }
         }
 
         // No matching allow command found
         debug!(
             role = ?self.current_role,
-            command = %base_command,
+            command = %command,
+            allowed_commands = ?self.role_config.command_permissions.allowed_commands,
             "Command denied: not in allow list"
         );
         false
