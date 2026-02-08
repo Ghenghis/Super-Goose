@@ -191,6 +191,119 @@ Each of the 13 Conscious personalities gets a unique color:
 
 ---
 
+## Unified Color System: Text + Visualizer + Chat
+
+**Key design principle:** The visualizer color, chat text color, and speaker label color all match. When a user changes their chat text color, the visualizer updates to match. This creates a cohesive visual identity per speaker.
+
+### Two Color Contexts (Independent)
+
+| Context | What It Colors | User Changeable | Scope |
+|---------|---------------|-----------------|-------|
+| **Voice Chat Colors** | Chat text + visualizer + speaker labels | Yes - per speaker | Voice conversation UI |
+| **Code Text Colors** | Syntax highlighting, code blocks, editor | Separate theme system | Code/editor UI |
+
+These two systems are **independent but coexist**. A user can have green voice chat text while their code editor uses Monokai dark theme. They work together agentically (Conscious can discuss code that appears in code-colored blocks while the conversation text stays voice-colored).
+
+### Voice Chat Color Config
+
+```typescript
+interface VoiceChatColorConfig {
+  // Per-speaker colors (user-customizable)
+  speakers: {
+    human: SpeakerColorSet;
+    conscious: SpeakerColorSet;  // Changes with personality or user override
+  };
+
+  // Does changing chat text color also update the visualizer?
+  syncTextAndVisualizer: boolean;  // Default: true
+
+  // Global overrides
+  colorMode: 'personality-default' | 'user-custom' | 'high-contrast';
+}
+
+interface SpeakerColorSet {
+  textColor: string;          // Chat message text color
+  visualizerColor: string;    // Audio visualizer primary color (synced from textColor when syncTextAndVisualizer=true)
+  labelColor: string;         // Speaker name/badge color
+  bubbleBackground: string;   // Chat bubble background (auto-derived: textColor at 10% opacity)
+  glowColor: string;          // Visualizer glow effect (auto-derived: textColor at 30% opacity)
+}
+```
+
+### How Color Sync Works
+
+```
+User changes Human chat text color to #ff6b35 (warm orange)
+    │
+    ├── Human chat text → #ff6b35
+    ├── Human visualizer bars → #ff6b35 (synced)
+    ├── Human speaker label → #ff6b35 (synced)
+    ├── Human chat bubble bg → rgba(255, 107, 53, 0.1)
+    └── Human visualizer glow → rgba(255, 107, 53, 0.3)
+
+User switches Conscious personality to Jarvispool
+    │
+    ├── Conscious chat text → #ef4444 (Jarvispool red)
+    ├── Conscious visualizer → #ef4444 (synced)
+    ├── Conscious label → "Jarvispool" in #ef4444
+    └── Code blocks remain unaffected (separate theme)
+```
+
+### Settings UI
+
+```
+┌─────────────────────────────────────────┐
+│  Voice Chat Appearance                  │
+│                                         │
+│  Your Voice Color:  [████] #22c55e  ✏️  │
+│  Preview: ░░▓▓████▓▓░░ "Hello..."      │
+│                                         │
+│  AI Voice Color:    [████] #06b6d4  ✏️  │
+│  Preview: ░░▓██████▓░░ "I think..."    │
+│  (Auto-set by personality, or override) │
+│                                         │
+│  [✓] Sync text color with visualizer    │
+│  [✓] Auto-color from personality        │
+│                                         │
+│  ──── Code Appearance (separate) ────   │
+│  Theme: [Monokai Dark      ▼]          │
+│  (Does not affect voice chat colors)    │
+└─────────────────────────────────────────┘
+```
+
+### Personality Auto-Color
+
+When "Auto-color from personality" is enabled (default), switching the Conscious personality automatically updates:
+- Conscious chat text color
+- Conscious visualizer color
+- Conscious speaker label
+
+The Human color stays as whatever the user set. If the user manually overrides the Conscious color, auto-color is disabled for that session.
+
+### CSS Custom Properties
+
+```css
+/* Voice chat colors (dynamic, per speaker) */
+--voice-human-text: #22c55e;
+--voice-human-visualizer: #22c55e;
+--voice-human-glow: rgba(34, 197, 94, 0.3);
+--voice-human-bubble: rgba(34, 197, 94, 0.1);
+
+--voice-conscious-text: #06b6d4;
+--voice-conscious-visualizer: #06b6d4;
+--voice-conscious-glow: rgba(6, 182, 212, 0.3);
+--voice-conscious-bubble: rgba(6, 182, 212, 0.1);
+
+/* Code colors (separate theme, NOT affected by voice colors) */
+--code-bg: #1e1e2e;
+--code-text: #cdd6f4;
+--code-keyword: #cba6f7;
+--code-string: #a6e3a1;
+/* ... standard syntax highlighting theme ... */
+```
+
+---
+
 ## Audio Pipeline
 
 ### Human (Microphone Input)
