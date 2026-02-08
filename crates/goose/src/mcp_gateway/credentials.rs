@@ -491,29 +491,36 @@ mod tests {
         ));
     }
 
+    // Test credential values - these are NOT real credentials, used only for unit test assertions
+    const TEST_API_KEY: &str = "test-api-key-not-real";
+    const TEST_BEARER: &str = "test-bearer-token-not-real";
+    const TEST_BASIC_USER: &str = "test-user";
+    const TEST_BASIC_CREDENTIAL: &str = "test-credential-not-real";
+    const TEST_EXPIRY_KEY: &str = "test-expiry-key-not-real";
+
     #[test]
     fn test_credential_header_value() {
-        let api_key = Credentials::api_key("test-key");
-        assert_eq!(api_key.to_header_value(), "test-key");
+        let api_key = Credentials::api_key(TEST_API_KEY);
+        assert_eq!(api_key.to_header_value(), TEST_API_KEY);
 
-        let bearer = Credentials::bearer_token("my-token");
-        assert_eq!(bearer.to_header_value(), "Bearer my-token");
+        let bearer = Credentials::bearer_token(TEST_BEARER);
+        assert_eq!(bearer.to_header_value(), format!("Bearer {}", TEST_BEARER));
 
-        let basic = Credentials::basic_auth("user", "pass");
+        let basic = Credentials::basic_auth(TEST_BASIC_USER, TEST_BASIC_CREDENTIAL);
         assert!(basic.to_header_value().starts_with("Basic "));
     }
 
     #[test]
     fn test_credential_expiration() {
-        let not_expired =
-            Credentials::api_key("key").with_expiration(Utc::now() + chrono::Duration::hours(1));
+        let not_expired = Credentials::api_key(TEST_EXPIRY_KEY)
+            .with_expiration(Utc::now() + chrono::Duration::hours(1));
         assert!(!not_expired.is_expired());
 
-        let expired =
-            Credentials::api_key("key").with_expiration(Utc::now() - chrono::Duration::hours(1));
+        let expired = Credentials::api_key(TEST_EXPIRY_KEY)
+            .with_expiration(Utc::now() - chrono::Duration::hours(1));
         assert!(expired.is_expired());
 
-        let no_expiry = Credentials::api_key("key");
+        let no_expiry = Credentials::api_key(TEST_EXPIRY_KEY);
         assert!(!no_expiry.is_expired());
     }
 }

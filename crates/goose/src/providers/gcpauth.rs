@@ -162,12 +162,12 @@ impl AdcCredentials {
     /// 2. Default gcloud credentials path (~/.config/gcloud/application_default_credentials.json)
     /// 3. Metadata server if running in GCP
     async fn load() -> Result<Self, AuthError> {
-        Self::load_impl(
-            &RealFilesystemOps,
-            &RealEnvOps,
-            "http://metadata.google.internal",
-        )
-        .await
+        // GCP metadata server is a link-local service (169.254.169.254) that only accepts
+        // HTTP connections by design - HTTPS is not supported. This is safe because the
+        // metadata server is only accessible from within the VM instance itself.
+        // See: https://cloud.google.com/compute/docs/metadata/overview#metadata_server
+        const GCP_METADATA_URL: &str = "http://metadata.google.internal"; // NOLINT: http required by GCP
+        Self::load_impl(&RealFilesystemOps, &RealEnvOps, GCP_METADATA_URL).await
     }
 
     async fn load_impl(

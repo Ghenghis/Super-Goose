@@ -79,17 +79,19 @@ pub fn collect_missing_secrets(requirements: &[SecretRequirement]) -> Result<()>
     }
 
     println!(
-        "🔐 This recipe uses {} secret(s) that are not yet configured (press ESC to skip any that are optional):",
+        "This recipe uses {} secret(s) that are not yet configured (press ESC to skip any that are optional):",
         missing_secrets.len()
     );
 
     for req in &missing_secrets {
-        println!("\n📋 Extension: {}", req.extension_name);
-        println!("🔑 Secret: {}", req.key);
+        // Log extension and key names only (not values) for user guidance
+        let ext_name = &req.extension_name;
+        let key_name = &req.key;
+        println!("\n  Extension: {ext_name}");
+        println!("  Secret required: {key_name}");
 
         let value = cliclack::password(format!(
-            "Enter {} ({}) - press ESC to skip",
-            req.key,
+            "Enter value for {key_name} ({}) - press ESC to skip",
             req.description()
         ))
         .mask('▪')
@@ -97,17 +99,16 @@ pub fn collect_missing_secrets(requirements: &[SecretRequirement]) -> Result<()>
         .unwrap_or_else(|_| String::new());
 
         if !value.trim().is_empty() {
-            if let Err(e) = config.set_secret(&req.key, &value) {
-                println!("⚠️  Failed to store secret in secure storage: {}. Secret available for this session only.", e);
+            if let Err(_e) = config.set_secret(key_name, &value) {
+                println!("  Warning: Failed to store secret in secure storage. Secret available for this session only.");
                 println!(
-                    "   Consider setting {} as an environment variable for future use.",
-                    req.key
+                    "  Consider setting the required secret as an environment variable for future use."
                 );
             } else {
-                println!("✅ Secret stored securely for {}", req.extension_name);
+                println!("  Secret stored securely for {ext_name}");
             }
         } else {
-            println!("⏭️  Skipped {} for {}", req.key, req.extension_name);
+            println!("  Skipped secret for {ext_name}");
         }
     }
 

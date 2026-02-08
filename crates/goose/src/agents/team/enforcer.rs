@@ -116,15 +116,31 @@ impl CapabilityEnforcer {
         }
 
         if !self.check_file_access(path) {
-            return EnforcementResult {
-                allowed: false,
-                reason: format!(
-                    "File access blocked by role policy for path: {}",
-                    path.display()
-                ),
-                operation: Operation::Read(path.to_path_buf()),
-                role: self.current_role,
-            };
+            // File not in allowed_patterns - check if it's in read_only_patterns
+            // (read-only files are readable but not writable)
+            let path_str = path.to_string_lossy();
+            let is_read_only = self
+                .role_config
+                .file_access
+                .read_only_patterns
+                .iter()
+                .any(|pattern_str| {
+                    Pattern::new(pattern_str)
+                        .map(|p| p.matches(&path_str))
+                        .unwrap_or(false)
+                });
+
+            if !is_read_only {
+                return EnforcementResult {
+                    allowed: false,
+                    reason: format!(
+                        "File access blocked by role policy for path: {}",
+                        path.display()
+                    ),
+                    operation: Operation::Read(path.to_path_buf()),
+                    role: self.current_role,
+                };
+            }
         }
 
         EnforcementResult {
@@ -148,18 +164,20 @@ impl CapabilityEnforcer {
 
         // Check if file is read-only for this role
         let path_str = path.to_string_lossy();
-        for pattern in &self.role_config.file_access.read_only_patterns {
-            if matches_pattern(&path_str, pattern) {
-                return EnforcementResult {
-                    allowed: false,
-                    reason: format!(
-                        "File is read-only for role {:?}: {}",
-                        self.current_role,
-                        path.display()
-                    ),
-                    operation: Operation::Write(path.to_path_buf()),
-                    role: self.current_role,
-                };
+        for pattern_str in &self.role_config.file_access.read_only_patterns {
+            if let Ok(pattern) = Pattern::new(pattern_str) {
+                if pattern.matches(&path_str) {
+                    return EnforcementResult {
+                        allowed: false,
+                        reason: format!(
+                            "File is read-only for role {:?}: {}",
+                            self.current_role,
+                            path.display()
+                        ),
+                        operation: Operation::Write(path.to_path_buf()),
+                        role: self.current_role,
+                    };
+                }
             }
         }
 
