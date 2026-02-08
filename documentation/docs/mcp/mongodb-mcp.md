@@ -42,8 +42,8 @@ Where:
 
 Examples:
 - Local database: `mongodb://localhost:27017`
-- Local with credentials: `mongodb://myuser:mypass@localhost:27017/mydb`
-- MongoDB Atlas: `mongodb+srv://user:pass@cluster.mongodb.net/database`
+- Local with credentials: `mongodb://myuser:<PASSWORD>@localhost:27017/mydb`
+- MongoDB Atlas: `mongodb+srv://<USERNAME>:<PASSWORD>@cluster0.example.mongodb.net/database`
 
 :::caution
 Never commit connection strings with credentials to version control! Use environment variables or secure configuration management. For MongoDB Atlas, ensure your IP address is whitelisted and use strong passwords.
