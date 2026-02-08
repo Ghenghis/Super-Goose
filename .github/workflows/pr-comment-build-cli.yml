@@ -33,7 +33,7 @@ jobs:
       head_sha: ${{ steps.set_head_sha.outputs.head_sha || github.sha }}
     steps:
       - name: Run command action
-        uses: github/command@v2.0.3
+        uses: github/command@76d69a2a6b747d621fba374d707409f89114c620  # v2.0.3
         id: command
         with:
           command: ".build-cli"
@@ -78,7 +78,7 @@ jobs:
           merge-multiple: true
 
       - name: Comment on PR with CLI download links
-        uses: peter-evans/create-or-update-comment@v5
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9  # v5
         with:
           issue-number: ${{ needs.trigger-on-command.outputs.pr_number }}
           body: |

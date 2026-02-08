@@ -83,3 +83,11 @@ goose/temp/
 build-output/
 .scannerwork/
 hs_err_pid*.log
+
+# Build artifacts and temp files
+temp_*.txt
+clippy-report.json
+clippy-results.json
+canonical_mapping_report.json
+**/.scannerwork/
+goose/audit_out/

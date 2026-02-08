@@ -100,6 +100,11 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
+          # Validate version format (semver only)
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Invalid version format: $VERSION"
+            exit 1
+          fi
           # Update version in Cargo.toml
           sed -i.bak "s/^version = \".*\"/version = \"${VERSION}\"/" Cargo.toml
           rm -f Cargo.toml.bak
@@ -110,7 +115,7 @@ jobs:
           npm version "${VERSION}" --no-git-tag-version --allow-same-version
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@ad397744b0d591a723ab90405b7247fac0e6b8db  # v2
 
       # Build the project
       - name: Build goosed

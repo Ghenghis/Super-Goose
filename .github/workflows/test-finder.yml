@@ -20,7 +20,7 @@ jobs:
   find-untested-code:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ghenghis/super-goose:latest
+      image: ghcr.io/ghenghis/super-goose:v1.23.0
       options: --user root
       env:
         GOOSE_PROVIDER: ${{ vars.GOOSE_PROVIDER || 'openai' }}

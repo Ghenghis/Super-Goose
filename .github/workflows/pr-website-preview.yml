@@ -10,12 +10,19 @@ on:
     paths:
       - 'documentation/**'
 
+permissions:
+  contents: read
+  pull-requests: write
+
 concurrency:
   group: pr-preview
   cancel-in-progress: false
 
 jobs:
   deploy:
+    permissions:
+      contents: read
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the branch

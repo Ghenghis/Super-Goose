@@ -12,7 +12,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 
 // Configuration - must match generate-skills-manifest.js
 const AGENT_SKILLS_REPO = 'https://github.com/block/Agent-Skills.git';
@@ -40,7 +40,7 @@ function ensureRepoCloned() {
   }
   
   try {
-    execSync(`git clone --depth 1 ${AGENT_SKILLS_REPO} ${CLONED_REPO_DIR}`, {
+    execFileSync('git', ['clone', '--depth', '1', AGENT_SKILLS_REPO, CLONED_REPO_DIR], {
       stdio: 'pipe',
       timeout: 60000
     });
@@ -108,9 +108,10 @@ function generateSkillZips() {
     
     try {
       // Use the system zip command to create the archive
-      // cd into the cloned repo and zip the skill folder to preserve the folder name
-      execSync(`cd "${CLONED_REPO_DIR}" && zip -r "${zipPath}" "${skillId}"`, {
-        stdio: 'pipe'
+      // Run from the cloned repo dir to preserve the folder name
+      execFileSync('zip', ['-r', zipPath, skillId], {
+        stdio: 'pipe',
+        cwd: CLONED_REPO_DIR
       });
       
       const stats = fs.statSync(zipPath);

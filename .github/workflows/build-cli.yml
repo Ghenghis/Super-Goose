@@ -21,9 +21,14 @@ on:
 
 name: "Reusable workflow to build CLI"
 
+permissions:
+  contents: read
+
 jobs:
   build-cli:
     name: Build CLI
+    permissions:
+      contents: read
     runs-on: ${{ matrix.build-on }}
     timeout-minutes: 90
     strategy:
@@ -66,13 +71,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
+          persist-credentials: false
           ref: ${{ inputs.ref }}
           fetch-depth: 0
 
       - name: Update version in Cargo.toml
         if: ${{ inputs.version != '' }}
+        env:
+          BUILD_VERSION: ${{ inputs.version }}
         run: |
-          sed -i.bak 's/^version = ".*"/version = "'${{ inputs.version }}'"/' Cargo.toml
+          # Validate version format (semver only)
+          if ! echo "$BUILD_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Invalid version format: $BUILD_VERSION"
+            exit 1
+          fi
+          sed -i.bak "s/^version = \".*\"/version = \"${BUILD_VERSION}\"/" Cargo.toml
           rm -f Cargo.toml.bak
 
       - name: Install cross
@@ -84,12 +97,17 @@ jobs:
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5  # v2.8.2
         with:
           key: ${{ matrix.architecture }}-${{ matrix.target-suffix }}
+          # Security: only save cache on trusted builds (no custom ref = default branch)
+          # to prevent cache poisoning from untrusted PR code (alerts #33-35).
+          save-if: ${{ inputs.ref == '' }}
 
       - name: Cache Cargo artifacts (Windows)
         if: matrix.use-docker
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5  # v2.8.2
         with:
           key: ${{ matrix.architecture }}-${{ matrix.target-suffix }}
+          # Security: only save cache on trusted builds to prevent cache poisoning.
+          save-if: ${{ inputs.ref == '' }}
 
       - name: Build CLI (Linux/macOS)
         if: matrix.use-cross
@@ -125,7 +143,7 @@ jobs:
             -v "$HOME/.cargo/registry":/usr/local/cargo/registry \
             -v "$HOME/.cargo/git":/usr/local/cargo/git \
             -w /usr/src/myapp \
-            rust:latest \
+            rust:1.92-slim \
             bash -c "
               set -e
               echo '=== Setting up Rust environment with caching ==='
