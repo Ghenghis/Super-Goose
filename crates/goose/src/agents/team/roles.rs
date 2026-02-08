@@ -214,9 +214,12 @@ impl FileAccessPatterns {
         blocked.insert("**/Cargo.toml".to_string());
         blocked.insert("**/package.json".to_string());
 
+        let read_only = HashSet::new(); // Architect has no read-only restrictions
+
         Self {
             allowed_patterns: allowed,
             blocked_patterns: blocked,
+            read_only_patterns: read_only,
         }
     }
 
@@ -225,6 +228,7 @@ impl FileAccessPatterns {
         Self {
             allowed_patterns: HashSet::new(), // Empty means all allowed
             blocked_patterns: HashSet::new(),
+            read_only_patterns: HashSet::new(),
         }
     }
 
@@ -244,9 +248,12 @@ impl FileAccessPatterns {
         blocked.insert("**/src/**/*.py".to_string());
         blocked.insert("**/src/**/*.ts".to_string());
 
+        let read_only = HashSet::new(); // QA has no read-only restrictions
+
         Self {
             allowed_patterns: allowed,
             blocked_patterns: blocked,
+            read_only_patterns: read_only,
         }
     }
 
@@ -257,24 +264,27 @@ impl FileAccessPatterns {
         allowed.insert("VULNERABILITIES.md".to_string());
         allowed.insert("COMPLIANCE_CHECK.md".to_string());
         allowed.insert("security/**/*.md".to_string());
-        // Allow reading config files for security auditing
-        allowed.insert("**/Cargo.toml".to_string());
-        allowed.insert("**/Cargo.lock".to_string());
-        allowed.insert("**/package.json".to_string());
-        allowed.insert("**/package-lock.json".to_string());
         allowed.insert("**/.env.example".to_string());
-        allowed.insert("**/Dockerfile".to_string());
-        allowed.insert("**/*.yaml".to_string());
-        allowed.insert("**/*.yml".to_string());
 
         let mut blocked = HashSet::new();
         blocked.insert("**/src/**/*.rs".to_string());
         blocked.insert("**/src/**/*.py".to_string());
         blocked.insert("**/.env".to_string()); // Block actual secrets
 
+        // Config files Security can read but NOT write (read-only for auditing)
+        let mut read_only = HashSet::new();
+        read_only.insert("**/Cargo.toml".to_string());
+        read_only.insert("**/Cargo.lock".to_string());
+        read_only.insert("**/package.json".to_string());
+        read_only.insert("**/package-lock.json".to_string());
+        read_only.insert("**/Dockerfile".to_string());
+        read_only.insert("**/*.yaml".to_string());
+        read_only.insert("**/*.yml".to_string());
+
         Self {
             allowed_patterns: allowed,
             blocked_patterns: blocked,
+            read_only_patterns: read_only,
         }
     }
 
@@ -297,9 +307,12 @@ impl FileAccessPatterns {
         blocked.insert("**/src/**/*.rs".to_string());
         blocked.insert("**/src/**/*.py".to_string());
 
+        let read_only = HashSet::new(); // Deployer has no read-only restrictions
+
         Self {
             allowed_patterns: allowed,
             blocked_patterns: blocked,
+            read_only_patterns: read_only,
         }
     }
 

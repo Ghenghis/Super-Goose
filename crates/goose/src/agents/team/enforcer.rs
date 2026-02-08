@@ -146,6 +146,23 @@ impl CapabilityEnforcer {
             };
         }
 
+        // Check if file is read-only for this role
+        let path_str = path.to_string_lossy();
+        for pattern in &self.role_config.file_access.read_only_patterns {
+            if matches_pattern(&path_str, pattern) {
+                return EnforcementResult {
+                    allowed: false,
+                    reason: format!(
+                        "File is read-only for role {:?}: {}",
+                        self.current_role,
+                        path.display()
+                    ),
+                    operation: Operation::Write(path.to_path_buf()),
+                    role: self.current_role,
+                };
+            }
+        }
+
         if !self.check_file_access(path) {
             return EnforcementResult {
                 allowed: false,
