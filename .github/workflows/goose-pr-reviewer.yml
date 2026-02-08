@@ -214,6 +214,10 @@ concurrency:
 
 jobs:
   review-pr:
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
     if: |
       github.repository == 'Ghenghis/Super-Goose' &&
       github.event.issue.pull_request &&
@@ -241,9 +245,14 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" \
             -d '{"content":"eyes"}'
 
+      # Security: checkout untrusted PR code read-only (no credential persistence).
+      # TOCTOU note: The PR head may change between the comment trigger and checkout.
+      # This is acceptable because goose only reads the code for review; it does not
+      # execute builds or deploy artifacts.
       - name: Checkout PR
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
+          persist-credentials: false
           ref: refs/pull/${{ github.event.issue.number }}/head
           fetch-depth: 1
 

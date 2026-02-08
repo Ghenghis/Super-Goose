@@ -8,8 +8,13 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   check-commits:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     if: startsWith(github.head_ref, 'release/')
     steps:

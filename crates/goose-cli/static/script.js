@@ -264,24 +264,55 @@ function handleToolRequest(data) {
     
     const headerDiv = document.createElement('div');
     headerDiv.className = 'tool-header';
-    headerDiv.innerHTML = `🔧 <strong>${data.tool_name}</strong>`;
-    
+    headerDiv.textContent = '🔧 ';
+    const toolStrong = document.createElement('strong');
+    toolStrong.textContent = data.tool_name;
+    headerDiv.appendChild(toolStrong);
+
     const contentDiv = document.createElement('div');
     contentDiv.className = 'tool-content';
-    
-    // Format the arguments
+
+    // Helper to create a pre>code block safely (no innerHTML)
+    function createPreCode(text) {
+        const pre = document.createElement('pre');
+        const code = document.createElement('code');
+        code.textContent = text;
+        pre.appendChild(code);
+        return pre;
+    }
+
+    // Helper to create a tool-param div safely (no innerHTML)
+    function createToolParamDiv(label, value) {
+        const paramDiv = document.createElement('div');
+        paramDiv.className = 'tool-param';
+        const strong = document.createElement('strong');
+        strong.textContent = label;
+        paramDiv.appendChild(strong);
+        paramDiv.appendChild(document.createTextNode(' ' + value));
+        return paramDiv;
+    }
+
+    // Format the arguments using DOM APIs to prevent XSS
     if (data.tool_name === 'developer__shell' && data.arguments.command) {
-        contentDiv.innerHTML = `<pre><code>${escapeHtml(data.arguments.command)}</code></pre>`;
+        contentDiv.appendChild(createPreCode(data.arguments.command));
     } else if (data.tool_name === 'developer__text_editor') {
         const action = data.arguments.command || 'unknown';
-        const path = data.arguments.path || 'unknown';
-        contentDiv.innerHTML = `<div class="tool-param"><strong>action:</strong> ${action}</div>`;
-        contentDiv.innerHTML += `<div class="tool-param"><strong>path:</strong> ${escapeHtml(path)}</div>`;
+        const filePath = data.arguments.path || 'unknown';
+        contentDiv.appendChild(createToolParamDiv('action:', action));
+        contentDiv.appendChild(createToolParamDiv('path:', filePath));
         if (data.arguments.file_text) {
-            contentDiv.innerHTML += `<div class="tool-param"><strong>content:</strong> <pre><code>${escapeHtml(data.arguments.file_text.substring(0, 200))}${data.arguments.file_text.length > 200 ? '...' : ''}</code></pre></div>`;
+            const contentParam = document.createElement('div');
+            contentParam.className = 'tool-param';
+            const contentStrong = document.createElement('strong');
+            contentStrong.textContent = 'content:';
+            contentParam.appendChild(contentStrong);
+            contentParam.appendChild(document.createTextNode(' '));
+            const truncated = data.arguments.file_text.substring(0, 200) + (data.arguments.file_text.length > 200 ? '...' : '');
+            contentParam.appendChild(createPreCode(truncated));
+            contentDiv.appendChild(contentParam);
         }
     } else {
-        contentDiv.innerHTML = `<pre><code>${JSON.stringify(data.arguments, null, 2)}</code></pre>`;
+        contentDiv.appendChild(createPreCode(JSON.stringify(data.arguments, null, 2)));
     }
     
     toolDiv.appendChild(headerDiv);
@@ -343,14 +374,28 @@ function handleToolResponse(data) {
 function handleToolConfirmation(data) {
     const confirmDiv = document.createElement('div');
     confirmDiv.className = 'message tool-confirmation';
-    confirmDiv.innerHTML = `
-        <div class="tool-confirm-header">⚠️ Tool Confirmation Required</div>
-        <div class="tool-confirm-content">
-            <strong>${data.tool_name}</strong> wants to execute with:
-            <pre><code>${JSON.stringify(data.arguments, null, 2)}</code></pre>
-        </div>
-        <div class="tool-confirm-note">Auto-approved in web mode (UI coming soon)</div>
-    `;
+    const confirmHeader = document.createElement('div');
+    confirmHeader.className = 'tool-confirm-header';
+    confirmHeader.textContent = '⚠️ Tool Confirmation Required';
+    confirmDiv.appendChild(confirmHeader);
+
+    const confirmContent = document.createElement('div');
+    confirmContent.className = 'tool-confirm-content';
+    const confirmToolName = document.createElement('strong');
+    confirmToolName.textContent = data.tool_name;
+    confirmContent.appendChild(confirmToolName);
+    confirmContent.appendChild(document.createTextNode(' wants to execute with:'));
+    const confirmPre = document.createElement('pre');
+    const confirmCode = document.createElement('code');
+    confirmCode.textContent = JSON.stringify(data.arguments, null, 2);
+    confirmPre.appendChild(confirmCode);
+    confirmContent.appendChild(confirmPre);
+    confirmDiv.appendChild(confirmContent);
+
+    const confirmNote = document.createElement('div');
+    confirmNote.className = 'tool-confirm-note';
+    confirmNote.textContent = 'Auto-approved in web mode (UI coming soon)';
+    confirmDiv.appendChild(confirmNote);
     messagesContainer.appendChild(confirmDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
@@ -403,11 +448,14 @@ function resetSendButton() {
     sendButton.classList.remove('cancel-mode');
 }
 
-// Escape HTML to prevent XSS
+// Escape HTML to prevent XSS (string-based to ensure static analysis can verify safety)
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 // Send message or cancel

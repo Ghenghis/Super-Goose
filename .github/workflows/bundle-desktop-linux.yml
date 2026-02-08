@@ -18,9 +18,14 @@ on:
 
 name: "Bundle Desktop (Linux)"
 
+permissions:
+  contents: read
+
 jobs:
   build-desktop-linux:
     name: Build Desktop (Linux)
+    permissions:
+      contents: read
     runs-on: ubuntu-x86-16core-64gb
     timeout-minutes: 90
 
@@ -28,6 +33,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
+          persist-credentials: false
           ref: ${{ inputs.ref }}
           fetch-depth: 0
 

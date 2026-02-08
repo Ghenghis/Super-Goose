@@ -60,9 +60,12 @@ XMLHttpRequest.prototype.open = function () {
   let url = arguments[1]; // The second argument is the URL
 
   this.addEventListener('loadend', function (e) {
-    if (url.includes("https://codeserver.sq.dev/api/v1/health")) {
-      return;
-    }
+    try {
+      var parsed = new URL(url, window.location.origin);
+      if (parsed.hostname === 'codeserver.sq.dev' && parsed.pathname === '/api/v1/health') {
+        return;
+      }
+    } catch (e) { /* ignore invalid URLs */ }
 
     console.log(url);
 
