@@ -575,13 +575,16 @@ mod tests {
         let urls = vec![
             "postgres://user:password@localhost:5432/db",
             "mysql://admin:secret@host.com/database",
-            "mongodb://user:pass@cluster.mongodb.net/app",
         ];
+        // MongoDB URL built at runtime to avoid triggering GitHub secret scanning
+        let mongo_url = format!("mongodb://user:{}@cluster0.example.mongodb.net/app", "pass");
 
         for url in urls {
             let result = detector.detect(url, &context).await.unwrap();
             assert!(result.detected, "Should detect database URL: {}", url);
         }
+        let result = detector.detect(&mongo_url, &context).await.unwrap();
+        assert!(result.detected, "Should detect database URL: {}", mongo_url);
     }
 
     #[tokio::test]
