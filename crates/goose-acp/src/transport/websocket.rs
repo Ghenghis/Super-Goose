@@ -85,9 +85,11 @@ pub(crate) async fn handle_get(state: Arc<WsState>, ws: WebSocketUpgrade) -> Res
         let session_id = session_id.clone();
         move |socket| handle_ws(socket, state, session_id)
     });
-    response
-        .headers_mut()
-        .insert(HEADER_SESSION_ID, session_id.parse().unwrap());
+    if let Ok(header_value) = session_id.parse() {
+        response.headers_mut().insert(HEADER_SESSION_ID, header_value);
+    } else {
+        tracing::error!(session_id = %session_id, "Failed to parse session_id as header value");
+    }
     response
 }
 

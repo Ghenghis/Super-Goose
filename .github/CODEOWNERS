@@ -1,6 +1,30 @@
-# CODEOWNERS file for block/goose repository
+# CODEOWNERS file for Super-Goose repository
 # See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
-# Documentation owned by DevRel team
-/documentation/ @block/goose-devrel
+# Default owner for everything not covered below
+* @Ghenghis
+
+# Documentation
+/documentation/ @Ghenghis
+
+# Rust crates (core engine)
+/crates/ @Ghenghis
+
+# Desktop UI (Electron + TypeScript)
+/ui/ @Ghenghis
+
+# CI/CD and GitHub workflows
+/.github/workflows/ @Ghenghis
+/.github/CODEOWNERS @Ghenghis
+
+# Root build and config files
+/Cargo.toml @Ghenghis
+/Cargo.lock @Ghenghis
+/Justfile @Ghenghis
+/rust-toolchain.toml @Ghenghis
+/Dockerfile @Ghenghis
+
+# Security-sensitive files
+/SECURITY.md @Ghenghis
+/.github/dependabot.yml @Ghenghis
 

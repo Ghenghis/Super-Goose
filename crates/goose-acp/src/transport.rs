@@ -105,7 +105,7 @@ pub fn create_router(server: Arc<AcpServer>) -> Router {
         .allow_headers([
             header::CONTENT_TYPE,
             header::ACCEPT,
-            HEADER_SESSION_ID.parse().unwrap(),
+            HEADER_SESSION_ID.parse().expect("static header name Acp-Session-Id is always valid"),
             header::SEC_WEBSOCKET_VERSION,
             header::SEC_WEBSOCKET_KEY,
             header::CONNECTION,

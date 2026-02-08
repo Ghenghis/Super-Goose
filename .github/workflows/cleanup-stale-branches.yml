@@ -1,0 +1,92 @@
+name: Cleanup Stale Branches
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Every Monday at 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (list only, do not delete)'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      days_stale:
+        description: 'Days of inactivity before branch is considered stale'
+        required: true
+        default: '60'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    name: Cleanup stale branches
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Cleanup stale branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+          DAYS_STALE: ${{ github.event.inputs.days_stale || '60' }}
+        run: |
+          echo "============================================"
+          echo "  Stale Branch Cleanup"
+          echo "  Dry Run: $DRY_RUN"
+          echo "  Stale threshold: $DAYS_STALE days"
+          echo "============================================"
+
+          REPO="${{ github.repository }}"
+          CUTOFF_DATE=$(date -d "-${DAYS_STALE} days" -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "Cutoff date: $CUTOFF_DATE"
+          echo ""
+
+          # Protected branch patterns (never delete)
+          PROTECTED_PATTERNS="^(main|master|develop|release/.*|hotfix/.*)$"
+
+          DELETED=0
+          SKIPPED=0
+          PAGE=1
+
+          while true; do
+            BRANCHES=$(gh api "repos/$REPO/branches?per_page=100&page=$PAGE" --jq '.[].name' 2>/dev/null)
+            [ -z "$BRANCHES" ] && break
+
+            while IFS= read -r BRANCH; do
+              # Skip protected branches
+              if echo "$BRANCH" | grep -qE "$PROTECTED_PATTERNS"; then
+                continue
+              fi
+
+              # Get last commit date
+              LAST_COMMIT_DATE=$(gh api "repos/$REPO/commits?sha=$BRANCH&per_page=1" --jq '.[0].commit.author.date' 2>/dev/null)
+              [ -z "$LAST_COMMIT_DATE" ] && continue
+
+              if [[ "$LAST_COMMIT_DATE" < "$CUTOFF_DATE" ]]; then
+                if [ "$DRY_RUN" = "true" ]; then
+                  echo "[DRY RUN] Would delete: $BRANCH (last commit: $LAST_COMMIT_DATE)"
+                else
+                  echo "Deleting: $BRANCH (last commit: $LAST_COMMIT_DATE)"
+                  gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH" 2>/dev/null && DELETED=$((DELETED + 1))
+                fi
+              else
+                SKIPPED=$((SKIPPED + 1))
+              fi
+            done <<< "$BRANCHES"
+
+            PAGE=$((PAGE + 1))
+            # Safety limit to prevent infinite loops
+            [ $PAGE -gt 50 ] && break
+          done
+
+          echo ""
+          echo "============================================"
+          echo "  Summary"
+          echo "  Deleted: $DELETED"
+          echo "  Skipped (active): $SKIPPED"
+          echo "  Mode: $([ "$DRY_RUN" = "true" ] && echo "DRY RUN" || echo "LIVE")"
+          echo "============================================"

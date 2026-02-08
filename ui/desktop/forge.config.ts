@@ -11,8 +11,8 @@ let cfg = {
     icon: 'src/images/icon.ico',
     certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
     signingRole: process.env.WINDOW_SIGNING_ROLE,
-    rfc3161TimeStampServer: 'http://timestamp.digicert.com',
-    signWithParams: '/fd sha256 /tr http://timestamp.digicert.com /td sha256',
+    rfc3161TimeStampServer: 'https://timestamp.digicert.com',
+    signWithParams: '/fd sha256 /tr https://timestamp.digicert.com /td sha256',
   },
   // Protocol registration
   protocols: [
