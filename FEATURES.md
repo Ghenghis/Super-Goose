@@ -49,6 +49,9 @@ This document provides a comprehensive list of all features available in Goose, 
 ### Input & Interaction
 - **Text Input** - Rich text input with markdown support
 - **Audio Capture** - Voice input support with waveform visualization
+- **Dual Audio Visualizers** - Per-speaker visualizers (Human green, Conscious cyan) with 4 modes (waveform, spectrum, spectrogram, VU meter)
+- **Voice Activity Detection** - VAD-driven visualizer states (idle, listening, speaking, processing)
+- **13 Personality Themes** - Each Conscious personality has a unique audio visualization color
 - **File Attachments** - Attach files to conversations
 - **Image Preview** - View images inline
 - **Mention System** - @ mentions for tools and extensions
