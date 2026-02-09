@@ -316,6 +316,64 @@ export default function RecipesView() {
     }
   };
 
+  const [isExportingAll, setIsExportingAll] = useState(false);
+
+  const handleExportAll = async () => {
+    if (savedRecipes.length === 0) return;
+
+    setIsExportingAll(true);
+    try {
+      // Convert all recipes to YAML
+      const yamlResults = await Promise.all(
+        savedRecipes.map(async (manifest) => {
+          const response = await recipeToYaml({
+            body: { recipe: manifest.recipe },
+            throwOnError: true,
+          });
+          const sanitizedTitle = (manifest.recipe.title || 'recipe')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '');
+          return {
+            filename: `${sanitizedTitle}.yaml`,
+            yaml: response.data?.yaml || '',
+          };
+        })
+      );
+
+      // Combine all YAML into a single file separated by document markers
+      const combinedYaml = yamlResults
+        .filter((r) => r.yaml)
+        .map((r) => `# ${r.filename}\n${r.yaml}`)
+        .join('\n---\n\n');
+
+      const result = await window.electron.showSaveDialog({
+        title: 'Export All Recipes',
+        defaultPath: 'all-recipes.yaml',
+        filters: [
+          { name: 'YAML Files', extensions: ['yaml', 'yml'] },
+          { name: 'All Files', extensions: ['*'] },
+        ],
+      });
+
+      if (!result.canceled && result.filePath) {
+        await window.electron.writeFile(result.filePath, combinedYaml);
+        toastSuccess({
+          title: 'All recipes exported',
+          msg: `${yamlResults.length} recipes saved to ${result.filePath}`,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to export all recipes:', error);
+      toastError({
+        title: 'Export failed',
+        msg: 'Failed to export recipes to file',
+      });
+    } finally {
+      setIsExportingAll(false);
+    }
+  };
+
   const handleOpenScheduleDialog = (recipeManifest: RecipeManifest) => {
     setScheduleRecipeManifest(recipeManifest);
     setScheduleCron(recipeManifest.schedule_cron || '0 0 14 * * *');
@@ -687,6 +745,18 @@ export default function RecipesView() {
               <div className="flex justify-between items-center mb-1">
                 <h1 className="text-4xl font-light">Recipes</h1>
                 <div className="flex gap-2">
+                  {savedRecipes.length > 0 && (
+                    <Button
+                      onClick={handleExportAll}
+                      disabled={isExportingAll}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      {isExportingAll ? 'Exporting...' : 'Export All'}
+                    </Button>
+                  )}
                   <Button
                     onClick={() => setShowCreateDialog(true)}
                     variant="outline"

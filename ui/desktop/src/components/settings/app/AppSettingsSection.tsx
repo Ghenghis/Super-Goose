@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Switch } from '../../ui/switch';
 import { Button } from '../../ui/button';
-import { Settings } from 'lucide-react';
+import { Settings, Download, Upload, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
 import UpdateSection from './UpdateSection';
 import TunnelSection from '../tunnel/TunnelSection';
@@ -13,6 +13,7 @@ import BlockLogoBlack from './icons/block-lockup_black.png';
 import BlockLogoWhite from './icons/block-lockup_white.png';
 import TelemetrySettings from './TelemetrySettings';
 import { trackSettingToggled } from '../../../utils/analytics';
+import { backupConfig, recoverConfig } from '../../../api';
 
 interface AppSettingsSectionProps {
   scrollToSection?: string;
@@ -27,6 +28,13 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showPricing, setShowPricing] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [backupStatus, setBackupStatus] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+  const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
   const updateSectionRef = useRef<HTMLDivElement>(null);
 
   // Check if GOOSE_VERSION is set to determine if Updates section should be shown
@@ -146,6 +154,61 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
     trackSettingToggled('cost_tracking', checked);
     // Trigger storage event for other components
     window.dispatchEvent(new CustomEvent('storage'));
+  };
+
+  // Load last backup timestamp from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('last_config_backup_time');
+    if (stored) {
+      setLastBackupTime(stored);
+    }
+  }, []);
+
+  const handleCreateBackup = async () => {
+    setIsBackingUp(true);
+    setBackupStatus(null);
+    try {
+      const response = await backupConfig();
+      if (response.data) {
+        const now = new Date().toISOString();
+        localStorage.setItem('last_config_backup_time', now);
+        setLastBackupTime(now);
+        setBackupStatus({
+          type: 'success',
+          message: 'Configuration backed up successfully',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to create backup:', error);
+      setBackupStatus({
+        type: 'error',
+        message: 'Failed to create configuration backup',
+      });
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    setIsRestoring(true);
+    setBackupStatus(null);
+    try {
+      const response = await recoverConfig();
+      if (response.data) {
+        setBackupStatus({
+          type: 'success',
+          message: 'Configuration restored successfully. Restart may be needed for full effect.',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to restore backup:', error);
+      setBackupStatus({
+        type: 'error',
+        message: 'Failed to restore configuration from backup',
+      });
+    } finally {
+      setIsRestoring(false);
+    }
   };
 
   return (
@@ -272,6 +335,77 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
       <TunnelSection />
 
       <TelemetrySettings isWelcome={false} />
+
+      <Card className="rounded-lg">
+        <CardHeader className="pb-0">
+          <CardTitle className="mb-1">Configuration Backup</CardTitle>
+          <CardDescription>
+            Back up and restore your goose configuration
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4 px-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Create Backup</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                Save a copy of your current configuration file
+              </p>
+            </div>
+            <Button
+              onClick={handleCreateBackup}
+              disabled={isBackingUp}
+              variant="secondary"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              {isBackingUp ? 'Backing up...' : 'Create Backup'}
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Restore from Backup</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                Recover configuration from the most recent backup file
+              </p>
+            </div>
+            <Button
+              onClick={handleRestoreBackup}
+              disabled={isRestoring}
+              variant="secondary"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              {isRestoring ? 'Restoring...' : 'Restore Backup'}
+            </Button>
+          </div>
+
+          {lastBackupTime && (
+            <div className="text-xs text-text-muted border-t pt-3">
+              Last backup: {new Date(lastBackupTime).toLocaleString()}
+            </div>
+          )}
+
+          {backupStatus && (
+            <div
+              className={`flex items-center gap-2 text-xs p-2 rounded ${
+                backupStatus.type === 'success'
+                  ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                  : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+              }`}
+            >
+              {backupStatus.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              )}
+              {backupStatus.message}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="rounded-lg">
         <CardHeader className="pb-0">

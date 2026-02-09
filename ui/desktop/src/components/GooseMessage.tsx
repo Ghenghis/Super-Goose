@@ -20,6 +20,8 @@ import ElicitationRequest from './ElicitationRequest';
 import MessageCopyLink from './MessageCopyLink';
 import { cn } from '../utils';
 import { identifyConsecutiveToolCalls, shouldHideTimestamp } from '../utils/toolCallChaining';
+import RegenerateButton from './chat/RegenerateButton';
+import GuardrailBanner, { type GuardrailFlag } from './chat/GuardrailBanner';
 
 interface GooseMessageProps {
   sessionId: string;
@@ -29,6 +31,7 @@ interface GooseMessageProps {
   toolCallNotifications: Map<string, NotificationEvent[]>;
   append: (value: string) => void;
   isStreaming: boolean;
+  guardrailFlags?: GuardrailFlag[];
   submitElicitationResponse?: (
     elicitationId: string,
     userData: Record<string, unknown>
@@ -42,6 +45,7 @@ export default function GooseMessage({
   toolCallNotifications,
   append,
   isStreaming,
+  guardrailFlags,
   submitElicitationResponse,
 }: GooseMessageProps) {
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -126,6 +130,42 @@ export default function GooseMessage({
 
   const pendingConfirmationIds = getPendingToolConfirmationIds(messages);
 
+  // Determine if this is the last assistant message (for regenerate button)
+  const isLastAssistantMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') {
+        return messages[i].id === message.id;
+      }
+    }
+    return false;
+  }, [messages, message.id]);
+
+  // Find the last user message text for regeneration
+  const lastUserMessageText = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        const { textContent } = getTextAndImageContent(messages[i]);
+        return textContent.trim();
+      }
+    }
+    return '';
+  }, [messages]);
+
+  const handleRegenerate = () => {
+    if (lastUserMessageText) {
+      append(lastUserMessageText);
+    }
+  };
+
+  const handleReadAloud = () => {
+    // Placeholder for future voice/TTS integration
+    // Will use Web Speech API or a dedicated TTS service
+    if ('speechSynthesis' in window && displayText.trim()) {
+      const utterance = new SpeechSynthesisUtterance(displayText);
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   return (
     <div className="goose-message flex w-[90%] justify-start min-w-0">
       <div className="flex flex-col w-full min-w-0">
@@ -164,12 +204,31 @@ export default function GooseMessage({
                   </div>
                 )}
                 {message.content.every((content) => content.type === 'text') && !isStreaming && (
-                  <div className="absolute left-0 pt-1">
+                  <div className="absolute left-0 pt-1 flex items-center gap-2">
                     <MessageCopyLink text={displayText} contentRef={contentRef} />
+                    {isLastAssistantMessage && lastUserMessageText && (
+                      <RegenerateButton onRegenerate={handleRegenerate} />
+                    )}
+                    {displayText.trim() && (
+                      <button
+                        onClick={handleReadAloud}
+                        className="flex font-mono items-center gap-1 text-xs text-text-muted hover:cursor-pointer hover:text-text-default transition-all duration-200 opacity-0 group-hover:opacity-100 -translate-y-4 group-hover:translate-y-0"
+                        aria-label="Read aloud"
+                        title="Read aloud"
+                      >
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z" />
+                        </svg>
+                        <span>Read Aloud</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
             )}
+
+            {/* Guardrail violation banner */}
+            <GuardrailBanner flags={guardrailFlags ?? []} />
           </div>
         )}
 

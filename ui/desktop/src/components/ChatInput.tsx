@@ -21,6 +21,7 @@ import { toastError } from '../toasts';
 import MentionPopover, { DisplayItemWithMatch } from './MentionPopover';
 import { COST_TRACKING_ENABLED } from '../updates';
 import { CostTracker } from './bottom_menu/CostTracker';
+import { EnterpriseStatusBadges } from './status/EnterpriseStatusBadges';
 import { DroppedFile, useFileDrop } from '../hooks/useFileDrop';
 import { Recipe } from '../recipe';
 import { MessageQueue, QueuedMessage } from './MessageQueue';
@@ -41,6 +42,9 @@ import {
 import { getNavigationShortcutText } from '../utils/keyboardShortcuts';
 import { UserInput, ImageData } from '../types/message';
 import { compressImageDataUrl } from '../utils/conversionUtils';
+import { useContextManagement } from '../hooks/useContextManagement';
+import { CompactionControls } from './context/CompactionControls';
+import { ContextSummaryView } from './context/ContextSummaryView';
 
 interface PastedImage {
   id: string;
@@ -150,6 +154,19 @@ export default function ChatInput({
   const [showEditRecipeModal, setShowEditRecipeModal] = useState(false);
   const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
   const [sessionWorkingDir, setSessionWorkingDir] = useState<string | null>(null);
+
+  // Context management hook for compaction controls
+  const handleCompactTrigger = useCallback(() => {
+    window.dispatchEvent(new CustomEvent(AppEvents.HIDE_ALERT_POPOVER));
+    handleSubmit({ msg: MANUAL_COMPACT_TRIGGER, images: [] });
+  }, [handleSubmit]);
+
+  const contextManagement = useContextManagement({
+    totalTokens,
+    tokenLimit,
+    messageCount: messages.length,
+    onCompact: handleCompactTrigger,
+  });
 
   useEffect(() => {
     if (!sessionId) {
@@ -1538,6 +1555,7 @@ export default function ChatInput({
                   inputTokens={accumulatedInputTokens}
                   outputTokens={accumulatedOutputTokens}
                   sessionCosts={sessionCosts}
+                  setView={setView}
                 />
               </div>
             </>
@@ -1556,6 +1574,31 @@ export default function ChatInput({
           <BottomMenuModeSelection />
           <div className="w-px h-4 bg-border-default mx-2" />
           <BottomMenuExtensionSelection sessionId={sessionId} />
+          <EnterpriseStatusBadges setView={setView} />
+          {/* Context management controls */}
+          {isTokenLimitLoaded && tokenLimit > 0 && (
+            <>
+              <div className="w-px h-4 bg-border-default mx-2" />
+              <div className="flex items-center h-full gap-1">
+                <ContextSummaryView
+                  tokenUsage={contextManagement.tokenUsage}
+                  messageCount={messages.length}
+                  compactionHistory={contextManagement.compactionHistory}
+                  autoCompactEnabled={contextManagement.autoCompactEnabled}
+                  onAutoCompactChange={contextManagement.setAutoCompact}
+                  canCompact={contextManagement.canCompact}
+                  isCompacting={contextManagement.isCompacting}
+                  onCompact={contextManagement.compact}
+                />
+                <CompactionControls
+                  canCompact={contextManagement.canCompact}
+                  isCompacting={contextManagement.isCompacting}
+                  onCompact={contextManagement.compact}
+                  tokenPercentage={contextManagement.tokenUsage.percentage}
+                />
+              </div>
+            </>
+          )}
           {sessionId && messages.length > 0 && (
             <>
               <div className="w-px h-4 bg-border-default mx-2" />

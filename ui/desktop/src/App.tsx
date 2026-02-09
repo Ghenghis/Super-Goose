@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { IpcRendererEvent } from 'electron';
 import {
   HashRouter,
@@ -14,6 +14,7 @@ import { ErrorUI } from './components/ErrorBoundary';
 import { ExtensionInstallModal } from './components/ExtensionInstallModal';
 import { ToastContainer } from 'react-toastify';
 import AnnouncementModal from './components/AnnouncementModal';
+import WelcomeScreen, { isFirstLaunch } from './components/WelcomeScreen';
 import TelemetryOptOutModal from './components/TelemetryOptOutModal';
 import ProviderGuard from './components/ProviderGuard';
 import { createSession } from './sessions';
@@ -701,6 +702,11 @@ export function AppInner() {
 }
 
 export default function App() {
+  const [showWelcome, setShowWelcome] = useState(() => isFirstLaunch());
+  const handleWelcomeComplete = useCallback(() => {
+    setShowWelcome(false);
+  }, []);
+
   return (
     <ThemeProvider>
       <ModelAndProviderProvider>
@@ -709,6 +715,7 @@ export default function App() {
         </HashRouter>
         <AnnouncementModal />
         <TelemetryOptOutModal controlled={false} />
+        {showWelcome && <WelcomeScreen onComplete={handleWelcomeComplete} />}
       </ModelAndProviderProvider>
     </ThemeProvider>
   );
