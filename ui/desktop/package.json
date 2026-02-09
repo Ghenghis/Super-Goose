@@ -1,7 +1,7 @@
 {
   "name": "goose-app",
   "productName": "Goose",
-  "version": "1.23.0",
+  "version": "1.24.02",
   "description": "Goose App",
   "homepage": "https://Ghenghis.github.io/Super-Goose",
   "repository": {
@@ -62,7 +62,6 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/themes": "^3.2.1",
     "@tanstack/react-form": "^1.27.7",
-    "@types/react-router-dom": "^5.3.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "compare-versions": "^6.1.1",
@@ -128,7 +127,7 @@
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/express": "^5.0.6",
     "@types/lodash": "^4.17.23",
-    "@types/node": "^25.2.1",
+    "@types/node": "^22.19.10",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
@@ -154,13 +153,16 @@
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "yaml": "^2.8.2"
   },
   "keywords": [],
   "license": "Apache-2.0",
   "overrides": {
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "tar": ">=6.2.2",
+    "tmp": ">=0.2.3"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [

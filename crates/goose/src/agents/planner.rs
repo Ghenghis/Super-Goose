@@ -239,6 +239,88 @@ impl Plan {
         self.steps.iter().any(|s| s.status == StepStatus::Failed)
     }
 
+    /// Verify plan consistency before execution (Devin-style pre-execution verification)
+    /// Returns a list of issues found, empty if plan is valid
+    pub fn verify(&self) -> Vec<String> {
+        let mut issues = Vec::new();
+        let step_ids: Vec<usize> = self.steps.iter().map(|s| s.id).collect();
+
+        for step in &self.steps {
+            // Check dependency references exist
+            for dep in &step.dependencies {
+                if !step_ids.contains(dep) {
+                    issues.push(format!(
+                        "Step {} references non-existent dependency {}",
+                        step.id, dep
+                    ));
+                }
+            }
+
+            // Check no self-dependency
+            if step.dependencies.contains(&step.id) {
+                issues.push(format!("Step {} depends on itself", step.id));
+            }
+
+            // Check no forward dependencies (step depends on later step)
+            for dep in &step.dependencies {
+                if *dep >= step.id {
+                    issues.push(format!(
+                        "Step {} depends on later step {} (forward dependency)",
+                        step.id, dep
+                    ));
+                }
+            }
+        }
+
+        // Check for circular dependencies via DFS
+        for step in &self.steps {
+            let mut visited = std::collections::HashSet::new();
+            let mut stack = step.dependencies.clone();
+            while let Some(dep_id) = stack.pop() {
+                if dep_id == step.id {
+                    issues.push(format!(
+                        "Circular dependency detected involving step {}",
+                        step.id
+                    ));
+                    break;
+                }
+                if visited.insert(dep_id) {
+                    if let Some(dep_step) = self.steps.iter().find(|s| s.id == dep_id) {
+                        stack.extend(dep_step.dependencies.iter());
+                    }
+                }
+            }
+        }
+
+        // Check plan has at least one step
+        if self.steps.is_empty() {
+            issues.push("Plan has no steps".to_string());
+        }
+
+        // Check final steps have validation criteria
+        let terminal_ids: Vec<usize> = self.steps.iter()
+            .filter(|s| !self.steps.iter().any(|other| other.dependencies.contains(&s.id)))
+            .map(|s| s.id)
+            .collect();
+        for tid in &terminal_ids {
+            if let Some(step) = self.steps.iter().find(|s| s.id == *tid) {
+                if step.validation.is_none() {
+                    issues.push(format!(
+                        "Terminal step {} ('{}') has no validation criteria",
+                        step.id, step.description
+                    ));
+                }
+            }
+        }
+
+        issues
+    }
+
+    /// Check if the plan passes verification
+    pub fn is_valid(&self) -> bool {
+        self.verify().is_empty()
+    }
+
     /// Get remaining steps (pending or in progress)
     pub fn remaining_steps(&self) -> Vec<&PlanStep> {
         self.steps
@@ -921,9 +1003,17 @@ impl PlanManager {
         self.current_plan = None;
     }
 
-    /// Create a new plan for the given context
+    /// Create a new plan for the given context, with automatic pre-execution verification
     pub async fn create_plan(&mut self, context: &PlanContext) -> Result<&Plan> {
         let plan = self.planner.create_plan(context).await?;
+        let issues = plan.verify();
+        if !issues.is_empty() {
+            tracing::warn!(
+                "Plan verification found {} issues: {:?}",
+                issues.len(),
+                issues
+            );
+        }
         self.current_plan = Some(plan);
         Ok(self.current_plan.as_ref().unwrap())
     }

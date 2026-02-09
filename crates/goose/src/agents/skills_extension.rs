@@ -22,6 +22,16 @@ struct LoadSkillParams {
     name: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+struct SaveSkillParams {
+    /// Unique name for this skill (lowercase, hyphenated)
+    name: String,
+    /// Brief description of what this skill does
+    description: String,
+    /// The skill body (instructions, steps, code patterns)
+    body: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SkillMetadata {
     name: String,
@@ -250,34 +260,96 @@ impl SkillsClient {
         Ok(vec![Content::text(response)])
     }
 
-    fn get_tools() -> Vec<Tool> {
-        let schema = schema_for!(LoadSkillParams);
-        let schema_value =
-            serde_json::to_value(schema).expect("Failed to serialize LoadSkillParams schema");
+    async fn handle_save_skill(
+        &self,
+        arguments: Option<JsonObject>,
+    ) -> Result<Vec<Content>, String> {
+        let args = arguments.as_ref().ok_or("Missing arguments")?;
+        let name = args.get("name")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing required parameter: name")?;
+        let description = args.get("description")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing required parameter: description")?;
+        let body = args.get("body")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing required parameter: body")?;
 
-        let input_schema = schema_value
+        let skill_dir = Paths::config_dir().join("skills").join(name);
+        std::fs::create_dir_all(&skill_dir)
+            .map_err(|e| format!("Failed to create skill directory: {}", e))?;
+
+        let skill_content = format!(
+            "---\nname: {}\ndescription: {}\n---\n\n{}",
+            name, description, body
+        );
+
+        let skill_file = skill_dir.join("SKILL.md");
+        std::fs::write(&skill_file, &skill_content)
+            .map_err(|e| format!("Failed to write skill file: {}", e))?;
+
+        Ok(vec![Content::text(format!(
+            "Skill '{}' saved to {:?}. It will be available in future sessions.",
+            name, skill_file
+        ))])
+    }
+
+    fn get_tools() -> Vec<Tool> {
+        let load_schema = schema_for!(LoadSkillParams);
+        let load_schema_value =
+            serde_json::to_value(load_schema).expect("Failed to serialize LoadSkillParams schema");
+        let load_input_schema = load_schema_value
             .as_object()
             .expect("Schema should be an object")
             .clone();
 
-        vec![Tool::new(
-            "loadSkill".to_string(),
-            indoc! {r#"
-                Load a skill by name and return its content.
+        let save_schema = schema_for!(SaveSkillParams);
+        let save_schema_value =
+            serde_json::to_value(save_schema).expect("Failed to serialize SaveSkillParams schema");
+        let save_input_schema = save_schema_value
+            .as_object()
+            .expect("Schema should be an object")
+            .clone();
 
-                This tool loads the specified skill and returns its body content along with
-                information about any supporting files in the skill directory.
-            "#}
-            .to_string(),
-            input_schema,
-        )
-        .annotate(ToolAnnotations {
-            title: Some("Load skill".to_string()),
-            read_only_hint: Some(true),
-            destructive_hint: Some(false),
-            idempotent_hint: Some(true),
-            open_world_hint: Some(false),
-        })]
+        vec![
+            Tool::new(
+                "loadSkill".to_string(),
+                indoc! {r#"
+                    Load a skill by name and return its content.
+
+                    This tool loads the specified skill and returns its body content along with
+                    information about any supporting files in the skill directory.
+                "#}
+                .to_string(),
+                load_input_schema,
+            )
+            .annotate(ToolAnnotations {
+                title: Some("Load skill".to_string()),
+                read_only_hint: Some(true),
+                destructive_hint: Some(false),
+                idempotent_hint: Some(true),
+                open_world_hint: Some(false),
+            }),
+            Tool::new(
+                "saveSkill".to_string(),
+                indoc! {r#"
+                    Save a new reusable skill for future sessions (Voyager-style skill library).
+
+                    Use this when you discover a successful procedure, pattern, or workflow
+                    that could be reused. The skill will be persisted to disk and available
+                    in all future sessions.
+                "#}
+                .to_string(),
+                save_input_schema,
+            )
+            .annotate(ToolAnnotations {
+                title: Some("Save skill".to_string()),
+                read_only_hint: Some(false),
+                destructive_hint: Some(false),
+                idempotent_hint: Some(true),
+                open_world_hint: Some(false),
+            }),
+        ]
     }
 }
 
@@ -311,6 +383,7 @@ impl McpClientTrait for SkillsClient {
     ) -> Result<CallToolResult, Error> {
         let content = match name {
             "loadSkill" => self.handle_load_skill(arguments).await,
+            "saveSkill" => self.handle_save_skill(arguments).await,
             _ => Err(format!("Unknown tool: {}", name)),
         };
 

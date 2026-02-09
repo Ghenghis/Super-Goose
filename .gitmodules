@@ -1,0 +1,4 @@
+[submodule "ui/mobile"]
+	path = ui/mobile
+	url = https://github.com/block/goose-mobile.git
+	branch = main

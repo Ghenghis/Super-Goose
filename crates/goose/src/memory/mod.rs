@@ -775,6 +775,95 @@ impl MemoryManager {
     pub fn config(&self) -> &MemoryConfig {
         &self.config
     }
+
+    /// Save all persistent memories (episodic + semantic) to disk for cross-session persistence
+    pub async fn save_to_disk(&self) -> MemoryResult<std::path::PathBuf> {
+        let memory_dir = dirs::config_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("goose")
+            .join("memory");
+        std::fs::create_dir_all(&memory_dir).map_err(|e| {
+            MemoryError::storage(format!("Failed to create memory directory: {}", e))
+        })?;
+
+        let snapshot = MemorySnapshot {
+            version: 1,
+            saved_at: Utc::now(),
+            episodic: self.episodic.read().await.all_entries(),
+            semantic: self.semantic.read().await.all_entries(),
+        };
+
+        let file_path = memory_dir.join("memories.json");
+        let json = serde_json::to_string_pretty(&snapshot).map_err(|e| {
+            MemoryError::storage(format!("Failed to serialize memories: {}", e))
+        })?;
+        std::fs::write(&file_path, json).map_err(|e| {
+            MemoryError::storage(format!("Failed to write memory file: {}", e))
+        })?;
+
+        tracing::info!(
+            "Saved {} episodic + {} semantic memories to {:?}",
+            snapshot.episodic.len(),
+            snapshot.semantic.len(),
+            file_path
+        );
+
+        Ok(file_path)
+    }
+
+    /// Load persistent memories from disk (call on startup for cross-session recall)
+    pub async fn load_from_disk(&self) -> MemoryResult<usize> {
+        let file_path = dirs::config_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("goose")
+            .join("memory")
+            .join("memories.json");
+
+        if !file_path.exists() {
+            return Ok(0);
+        }
+
+        let json = std::fs::read_to_string(&file_path).map_err(|e| {
+            MemoryError::storage(format!("Failed to read memory file: {}", e))
+        })?;
+        let snapshot: MemorySnapshot = serde_json::from_str(&json).map_err(|e| {
+            MemoryError::storage(format!("Failed to deserialize memories: {}", e))
+        })?;
+
+        let mut loaded = 0;
+
+        // Load episodic memories
+        {
+            let mut episodic = self.episodic.write().await;
+            for entry in snapshot.episodic {
+                if episodic.store(entry).is_ok() {
+                    loaded += 1;
+                }
+            }
+        }
+
+        // Load semantic memories
+        {
+            let mut semantic = self.semantic.write().await;
+            for entry in snapshot.semantic {
+                if semantic.store(entry).is_ok() {
+                    loaded += 1;
+                }
+            }
+        }
+
+        tracing::info!("Loaded {} memories from disk ({:?})", loaded, file_path);
+        Ok(loaded)
+    }
+}
+
+/// Snapshot of persistent memories for disk serialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MemorySnapshot {
+    version: u32,
+    saved_at: DateTime<Utc>,
+    episodic: Vec<MemoryEntry>,
+    semantic: Vec<MemoryEntry>,
 }
 
 /// Report from consolidation operation

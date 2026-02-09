@@ -9,10 +9,12 @@ import ConfigSettings from './config/ConfigSettings';
 import PromptsSettingsSection from './PromptsSettingsSection';
 import { ExtensionConfig } from '../../api';
 import { MainPanelLayout } from '../Layout/MainPanelLayout';
-import { Bot, Share2, Monitor, MessageSquare, FileText, Keyboard } from 'lucide-react';
+import { Bot, Share2, Monitor, MessageSquare, FileText, Keyboard, Wifi, Brain } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import ChatSettingsSection from './chat/ChatSettingsSection';
 import KeyboardShortcutsSection from './keyboard/KeyboardShortcutsSection';
+import DevicesSection from './devices/DevicesSection';
+import ConsciousSection from './conscious/ConsciousSection';
 import { CONFIGURATION_ENABLED } from '../../updates';
 import { trackSettingsTabViewed } from '../../utils/analytics';
 
@@ -54,6 +56,8 @@ export default function SettingsView({
         chat: 'chat',
         prompts: 'prompts',
         keyboard: 'keyboard',
+        devices: 'devices',
+        conscious: 'conscious',
       };
 
       const targetTab = sectionToTab[viewOptions.section];
@@ -140,6 +144,14 @@ export default function SettingsView({
                     <Keyboard className="h-4 w-4" />
                     Keyboard
                   </TabsTrigger>
+                  <TabsTrigger value="devices" className="flex gap-2" data-testid="settings-devices-tab">
+                    <Wifi className="h-4 w-4" />
+                    Devices
+                  </TabsTrigger>
+                  <TabsTrigger value="conscious" className="flex gap-2" data-testid="settings-conscious-tab">
+                    <Brain className="h-4 w-4" />
+                    Conscious
+                  </TabsTrigger>
                   <TabsTrigger value="app" className="flex gap-2" data-testid="settings-app-tab">
                     <Monitor className="h-4 w-4" />
                     App
@@ -184,6 +196,20 @@ export default function SettingsView({
                   className="mt-0 focus-visible:outline-none focus-visible:ring-0"
                 >
                   <KeyboardShortcutsSection />
+                </TabsContent>
+
+                <TabsContent
+                  value="devices"
+                  className="mt-0 focus-visible:outline-none focus-visible:ring-0"
+                >
+                  <DevicesSection />
+                </TabsContent>
+
+                <TabsContent
+                  value="conscious"
+                  className="mt-0 focus-visible:outline-none focus-visible:ring-0"
+                >
+                  <ConsciousSection />
                 </TabsContent>
 
                 <TabsContent

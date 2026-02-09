@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Goose AI icon: purple circle with G -->
+    <path
+        android:fillColor="#7C3AED"
+        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M62,42 L62,52 L56,52 L56,48 Q56,44 52,44 Q48,44 48,48 L48,60 Q48,64 52,64 Q56,64 56,60 L56,56 L50,56 L50,52 L62,52 L62,60 Q62,70 52,70 Q42,70 42,60 L42,48 Q42,38 52,38 Q62,38 62,42 Z" />
+</vector>

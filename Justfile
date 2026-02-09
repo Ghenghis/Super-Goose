@@ -421,6 +421,82 @@ win-total-rls *allparam:
   just win-bld-rls{{allparam}}
   just win-run-rls
 
+# ─── MOBILE BUILDS (Phase 15) ───────────────────────────────────────
+
+# Initialize goose-mobile submodule
+init-mobile:
+    git submodule update --init --recursive ui/mobile
+
+# Build iOS app (requires macOS + Xcode)
+build-ios:
+    @echo "Building iOS app..."
+    @just init-mobile
+    cd ui/mobile && xcodebuild -project ios/GooseAI.xcodeproj \
+        -scheme GooseAI \
+        -configuration Release \
+        -sdk iphoneos \
+        -archivePath build/GooseAI.xcarchive \
+        archive
+    @echo "iOS archive created at ui/mobile/build/GooseAI.xcarchive"
+
+# Build Android app (requires Android SDK + Gradle)
+build-android:
+    @echo "Building Android app..."
+    @just init-mobile
+    cd ui/mobile/android && ./gradlew assembleRelease
+    @echo "Android APK created at ui/mobile/android/app/build/outputs/apk/release/"
+
+# Deploy debug APK to connected Android device via ADB
+install-android-debug:
+    @echo "Building and installing Android debug APK..."
+    cd ui/mobile/android && ./gradlew installDebug
+    @echo "✅ APK installed on connected device"
+
+# Connect to Tab S9+ or S21 Ultra over WiFi ADB
+adb-connect ip:
+    @echo "Connecting to Android device at {{ip}}:5555..."
+    adb connect {{ip}}:5555
+    adb devices
+
+# Full deploy: WiFi connect + build + install (for rooted Tab S9+)
+deploy-android ip:
+    @echo "=== Deploying Goose AI to Android device ==="
+    adb connect {{ip}}:5555
+    cd ui/mobile/android && ./gradlew installDebug
+    adb shell am start -n com.block.goose.debug/.MainActivity
+    @echo "✅ Goose AI launched on device"
+
+# ─── UNIFIED MULTI-PLATFORM RELEASE ────────────────────────────────
+
+# Build all desktop platforms (Win/Lin/Mac)
+release-all-desktop:
+    @echo "=== Building all desktop platforms ==="
+    @just release-binary
+    @echo "✅ Native platform binary built"
+
+# Build all platforms including mobile
+release-all:
+    @echo "=== Super-Goose Multi-Platform Release ==="
+    @echo ""
+    @echo "1/5 Building native desktop binary..."
+    @just release-binary
+    @echo "✅ Desktop binary built"
+    @echo ""
+    @echo "2/5 Building Electron desktop app..."
+    @just make-ui
+    @echo "✅ Desktop app packaged"
+    @echo ""
+    @echo "3/5 Initializing mobile submodule..."
+    @just init-mobile
+    @echo "✅ Mobile submodule ready"
+    @echo ""
+    @echo "=== Multi-platform release complete ==="
+    @echo "  Desktop: ui/desktop/out/"
+    @echo "  iOS:     run 'just build-ios' on macOS with Xcode"
+    @echo "  Android: run 'just build-android' with Android SDK"
+
+# ─── RELEASE PIPELINE ──────────────────────────────────────────────
+
 build-test-tools:
   cargo build -p goose-test
 

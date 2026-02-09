@@ -20,6 +20,8 @@ import { isUIResource } from '@mcp-ui/client';
 import { CallToolResponse, Content, EmbeddedResource } from '../api';
 import McpAppRenderer from './McpApps/McpAppRenderer';
 import ToolApprovalButtons from './ToolApprovalButtons';
+import { ToolResultCodeBlock, looksLikeCode, FileChangeGroup } from './chat_coding';
+import type { FileChange } from './chat_coding';
 
 interface ToolGraphNode {
   tool: string;
@@ -863,6 +865,38 @@ function CodeModeView({ toolGraph, code }: CodeModeViewProps) {
   );
 }
 
+/** Extract file change info from text_editor tool calls for FileChangeGroup rendering. */
+function extractFileChanges(toolCall: { name: string; arguments: Record<string, unknown> }): FileChange[] | null {
+  const toolName = getToolName(toolCall.name);
+  if (toolName !== 'text_editor') return null;
+
+  const args = toolCall.arguments;
+  const path = (args.path || args.file_path) as string | undefined;
+  const command = args.command as string | undefined;
+  if (!path || !command) return null;
+
+  const statusMap: Record<string, FileChange['status']> = {
+    write: 'added',
+    create: 'added',
+    str_replace: 'modified',
+    insert: 'modified',
+    undo_edit: 'modified',
+  };
+
+  const status = statusMap[command];
+  if (!status) return null;
+
+  const oldStr = (args.old_str as string) || '';
+  const newStr = (args.new_str as string) || '';
+
+  return [{
+    filePath: path,
+    status,
+    additions: newStr ? newStr.split('\n').length : 0,
+    deletions: oldStr ? oldStr.split('\n').length : 0,
+  }];
+}
+
 interface ToolResultViewProps {
   toolCall: {
     name: string;
@@ -870,9 +904,10 @@ interface ToolResultViewProps {
   };
   result: Content;
   isStartExpanded: boolean;
+  notifications?: NotificationEvent[];
 }
 
-function ToolResultView({ toolCall, result, isStartExpanded }: ToolResultViewProps) {
+function ToolResultView({ toolCall, result, isStartExpanded, notifications: _notifications }: ToolResultViewProps) {
   const hasText = (c: Content): c is Content & { text: string } =>
     'text' in c && typeof (c as Record<string, unknown>).text === 'string';
 
@@ -896,24 +931,47 @@ function ToolResultView({ toolCall, result, isStartExpanded }: ToolResultViewPro
     }
   };
 
+  const fileChanges = extractFileChanges(toolCall);
+  const isCodeContent = hasText(result) && looksLikeCode(result.text);
+
   return (
     <ToolCallExpandable
       label={<span className="pl-4 py-1 font-sans text-sm">Output</span>}
       isStartExpanded={isStartExpanded}
     >
       <div className="pl-4 pr-4 py-4">
+        {/* File change summary when applicable */}
+        {fileChanges && fileChanges.length > 0 && (
+          <div className="mb-3">
+            <FileChangeGroup
+              files={fileChanges}
+              collapsed={false}
+              showDiffs={false}
+            />
+          </div>
+        )}
+
+        {/* Text result: use ToolResultCodeBlock for code, MarkdownContent otherwise */}
         {hasText(result) && (
-          <MarkdownContent
-            content={wrapMarkdown(result.text)}
-            className="whitespace-pre-wrap max-w-full overflow-x-auto"
-          />
+          isCodeContent ? (
+            <ToolResultCodeBlock
+              toolName={toolCall.name}
+              toolArgs={toolCall.arguments}
+              content={result.text}
+            />
+          ) : (
+            <MarkdownContent
+              content={wrapMarkdown(result.text)}
+              className="whitespace-pre-wrap max-w-full overflow-x-auto"
+            />
+          )
         )}
         {hasImage(result) && (
           <img
             src={`data:${result.mimeType};base64,${result.data}`}
             alt="Tool result"
             className="max-w-full h-auto rounded-md my-2"
-            onError={(e) => {
+            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
               console.error('Failed to load image');
               e.currentTarget.style.display = 'none';
             }}

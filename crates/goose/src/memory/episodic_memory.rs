@@ -361,6 +361,11 @@ impl EpisodicMemory {
         }
     }
 
+    /// Get all entries as a Vec (for serialization/persistence)
+    pub fn all_entries(&self) -> Vec<MemoryEntry> {
+        self.entries.values().cloned().collect()
+    }
+
     /// Get number of entries
     pub fn len(&self) -> usize {
         self.entries.len()

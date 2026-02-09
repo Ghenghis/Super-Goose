@@ -5,9 +5,8 @@ import { Geese } from '../icons/Geese';
 import { X, Save, Play, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { RecipeFormFields } from './shared/RecipeFormFields';
-import { RecipeFormData } from './shared/recipeFormSchema';
+import { RecipeFormData, RecipeParameter } from './shared/recipeFormSchema';
 import { createRecipe } from '../../api/sdk.gen';
-import { RecipeParameter } from './shared/recipeFormSchema';
 import { toastError } from '../../toasts';
 import { saveRecipe } from '../../recipe/recipe_management';
 import { errorMessage } from '../../utils/conversionUtils';
@@ -161,8 +160,8 @@ export default function CreateRecipeFromSessionModal({
         description: formData.description,
         instructions: formData.instructions,
         prompt: formData.prompt || undefined,
-        activities: formData.activities.filter((activity) => activity.trim() !== ''),
-        parameters: formData.parameters.map((param) => ({
+        activities: formData.activities.filter((activity: string) => activity.trim() !== ''),
+        parameters: formData.parameters.map((param: RecipeParameter) => ({
           key: param.key,
           input_type: param.input_type || 'string',
           requirement: param.requirement,

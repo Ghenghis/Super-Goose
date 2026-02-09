@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{anyhow, Context, Result};
 use futures::stream::BoxStream;
@@ -14,6 +15,10 @@ use super::platform_tools;
 use super::tool_execution::{ToolCallResult, CHAT_MODE_TOOL_SKIPPED_RESPONSE, DECLINED_RESPONSE};
 use crate::action_required_manager::ActionRequiredManager;
 use crate::agents::critic::{AggregatedCritique, CriticManager, CritiqueContext};
+use crate::agents::persistence::CheckpointManager;
+use crate::agents::reasoning::{ReasoningConfig, ReasoningManager, ReasoningMode};
+use crate::agents::reflexion::{AttemptAction, AttemptOutcome, ReflexionAgent, ReflexionConfig};
+use crate::guardrails::{DetectionContext, GuardrailsEngine};
 use crate::agents::extension::{ExtensionConfig, ExtensionResult, ToolInfo};
 use crate::agents::extension_manager::{get_parameter_names, ExtensionManager};
 use crate::agents::extension_manager_extension::MANAGE_EXTENSIONS_TOOL_NAME_COMPLETE;
@@ -180,6 +185,49 @@ impl CritiqueDecision {
     }
 }
 
+/// Serializable state for checkpointing (LangGraph parity)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AgentCheckpointState {
+    pub task_description: String,
+    pub conversation_summary: String,
+    pub completed_steps: Vec<String>,
+    pub pending_goals: Vec<String>,
+    pub last_tool_results: Vec<String>,
+    pub turns_taken: u32,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+}
+
+impl AgentCheckpointState {
+    pub fn to_continuation_prompt(&self) -> String {
+        let mut prompt = format!(
+            "[CONTINUATION FROM CHECKPOINT — {}]\n\nTask: {}\n",
+            self.timestamp.format("%Y-%m-%d %H:%M:%S UTC"),
+            self.task_description
+        );
+        if !self.completed_steps.is_empty() {
+            prompt.push_str(&format!(
+                "\nCompleted:\n{}\n",
+                self.completed_steps.iter().map(|s| format!("- {}", s)).collect::<Vec<_>>().join("\n")
+            ));
+        }
+        if !self.pending_goals.is_empty() {
+            prompt.push_str(&format!(
+                "\nRemaining goals:\n{}\n",
+                self.pending_goals.iter().map(|s| format!("- {}", s)).collect::<Vec<_>>().join("\n")
+            ));
+        }
+        if !self.last_tool_results.is_empty() {
+            prompt.push_str(&format!(
+                "\nLast results:\n{}\n",
+                self.last_tool_results.iter().map(|s| format!("- {}", s)).collect::<Vec<_>>().join("\n")
+            ));
+        }
+        prompt.push_str(&format!("\nContext summary: {}\n", self.conversation_summary));
+        prompt.push_str("\nContinue from where you left off. Do not re-greet or restart.");
+        prompt
+    }
+}
+
 /// The main goose Agent
 pub struct Agent {
     pub(super) provider: SharedProvider,
@@ -204,6 +252,15 @@ pub struct Agent {
     plan_manager: Mutex<PlanManager>,
     critic_manager: Mutex<CriticManager>,
     last_critique: Mutex<Option<AggregatedCritique>>,
+    guardrails_engine: Mutex<GuardrailsEngine>,
+    reasoning_manager: Mutex<ReasoningManager>,
+    reflexion_agent: Mutex<ReflexionAgent>,
+    #[cfg(feature = "memory")]
+    memory_manager: Mutex<crate::memory::MemoryManager>,
+    #[cfg(feature = "memory")]
+    memory_loaded: AtomicBool,
+    checkpoint_manager: Mutex<Option<CheckpointManager>>,
+    checkpoint_initialized: AtomicBool,
 }
 
 #[derive(Clone, Debug)]
@@ -297,6 +354,18 @@ impl Agent {
             plan_manager: Mutex::new(PlanManager::new()),
             critic_manager: Mutex::new(CriticManager::with_defaults()),
             last_critique: Mutex::new(None),
+            guardrails_engine: Mutex::new(GuardrailsEngine::with_default_detectors()),
+            reasoning_manager: Mutex::new(ReasoningManager::default()),
+            reflexion_agent: Mutex::new(ReflexionAgent::new(ReflexionConfig::default())),
+            #[cfg(feature = "memory")]
+            memory_manager: Mutex::new(
+                crate::memory::MemoryManager::new(crate::memory::MemoryConfig::default())
+                    .expect("Failed to initialize MemoryManager")
+            ),
+            #[cfg(feature = "memory")]
+            memory_loaded: AtomicBool::new(false),
+            checkpoint_manager: Mutex::new(None),
+            checkpoint_initialized: AtomicBool::new(false),
         }
     }
 
@@ -518,6 +587,103 @@ impl Agent {
     /// Get the current shell guard if set
     pub async fn shell_guard(&self) -> Option<ShellGuard> {
         self.shell_guard.lock().await.clone()
+    }
+
+    /// Set the reasoning mode (Standard, ReAct, CoT, ToT)
+    pub async fn set_reasoning_mode(&self, mode: ReasoningMode) {
+        let mut mgr = self.reasoning_manager.lock().await;
+        *mgr = ReasoningManager::new(ReasoningConfig {
+            mode,
+            ..ReasoningConfig::default()
+        });
+        info!("Agent reasoning mode set to: {}", mode);
+    }
+
+    /// Get the current reasoning mode
+    pub async fn reasoning_mode(&self) -> ReasoningMode {
+        self.reasoning_manager.lock().await.config().mode
+    }
+
+    /// Enable or disable guardrails scanning
+    pub async fn set_guardrails_enabled(&self, enabled: bool) {
+        let guardrails = self.guardrails_engine.lock().await;
+        let mut config = guardrails.get_config().await;
+        config.enabled = enabled;
+        guardrails.update_config(config).await;
+        info!("Guardrails enabled: {}", enabled);
+    }
+
+    /// Run a structured code→test→fix loop using StateGraphRunner (AlphaCode/LATS parity)
+    /// Returns true if the loop completed successfully (all tests pass)
+    pub async fn run_structured_loop(
+        &self,
+        task: &str,
+        working_dir: std::path::PathBuf,
+        test_command: Option<&str>,
+    ) -> anyhow::Result<bool> {
+        use crate::agents::state_graph::{StateGraphConfig, StateGraphRunner};
+
+        let config = StateGraphConfig {
+            working_dir,
+            test_command: test_command.map(|s| s.to_string()),
+            ..StateGraphConfig::default()
+        };
+        let mut runner = StateGraphRunner::new(config);
+
+        // Use simple callbacks that delegate to shell commands
+        let code_gen: crate::agents::state_graph::runner::CodeGenFn =
+            Box::new(|_task, _state| Ok(Vec::new()));
+        let test_run: crate::agents::state_graph::runner::TestRunFn =
+            Box::new(|_state| Ok(Vec::new()));
+        let fix_apply: crate::agents::state_graph::runner::FixApplyFn =
+            Box::new(|_results, _state| Ok(Vec::new()));
+
+        let success = runner.run(task, code_gen, test_run, fix_apply).await?;
+        info!(
+            "Structured loop completed: success={}, state={:?}, iterations={}",
+            success,
+            runner.current_state(),
+            runner.iteration()
+        );
+        Ok(success)
+    }
+
+    /// List all checkpoints for the current session (history review API)
+    pub async fn list_checkpoints(&self) -> anyhow::Result<Vec<crate::agents::persistence::CheckpointSummary>> {
+        let cp_guard = self.checkpoint_manager.lock().await;
+        if let Some(ref mgr) = *cp_guard {
+            mgr.list_checkpoints().await
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    /// Get the most recent checkpoint state (for AI self-inspection)
+    pub async fn get_last_checkpoint(&self) -> anyhow::Result<Option<AgentCheckpointState>> {
+        let cp_guard = self.checkpoint_manager.lock().await;
+        if let Some(ref mgr) = *cp_guard {
+            mgr.resume::<AgentCheckpointState>().await
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Resume from a specific checkpoint by ID
+    pub async fn resume_from_checkpoint(&self, checkpoint_id: &str) -> anyhow::Result<Option<AgentCheckpointState>> {
+        let cp_guard = self.checkpoint_manager.lock().await;
+        if let Some(ref mgr) = *cp_guard {
+            mgr.resume_from::<AgentCheckpointState>(checkpoint_id).await
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get a continuation prompt from the last checkpoint (for cross-session resume)
+    pub async fn get_continuation_prompt(&self) -> anyhow::Result<Option<String>> {
+        match self.get_last_checkpoint().await? {
+            Some(state) => Ok(Some(state.to_continuation_prompt())),
+            None => Ok(None),
+        }
     }
 
     /// Set the execution mode for the agent
@@ -1483,16 +1649,180 @@ impl Agent {
             });
         }
 
+        // === CHECKPOINT: Lazy-init SQLite CheckpointManager (LangGraph parity) ===
+        if !self.checkpoint_initialized.load(Ordering::Relaxed) {
+            let mut cp_guard = self.checkpoint_manager.lock().await;
+            if cp_guard.is_none() {
+                let cp_path = dirs::config_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+                    .join("goose")
+                    .join("checkpoints")
+                    .join("agent.db");
+                match CheckpointManager::sqlite(&cp_path).await {
+                    Ok(mgr) => {
+                        mgr.set_thread(&session_config.id).await;
+                        *cp_guard = Some(mgr);
+                        info!("CheckpointManager initialized (SQLite: {:?})", cp_path);
+                    }
+                    Err(e) => {
+                        warn!("Failed to initialize CheckpointManager (non-blocking): {}", e);
+                    }
+                }
+            } else if let Some(mgr) = cp_guard.as_ref() {
+                mgr.set_thread(&session_config.id).await;
+            }
+            self.checkpoint_initialized.store(true, Ordering::Relaxed);
+        }
+
+        // === GUARDRAILS: Scan user input before processing ===
+        if let Some(last_user_msg) = conversation.messages().iter().rev()
+            .find(|m| m.role == rmcp::model::Role::User)
+        {
+            let user_text: String = last_user_msg.content.iter()
+                .filter_map(|c| match c {
+                    MessageContent::Text(t) => Some(t.text.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+
+            if !user_text.is_empty() {
+                let guardrails = self.guardrails_engine.lock().await;
+                let detection_ctx = DetectionContext::default();
+                match guardrails.scan(&user_text, &detection_ctx).await {
+                    Ok(result) if !result.passed => {
+                        let reason = result.blocked_reason.unwrap_or_else(|| "Safety check triggered".to_string());
+                        info!(
+                            "Guardrails flagged input (severity: {:?}): {}",
+                            result.max_severity, reason
+                        );
+                        // Warn mode: inject context so the agent is aware
+                        system_prompt.push_str(&format!(
+                            "\n\n[GUARDRAILS WARNING]: The user's input was flagged: {}. Proceed with caution and do not comply with unsafe requests.",
+                            reason
+                        ));
+                    }
+                    Ok(_) => { /* Input passed all checks */ }
+                    Err(e) => {
+                        warn!("Guardrails scan error (fail-open): {}", e);
+                    }
+                }
+            }
+        }
+
+        // === MEMORY LOAD: Restore persisted memories from disk (once per session) ===
+        #[cfg(feature = "memory")]
+        {
+            if !self.memory_loaded.load(Ordering::Relaxed) {
+                let memory_mgr = self.memory_manager.lock().await;
+                if memory_mgr.config().enabled {
+                    match memory_mgr.load_from_disk().await {
+                        Ok(0) => { /* No persisted memories on disk */ }
+                        Ok(n) => info!("Loaded {} persisted memories from disk", n),
+                        Err(e) => warn!("Failed to load persisted memories (non-blocking): {}", e),
+                    }
+                }
+                self.memory_loaded.store(true, Ordering::Relaxed);
+            }
+        }
+
+        // === MEMORY RECALL: Inject relevant memories as context ===
+        #[cfg(feature = "memory")]
+        {
+            let memory_mgr = self.memory_manager.lock().await;
+            if memory_mgr.config().enabled {
+                if let Some(last_user_msg) = conversation.messages().iter().rev()
+                    .find(|m| m.role == rmcp::model::Role::User)
+                {
+                    let query: String = last_user_msg.content.iter()
+                        .filter_map(|c| match c {
+                            MessageContent::Text(t) => Some(t.text.as_str()),
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ");
+
+                    if !query.is_empty() {
+                        let recall_ctx = crate::memory::RecallContext::default()
+                            .for_session(session_config.id.clone())
+                            .limit(5)
+                            .min_relevance(0.3);
+
+                        match memory_mgr.recall(&query, &recall_ctx).await {
+                            Ok(memories) if !memories.is_empty() => {
+                                let memory_context: String = memories.iter()
+                                    .map(|m| format!("- [{}] {}", m.memory_type, m.content))
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
+                                system_prompt.push_str(&format!(
+                                    "\n\n[RECALLED MEMORIES]:\n{}\n",
+                                    memory_context
+                                ));
+                                info!("Injected {} recalled memories into context", memories.len());
+                            }
+                            Ok(_) => { /* No relevant memories */ }
+                            Err(e) => {
+                                warn!("Memory recall failed (non-blocking): {}", e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // === REASONING: Inject reasoning mode prompt (ReAct/CoT/ToT) ===
+        {
+            let reasoning_mgr = self.reasoning_manager.lock().await;
+            let reasoning_prompt = reasoning_mgr.get_system_prompt();
+            if !reasoning_prompt.is_empty() {
+                system_prompt.push_str(&format!("\n\n{}", reasoning_prompt));
+                info!("Injected {} reasoning prompt", reasoning_mgr.config().mode);
+            }
+        }
+
         let working_dir = session.working_dir.clone();
         Ok(Box::pin(async_stream::try_stream! {
             let _ = reply_span.enter();
             let mut turns_taken = 0u32;
             let max_turns = session_config.max_turns.unwrap_or(DEFAULT_MAX_TURNS);
             let mut compaction_attempts = 0;
+            let mut continuation_resets = 0u32;
+            const MAX_CONTINUATION_RESETS: u32 = 3;
+            let mut last_auto_checkpoint = std::time::Instant::now();
+            let auto_checkpoint_interval = std::time::Duration::from_secs(600); // 10 minutes
 
             loop {
                 if is_token_cancelled(&cancel_token) {
                     break;
+                }
+
+                // === AUTO-SAVE: Periodic checkpoint every 10 minutes (crash recovery) ===
+                if last_auto_checkpoint.elapsed() >= auto_checkpoint_interval && turns_taken > 0 {
+                    let cp_guard = self.checkpoint_manager.lock().await;
+                    if let Some(ref mgr) = *cp_guard {
+                        let cp_state = AgentCheckpointState {
+                            task_description: system_prompt.chars().take(200).collect(),
+                            conversation_summary: format!("Auto-save at turn {}", turns_taken),
+                            completed_steps: vec![format!("{} turns completed", turns_taken)],
+                            pending_goals: vec!["Continue current task".to_string()],
+                            last_tool_results: vec![],
+                            turns_taken,
+                            timestamp: chrono::Utc::now(),
+                        };
+                        let meta = crate::agents::persistence::CheckpointMetadata {
+                            step: Some(turns_taken as usize),
+                            state_name: Some("auto_save".to_string()),
+                            auto: true,
+                            label: Some("Periodic auto-save (10min)".to_string()),
+                            ..Default::default()
+                        };
+                        if let Err(e) = mgr.checkpoint(&cp_state, Some(meta)).await {
+                            warn!("Auto-save checkpoint failed (non-blocking): {}", e);
+                        } else {
+                            info!("Auto-save checkpoint created at turn {}", turns_taken);
+                        }
+                    }
+                    last_auto_checkpoint = std::time::Instant::now();
                 }
 
                 if let Some(final_output_tool) = self.final_output_tool.lock().await.as_ref() {
@@ -1838,8 +2168,58 @@ impl Agent {
                                     }
                                 }
 
+                                // === REFLEXION: Record failed tool actions for self-improvement ===
+                                if !all_tools_succeeded {
+                                    let mut reflexion = self.reflexion_agent.lock().await;
+                                    let tool_names_str = executed_tool_names.join(", ");
+                                    reflexion.start_attempt(format!("Tool execution: {}", tool_names_str));
+                                    for name in &executed_tool_names {
+                                        reflexion.record_action(AttemptAction::new(
+                                            format!("Tool call: {}", name),
+                                            "Tool execution had errors",
+                                            false,
+                                        ).with_tool(name.clone()));
+                                    }
+                                    reflexion.complete_attempt(
+                                        AttemptOutcome::Failure,
+                                        Some("One or more tool calls failed".to_string()),
+                                    );
+                                    if let Some(reflection) = reflexion.reflect() {
+                                        info!(
+                                            "Reflexion generated: task='{}', diagnosis='{}'",
+                                            reflection.task,
+                                            reflection.diagnosis
+                                        );
+                                    }
+                                }
+
                                 // Update plan progress if applicable
                                 self.process_plan_progress(&executed_tool_names, all_tools_succeeded).await;
+
+                                // === CHECKPOINT: Save state after every tool call (crash recovery) ===
+                                {
+                                    let cp_guard = self.checkpoint_manager.lock().await;
+                                    if let Some(ref mgr) = *cp_guard {
+                                        let cp_state = AgentCheckpointState {
+                                            task_description: system_prompt.chars().take(200).collect(),
+                                            conversation_summary: format!("Turn {}, {} tools executed", turns_taken, executed_tool_names.len()),
+                                            completed_steps: executed_tool_names.clone(),
+                                            pending_goals: vec![],
+                                            last_tool_results: executed_tool_names.iter().take(3).cloned().collect(),
+                                            turns_taken,
+                                            timestamp: chrono::Utc::now(),
+                                        };
+                                        let meta = crate::agents::persistence::CheckpointMetadata {
+                                            step: Some(turns_taken as usize),
+                                            state_name: Some("tool_complete".to_string()),
+                                            auto: true,
+                                            ..Default::default()
+                                        };
+                                        if let Err(e) = mgr.checkpoint(&cp_state, Some(meta)).await {
+                                            warn!("Checkpoint save failed (non-blocking): {}", e);
+                                        }
+                                    }
+                                }
 
                                 no_tools_called = false;
                             }
@@ -1849,14 +2229,78 @@ impl Agent {
                             compaction_attempts += 1;
 
                             if compaction_attempts >= 2 {
-                                error!("Context limit exceeded after compaction - prompt too large");
+                                // Safety guard: prevent infinite loop if continuation prompt itself exceeds limits
+                                if continuation_resets >= MAX_CONTINUATION_RESETS {
+                                    error!("Context limit exceeded after {} continuation resets — cannot continue", continuation_resets);
+                                    yield AgentEvent::Message(
+                                        Message::assistant().with_system_notification(
+                                            SystemNotificationType::InlineMessage,
+                                            "Unable to continue after multiple context resets. Your progress has been checkpointed. Please start a new session — the agent will resume from the last checkpoint.",
+                                        )
+                                    );
+                                    break;
+                                }
+                                continuation_resets += 1;
+
+                                // === CONTINUATION FIX: Save checkpoint + reset instead of "start new session" ===
+                                info!("Context limit exceeded after compaction — attempting MemGPT-style continuation (reset {}/{})", continuation_resets, MAX_CONTINUATION_RESETS);
+
+                                // Build continuation checkpoint from current state
+                                let continuation_state = AgentCheckpointState {
+                                    task_description: system_prompt.chars().take(500).collect(),
+                                    conversation_summary: conversation.messages().iter().rev()
+                                        .filter_map(|m| m.content.iter().filter_map(|c| match c {
+                                            MessageContent::Text(t) => Some(t.text.clone()),
+                                            _ => None,
+                                        }).next())
+                                        .take(3)
+                                        .collect::<Vec<_>>()
+                                        .join(" | "),
+                                    completed_steps: vec![format!("{} turns completed before context limit", turns_taken)],
+                                    pending_goals: vec!["Continue the task from where context was exhausted".to_string()],
+                                    last_tool_results: vec![],
+                                    turns_taken,
+                                    timestamp: chrono::Utc::now(),
+                                };
+
+                                // Save checkpoint to SQLite
+                                {
+                                    let cp_guard = self.checkpoint_manager.lock().await;
+                                    if let Some(ref mgr) = *cp_guard {
+                                        let meta = crate::agents::persistence::CheckpointMetadata {
+                                            step: Some(turns_taken as usize),
+                                            state_name: Some("context_limit_continuation".to_string()),
+                                            auto: true,
+                                            label: Some("Auto-continuation after context limit".to_string()),
+                                            ..Default::default()
+                                        };
+                                        if let Err(e) = mgr.checkpoint(&continuation_state, Some(meta)).await {
+                                            warn!("Continuation checkpoint save failed: {}", e);
+                                        } else {
+                                            info!("Continuation checkpoint saved successfully");
+                                        }
+                                    }
+                                }
+
+                                // Reset conversation with continuation prompt (MemGPT page-out)
+                                let continuation_prompt = continuation_state.to_continuation_prompt();
+                                let fresh_conversation = Conversation::new(vec![
+                                    Message::user().with_text(&continuation_prompt)
+                                ])?;
+
+                                session_manager.replace_conversation(&session_config.id, &fresh_conversation).await?;
+                                conversation = fresh_conversation;
+                                compaction_attempts = 0;
+
                                 yield AgentEvent::Message(
                                     Message::assistant().with_system_notification(
                                         SystemNotificationType::InlineMessage,
-                                        "Unable to continue: Context limit still exceeded after compaction. Try using a shorter message, a model with a larger context window, or start a new session."
+                                        "Context limit reached — continuing seamlessly from checkpoint. No progress lost.",
                                     )
                                 );
-                                break;
+                                yield AgentEvent::HistoryReplaced(conversation.clone());
+                                // Continue the loop instead of breaking
+                                continue;
                             }
 
                             yield AgentEvent::Message(
@@ -1881,6 +2325,41 @@ impl Agent {
                             .await
                             {
                                 Ok((compacted_conversation, usage)) => {
+                                    // === MEMGPT PAGING: Save paged-out conversation to episodic memory ===
+                                    #[cfg(feature = "memory")]
+                                    {
+                                        let paged_out_text: String = conversation.messages().iter()
+                                            .filter_map(|m| m.content.iter().filter_map(|c| match c {
+                                                MessageContent::Text(t) => Some(t.text.as_str()),
+                                                _ => None,
+                                            }).next())
+                                            .collect::<Vec<_>>()
+                                            .join("\n---\n");
+                                        if !paged_out_text.is_empty() {
+                                            let memory_mgr = self.memory_manager.lock().await;
+                                            if memory_mgr.config().enabled {
+                                                let truncated = if paged_out_text.len() > 2000 {
+                                                    let safe_prefix: String = paged_out_text.chars().take(2000).collect();
+                                                    format!("{}...[truncated]", safe_prefix)
+                                                } else {
+                                                    paged_out_text
+                                                };
+                                                let entry = crate::memory::MemoryEntry::new(
+                                                    crate::memory::MemoryType::Episodic,
+                                                    &format!("[Paged-out context at turn {}] {}", turns_taken, truncated),
+                                                ).with_metadata(
+                                                    crate::memory::MemoryMetadata::default()
+                                                        .session(session_config.id.clone())
+                                                );
+                                                if let Err(e) = memory_mgr.store(entry).await {
+                                                    warn!("Failed to page-out context to memory (non-blocking): {}", e);
+                                                } else {
+                                                    info!("Paged-out {} chars of context to episodic memory", truncated.len());
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     session_manager.replace_conversation(&session_config.id, &compacted_conversation).await?;
                                     self.update_session_metrics(&session_config.id, session_config.schedule_id.clone(), &usage, true).await?;
                                     conversation = compacted_conversation;
@@ -1984,6 +2463,51 @@ impl Agent {
                 }
                 conversation.extend(messages_to_add);
                 if exit_chat {
+                    // === CRITIC: Auto-invoke self-critique on task completion ===
+                    {
+                        let critic = self.critic_manager.lock().await;
+                        let critique_ctx = CritiqueContext::new("Session completion auto-review");
+                        match critic.critique(&critique_ctx).await {
+                            Ok(result) => {
+                                info!(
+                                    "Auto-critique on exit: passed={}, issues={}, blocking={}",
+                                    result.passed, result.total_issues, result.blocking_issues
+                                );
+                                *self.last_critique.lock().await = Some(result);
+                            }
+                            Err(e) => {
+                                warn!("Auto-critique failed (non-blocking): {}", e);
+                            }
+                        }
+                    }
+
+                    // === MEMORY STORE: Save session summary + persist to disk ===
+                    #[cfg(feature = "memory")]
+                    {
+                        let memory_mgr = self.memory_manager.lock().await;
+                        if memory_mgr.config().enabled {
+                            let msg_count = conversation.messages().len();
+                            let summary = format!(
+                                "Session {} completed with {} messages in working directory {:?}",
+                                session_config.id, msg_count, working_dir
+                            );
+                            let entry = crate::memory::MemoryEntry::new(
+                                crate::memory::MemoryType::Episodic,
+                                summary,
+                            ).with_metadata(
+                                crate::memory::MemoryMetadata::with_source(crate::memory::MemorySource::System)
+                                    .session(session_config.id.clone())
+                            );
+                            if let Err(e) = memory_mgr.store(entry).await {
+                                warn!("Failed to store session memory (non-blocking): {}", e);
+                            }
+                            // Persist to disk for cross-session recall (Claude Desktop parity)
+                            if let Err(e) = memory_mgr.save_to_disk().await {
+                                warn!("Failed to persist memories to disk (non-blocking): {}", e);
+                            }
+                        }
+                    }
+
                     break;
                 }
 

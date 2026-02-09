@@ -32,7 +32,7 @@ import { UserInput } from '../types/message';
 import { useCostTracking } from '../hooks/useCostTracking';
 import RecipeActivities from './recipes/RecipeActivities';
 import { useToolCount } from './alerts/useToolCount';
-import { getThinkingMessage, getTextAndImageContent } from '../types/message';
+import { getThinkingMessage, getTextAndImageContent, getToolRequests, getToolResponses } from '../types/message';
 import ParameterInputModal from './ParameterInputModal';
 import { substituteParameters } from '../utils/providerUtils';
 import CreateRecipeFromSessionModal from './recipes/CreateRecipeFromSessionModal';
@@ -41,6 +41,8 @@ import { Recipe } from '../recipe';
 import { useAutoSubmit } from '../hooks/useAutoSubmit';
 import { Goose } from './icons';
 import EnvironmentBadge from './GooseSidebar/EnvironmentBadge';
+import { SwarmOverview, SwarmProgress, CompactionIndicator, BatchProgressPanel, TaskCardGroup, SkillCard, AgentCommunication, BatchProgress, ChatCodingErrorBoundary } from './chat_coding';
+import type { AgentInfo, TaskCardProps, SkillToolCall, AgentMessage, BatchItem } from './chat_coding';
 
 const CurrentModelContext = createContext<{ model: string; mode: string } | null>(null);
 export const useCurrentModelInfo = () => useContext(CurrentModelContext);
@@ -159,6 +161,224 @@ export default function BaseChat({
       }, [])
       .reverse();
   }, [messages]);
+
+  // Snapshot token count before compaction for CompactionIndicator
+  const compactionTokensRef = useRef<{ before?: number; after?: number }>({});
+  useEffect(() => {
+    if (chatState === ChatState.Compacting && tokenState?.totalTokens) {
+      compactionTokensRef.current.before = tokenState.totalTokens;
+      compactionTokensRef.current.after = undefined;
+    } else if (chatState === ChatState.Idle && compactionTokensRef.current.before && !compactionTokensRef.current.after && tokenState?.totalTokens) {
+      compactionTokensRef.current.after = tokenState.totalTokens;
+    }
+  }, [chatState, tokenState?.totalTokens]);
+
+  // Derive agent info from subagent notifications for SwarmOverview
+  const agentInfos = useMemo<AgentInfo[]>(() => {
+    const agentMap = new Map<string, { id: string; toolCalls: string[]; firstSeen: number; lastSeen: number }>();
+    toolCallNotifications.forEach((notifs) => {
+      for (const notif of notifs) {
+        const msg = notif.message as { method?: string; params?: { data?: unknown } };
+        if (msg.method !== 'notifications/message') continue;
+        const data = msg.params?.data as Record<string, unknown> | undefined;
+        if (!data || data.type !== 'subagent_tool_request') continue;
+        const agentId = data.subagent_id as string;
+        const toolCall = data.tool_call as { name?: string } | undefined;
+        const toolName = toolCall?.name || 'unknown';
+        const existing = agentMap.get(agentId) || { id: agentId, toolCalls: [], firstSeen: Date.now(), lastSeen: Date.now() };
+        existing.toolCalls.push(toolName);
+        existing.lastSeen = Date.now();
+        agentMap.set(agentId, existing);
+      }
+    });
+    return Array.from(agentMap.values()).map(agent => ({
+      id: agent.id,
+      name: `Agent ${agent.id.length > 8 ? agent.id.slice(-6) : agent.id}`,
+      status: (chatState !== ChatState.Idle ? 'running' : 'completed') as 'idle' | 'running' | 'completed' | 'error',
+      currentTask: agent.toolCalls[agent.toolCalls.length - 1],
+      startedAt: agent.firstSeen,
+      completedAt: chatState === ChatState.Idle ? agent.lastSeen : undefined,
+      toolCallCount: agent.toolCalls.length,
+    }));
+  }, [toolCallNotifications, chatState]);
+
+  const swarmCounts = useMemo(() => {
+    const completed = agentInfos.filter((a: AgentInfo) => a.status === 'completed').length;
+    const failed = agentInfos.filter((a: AgentInfo) => a.status === 'error').length;
+    const phase = chatState === ChatState.Idle ? 'Complete' : chatState === ChatState.Compacting ? 'Compacting' : agentInfos.length > 0 ? 'Multi-agent execution' : undefined;
+    return { total: agentInfos.length, completed, failed, phase };
+  }, [agentInfos, chatState]);
+
+  // Shared response map — built once, used by all data pipelines below
+  const toolResponseMap = useMemo(() => {
+    const map = new Map<string, { status: string; text?: string }>();
+    for (const msg of messages) {
+      for (const resp of getToolResponses(msg)) {
+        const toolResult = resp.toolResult as Record<string, unknown>;
+        const status = (typeof toolResult?.status === 'string') ? toolResult.status : 'success';
+        const resultValue = toolResult?.value;
+        let text: string | undefined;
+        if (resultValue && typeof resultValue === 'object') {
+          const content = (resultValue as Record<string, unknown>)?.content;
+          if (Array.isArray(content) && content.length > 0) {
+            const first = content[0];
+            if (first && typeof first === 'object' && 'text' in first) {
+              text = typeof (first as Record<string, unknown>).text === 'string'
+                ? ((first as Record<string, unknown>).text as string)
+                : undefined;
+            }
+          }
+        }
+        map.set(resp.id, { status, text });
+      }
+    }
+    return map;
+  }, [messages]);
+
+  // Batch progress tracking - derives tool call statuses from messages
+  const batchToolStatuses = useMemo<Map<string, { label: string; status: 'pending' | 'processing' | 'completed' | 'error'; result?: string }>>(() => {
+    const map = new Map<string, { label: string; status: 'pending' | 'processing' | 'completed' | 'error'; result?: string }>();
+    for (const msg of messages) {
+      if (msg.role !== 'assistant') continue;
+      for (const req of getToolRequests(msg)) {
+        const toolCall = req.toolCall as Record<string, unknown>;
+        const toolValue = toolCall?.value as { name?: string } | undefined;
+        const fullName = (toolValue?.name as string) || (toolCall?.name as string) || 'unknown';
+        const lastIdx = fullName.lastIndexOf('__');
+        const toolName = lastIdx === -1 ? fullName : fullName.substring(lastIdx + 2);
+        const response = toolResponseMap.get(req.id);
+        let status: 'pending' | 'processing' | 'completed' | 'error';
+        let result: string | undefined;
+        if (!response) {
+          status = chatState !== ChatState.Idle ? 'processing' : 'pending';
+        } else if (response.status === 'error') {
+          status = 'error';
+          result = response.text || 'Error';
+        } else {
+          status = 'completed';
+          result = 'Done';
+        }
+        map.set(req.id, { label: toolName, status, result });
+      }
+    }
+    return map;
+  }, [messages, chatState, toolResponseMap]);
+
+  // Task cards derived from tool_graph in code execution tool calls
+  const tasks = useMemo<TaskCardProps[]>(() => {
+    const result: TaskCardProps[] = [];
+    for (const msg of messages) {
+      if (msg.role !== 'assistant') continue;
+      for (const req of getToolRequests(msg)) {
+        const tc = req.toolCall as Record<string, unknown>;
+        const tv = tc?.value as { name?: string; arguments?: Record<string, unknown> } | undefined;
+        const args = tv?.arguments || (tc?.arguments as Record<string, unknown>) || {};
+        const toolGraph = args.tool_graph as Array<{ tool: string; description: string; depends_on: number[] }> | undefined;
+        if (!toolGraph || toolGraph.length === 0) continue;
+        const resp = toolResponseMap.get(req.id);
+        const isRunning = !resp && chatState !== ChatState.Idle;
+        result.push({
+          id: req.id,
+          title: `${toolGraph.length}-step execution plan`,
+          status: (resp ? (resp.status === 'error' ? 'error' : 'success') : (isRunning ? 'running' : 'pending')) as 'pending' | 'running' | 'success' | 'error' | 'cancelled',
+          startedAt: msg.created * 1000,
+          completedAt: resp ? Date.now() : undefined,
+          subtasks: toolGraph.map((node, idx) => ({
+            id: `${req.id}-${idx}`,
+            title: `${node.tool}: ${node.description}`,
+            status: (resp ? 'success' : (isRunning && idx === 0 ? 'running' : 'pending')) as 'pending' | 'running' | 'success' | 'error' | 'cancelled',
+          })),
+        });
+      }
+    }
+    return result;
+  }, [messages, chatState, toolResponseMap]);
+
+  // Skill cards grouped by MCP extension
+  const skills = useMemo<{ name: string; description: string; toolCalls: SkillToolCall[]; status: 'running' | 'completed' | 'error' }[]>(() => {
+    const groups = new Map<string, { name: string; calls: Array<{ req: { id: string; toolCall: Record<string, unknown> }; resp?: { status: string; text?: string } }> }>();
+    for (const msg of messages) {
+      if (msg.role !== 'assistant') continue;
+      for (const req of getToolRequests(msg)) {
+        const tc = req.toolCall as Record<string, unknown>;
+        const tv = tc?.value as { name?: string } | undefined;
+        const fullName = (tv?.name as string) || (tc?.name as string) || 'unknown';
+        const delimIdx = fullName.lastIndexOf('__');
+        const extName = delimIdx === -1 ? 'default' : fullName.substring(0, delimIdx);
+        if (!groups.has(extName)) groups.set(extName, { name: extName, calls: [] });
+        groups.get(extName)!.calls.push({ req: { id: req.id, toolCall: tc }, resp: toolResponseMap.get(req.id) });
+      }
+    }
+    return Array.from(groups.values())
+      .filter(g => g.calls.length >= 2)
+      .map(g => {
+        const allDone = g.calls.every(c => c.resp);
+        const anyError = g.calls.some(c => c.resp?.status === 'error');
+        return {
+          name: g.name.replace(/_/g, ' '),
+          description: `${g.calls.length} tool calls`,
+          toolCalls: g.calls.map(c => {
+            const tc = c.req.toolCall;
+            const tv = tc?.value as { name?: string } | undefined;
+            const fullName = (tv?.name as string) || (tc?.name as string) || 'unknown';
+            const lastIdx = fullName.lastIndexOf('__');
+            const toolName = lastIdx === -1 ? fullName : fullName.substring(lastIdx + 2);
+            return {
+              tool: toolName,
+              status: (!c.resp ? (chatState !== ChatState.Idle ? 'running' : 'pending') : c.resp.status === 'error' ? 'error' : 'completed') as 'pending' | 'running' | 'completed' | 'error',
+              input: (() => { try { return JSON.stringify((tc?.value as Record<string, unknown>)?.arguments || {}).slice(0, 200); } catch { return '[complex data]'; } })(),
+              output: c.resp?.text?.slice(0, 200),
+            };
+          }),
+          status: (anyError ? 'error' : allDone ? 'completed' : 'running') as 'running' | 'completed' | 'error',
+        };
+      });
+  }, [messages, chatState, toolResponseMap]);
+
+  // Agent communication messages from subagent notifications
+  const agentMessages = useMemo<AgentMessage[]>(() => {
+    const msgs: AgentMessage[] = [];
+    toolCallNotifications.forEach((notifs) => {
+      for (const notif of notifs) {
+        const msg = notif.message as { method?: string; params?: { data?: unknown } };
+        if (msg.method !== 'notifications/message') continue;
+        const data = msg.params?.data as Record<string, unknown> | undefined;
+        if (!data || data.type !== 'subagent_tool_request') continue;
+        const toolCall = data.tool_call as { name?: string } | undefined;
+        msgs.push({
+          from: 'orchestrator',
+          to: data.subagent_id as string,
+          content: `Tool request: ${toolCall?.name || 'unknown'}`,
+          timestamp: Date.now(),
+          type: 'request' as const,
+        });
+      }
+    });
+    return msgs;
+  }, [toolCallNotifications]);
+
+  // Batch progress items derived from the latest assistant message's tool calls
+  const batchItems = useMemo<BatchItem[]>(() => {
+    const lastAssistantMsg = [...messages].reverse().find(m =>
+      m.role === 'assistant' && getToolRequests(m).length > 0
+    );
+    if (!lastAssistantMsg) return [];
+    return getToolRequests(lastAssistantMsg).map(req => {
+      const toolCall = req.toolCall as Record<string, unknown>;
+      const toolValue = toolCall?.value as { name?: string } | undefined;
+      const fullName = (toolValue?.name as string) || (toolCall?.name as string) || 'unknown';
+      const lastIdx = fullName.lastIndexOf('__');
+      const toolName = lastIdx === -1 ? fullName : fullName.substring(lastIdx + 2);
+      const response = toolResponseMap.get(req.id);
+      return {
+        id: req.id,
+        label: toolName,
+        status: (!response ? (chatState !== ChatState.Idle ? 'processing' : 'pending') : response.status === 'error' ? 'error' : 'completed') as 'pending' | 'processing' | 'completed' | 'error',
+        result: response?.status !== 'error' && response ? 'Done' : undefined,
+        error: response?.status === 'error' ? (response.text || 'Error') : undefined,
+      };
+    });
+  }, [messages, chatState, toolResponseMap]);
 
   const chatInputSubmit = (input: UserInput) => {
     if (recipe && input.msg.trim()) {
@@ -334,6 +554,8 @@ export default function BaseChat({
 
   const initialPrompt = recipePrompt;
 
+  const chatSessionRef = useMemo(() => ({ sessionId }), [sessionId]);
+
   if (sessionLoadError) {
     return (
       <div className="h-full flex flex-col min-h-0">
@@ -420,10 +642,56 @@ export default function BaseChat({
 
             {messages.length > 0 || recipe ? (
               <>
+                <ChatCodingErrorBoundary componentName="Chat analytics">
+                  {agentInfos.length > 0 && (
+                    <div className="mb-4 space-y-2">
+                      <SwarmProgress
+                        totalAgents={swarmCounts.total}
+                        completedAgents={swarmCounts.completed}
+                        failedAgents={swarmCounts.failed}
+                        currentPhase={swarmCounts.phase}
+                      />
+                      <SwarmOverview agents={agentInfos} />
+                    </div>
+                  )}
+
+                  {batchToolStatuses.size > 0 && (
+                    <div className="mb-4">
+                      <BatchProgressPanel toolStatuses={batchToolStatuses} />
+                    </div>
+                  )}
+
+                  {tasks.length > 0 && (
+                    <div className="mb-4">
+                      <TaskCardGroup title="Active Tasks" tasks={tasks} />
+                    </div>
+                  )}
+
+                  {skills.map((skill: { name: string; description: string; toolCalls: SkillToolCall[]; status: 'running' | 'completed' | 'error' }, i: number) => (
+                    <div key={`skill-${i}`} className="mb-4">
+                      <SkillCard
+                        name={skill.name}
+                        description={skill.description}
+                        toolCalls={skill.toolCalls}
+                        status={skill.status}
+                      />
+                    </div>
+                  ))}
+                  {agentMessages.length > 0 && (
+                    <div className="mb-4">
+                      <AgentCommunication messages={agentMessages} />
+                    </div>
+                  )}
+                  {batchItems.length > 0 && (
+                    <div className="mb-4">
+                      <BatchProgress items={batchItems} title="Task Progress" />
+                    </div>
+                  )}
+                </ChatCodingErrorBoundary>
                 <SearchView>
                   <ProgressiveMessageList
                     messages={messages}
-                    chat={{ sessionId }}
+                    chat={chatSessionRef}
                     toolCallNotifications={toolCallNotifications}
                     append={(text: string) => handleSubmit({ msg: text, images: [] })}
                     isUserMessage={(m: Message) => m.role === 'user'}
@@ -443,6 +711,17 @@ export default function BaseChat({
             ) : null}
           </ScrollArea>
 
+          <ChatCodingErrorBoundary componentName="Compaction indicator">
+            {(chatState === ChatState.Compacting || compactionTokensRef.current.after) && (
+              <div className="absolute top-2 right-4 z-20">
+                <CompactionIndicator
+                  isCompacting={chatState === ChatState.Compacting}
+                  beforeTokens={compactionTokensRef.current.before}
+                  afterTokens={compactionTokensRef.current.after}
+                />
+              </div>
+            )}
+          </ChatCodingErrorBoundary>
           {chatState !== ChatState.Idle && (
             <div className="absolute bottom-1 left-4 z-20 pointer-events-none">
               <LoadingGoose
