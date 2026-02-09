@@ -20,6 +20,9 @@ import { isUIResource } from '@mcp-ui/client';
 import { CallToolResponse, Content, EmbeddedResource } from '../api';
 import McpAppRenderer from './McpApps/McpAppRenderer';
 import ToolApprovalButtons from './ToolApprovalButtons';
+import { ToolResultCodeBlock, looksLikeCode, FileChangeGroup, TaskGraph, SubagentTrace } from './chat_coding';
+import type { FileChange } from './chat_coding';
+import type { TraceEvent } from './chat_coding';
 
 interface ToolGraphNode {
   tool: string;
@@ -788,7 +791,7 @@ function ToolCallView({
         <>
           {toolResults.map((result, index) => (
             <div key={index} className={cn('border-t border-border-default')}>
-              <ToolResultView toolCall={toolCall} result={result} isStartExpanded={false} />
+              <ToolResultView toolCall={toolCall} result={result} isStartExpanded={false} notifications={notifications} />
             </div>
           ))}
         </>
@@ -826,25 +829,22 @@ interface CodeModeViewProps {
 }
 
 function CodeModeView({ toolGraph, code }: CodeModeViewProps) {
-  const renderGraph = () => {
-    const graph = toolGraph ?? [];
-    if (graph.length === 0) return null;
-
-    const lines: string[] = [];
-
-    graph.forEach((node, index) => {
-      const deps =
-        node.depends_on.length > 0 ? ` (uses ${node.depends_on.map((d) => d + 1).join(', ')})` : '';
-      lines.push(`${index + 1}. ${node.tool}: ${node.description}${deps}`);
-    });
-
-    return lines.join('\n');
-  };
+  // Map ToolGraphNode to TaskGraph's expected node format (with id/status)
+  const taskGraphNodes = useMemo(() => {
+    if (!toolGraph || toolGraph.length === 0) return [];
+    return toolGraph.map((node, index) => ({
+      id: index,
+      tool: node.tool,
+      description: node.description,
+      depends_on: node.depends_on,
+      status: 'completed' as const,
+    }));
+  }, [toolGraph]);
 
   return (
     <div className="px-4 py-2">
-      {toolGraph && (
-        <pre className="font-mono text-xs text-textSubtle whitespace-pre-wrap">{renderGraph()}</pre>
+      {toolGraph && taskGraphNodes.length > 0 && (
+        <TaskGraph nodes={taskGraphNodes} className="my-1" />
       )}
       {code && (
         <div className="border-t border-border-default -mx-4 mt-2">
@@ -870,9 +870,42 @@ interface ToolResultViewProps {
   };
   result: Content;
   isStartExpanded: boolean;
+  notifications?: NotificationEvent[];
 }
 
-function ToolResultView({ toolCall, result, isStartExpanded }: ToolResultViewProps) {
+/** Extract file change info from text_editor tool calls for FileChangeGroup rendering. */
+function extractFileChanges(toolCall: { name: string; arguments: Record<string, unknown> }): FileChange[] | null {
+  const toolName = getToolName(toolCall.name);
+  if (toolName !== 'text_editor') return null;
+
+  const args = toolCall.arguments;
+  const path = (args.path || args.file_path) as string | undefined;
+  const command = args.command as string | undefined;
+  if (!path || !command) return null;
+
+  const statusMap: Record<string, FileChange['status']> = {
+    write: 'added',
+    create: 'added',
+    str_replace: 'modified',
+    insert: 'modified',
+    undo_edit: 'modified',
+  };
+
+  const status = statusMap[command];
+  if (!status) return null;
+
+  const oldStr = (args.old_str as string) || '';
+  const newStr = (args.new_str as string) || '';
+
+  return [{
+    filePath: path,
+    status,
+    additions: newStr ? newStr.split('\n').length : 0,
+    deletions: oldStr ? oldStr.split('\n').length : 0,
+  }];
+}
+
+function ToolResultView({ toolCall, result, isStartExpanded, notifications }: ToolResultViewProps) {
   const hasText = (c: Content): c is Content & { text: string } =>
     'text' in c && typeof (c as Record<string, unknown>).text === 'string';
 
@@ -896,17 +929,92 @@ function ToolResultView({ toolCall, result, isStartExpanded }: ToolResultViewPro
     }
   };
 
+  // Check if this tool result contains file changes worth grouping
+  const fileChanges = useMemo(() => extractFileChanges(toolCall), [toolCall]);
+
+  // Determine if text content looks like code for smart rendering
+  const textContent = hasText(result) ? result.text : null;
+  const isCodeContent = useMemo(
+    () => textContent != null && textContent.length > 0 && looksLikeCode(textContent),
+    [textContent]
+  );
+
+  // Detect agent/subagent tool calls that should show trace visualization
+  const agentTraceEvents = useMemo<TraceEvent[]>(() => {
+    const toolName = getToolName(toolCall.name);
+    const agentTools = ['developer', 'agent', 'platform', 'dispatch_agent', 'run_agent'];
+    if (!agentTools.includes(toolName)) return [];
+    if (!hasText(result)) return [];
+    const events: TraceEvent[] = [
+      { timestamp: Date.now() - 10000, type: 'start' as const, message: `Agent tool: ${toolName}` },
+    ];
+    // Enrich with notification data if available
+    if (notifications && notifications.length > 0) {
+      for (const notif of notifications) {
+        const msg = notif.message as { method?: string; params?: { data?: unknown } };
+        if (msg.method === 'notifications/message') {
+          const data = msg.params?.data;
+          if (typeof data === 'string') {
+            events.push({ timestamp: Date.now() - 5000, type: 'message' as const, message: data.slice(0, 200) });
+          } else if (data && typeof data === 'object') {
+            const d = data as Record<string, unknown>;
+            if (d.type === 'subagent_tool_request') {
+              const tc = d.tool_call as { name?: string } | undefined;
+              events.push({ timestamp: Date.now() - 5000, type: 'tool_call' as const, tool: tc?.name || 'unknown', message: `Sub-agent ${d.subagent_id}: ${tc?.name || 'tool call'}` });
+            } else if (d.output) {
+              events.push({ timestamp: Date.now() - 5000, type: 'tool_result' as const, message: String(d.output).slice(0, 200) });
+            }
+          }
+        }
+      }
+    }
+    if (result.text && result.text.length > 0) {
+      events.push({ timestamp: Date.now(), type: 'complete' as const, message: result.text.slice(0, 200) });
+    }
+    return events;
+  }, [toolCall, result, notifications]);
+
   return (
     <ToolCallExpandable
       label={<span className="pl-4 py-1 font-sans text-sm">Output</span>}
       isStartExpanded={isStartExpanded}
     >
       <div className="pl-4 pr-4 py-4">
+        {/* SubagentTrace for agent/developer tool calls */}
+        {agentTraceEvents.length > 0 && (
+          <div className="mb-3">
+            <SubagentTrace
+              agentId={getToolName(toolCall.name)}
+              events={agentTraceEvents}
+            />
+          </div>
+        )}
+
+        {/* File change summary when applicable */}
+        {fileChanges && fileChanges.length > 0 && (
+          <div className="mb-3">
+            <FileChangeGroup
+              files={fileChanges}
+              collapsed={false}
+              showDiffs={false}
+            />
+          </div>
+        )}
+
+        {/* Text result: use ToolResultCodeBlock for code, MarkdownContent otherwise */}
         {hasText(result) && (
-          <MarkdownContent
-            content={wrapMarkdown(result.text)}
-            className="whitespace-pre-wrap max-w-full overflow-x-auto"
-          />
+          isCodeContent ? (
+            <ToolResultCodeBlock
+              toolName={toolCall.name}
+              toolArgs={toolCall.arguments}
+              content={result.text}
+            />
+          ) : (
+            <MarkdownContent
+              content={wrapMarkdown(result.text)}
+              className="whitespace-pre-wrap max-w-full overflow-x-auto"
+            />
+          )
         )}
         {hasImage(result) && (
           <img

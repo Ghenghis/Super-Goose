@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import ImagePreview from './ImagePreview';
 import { formatMessageTimestamp } from '../utils/timeUtils';
 import MarkdownContent from './MarkdownContent';
+import { ThinkingBlock } from './chat_coding';
 import ToolCallWithResponse from './ToolCallWithResponse';
 import {
   getTextAndImageContent,
@@ -130,14 +131,10 @@ export default function GooseMessage({
     <div className="goose-message flex w-[90%] justify-start min-w-0">
       <div className="flex flex-col w-full min-w-0">
         {cotText && (
-          <details className="bg-background-muted border border-border-default rounded p-2 mb-2">
-            <summary className="cursor-pointer text-sm text-text-muted select-none">
-              Show thinking
-            </summary>
-            <div className="mt-2">
-              <MarkdownContent content={cotText} />
-            </div>
-          </details>
+          <ThinkingBlock
+            content={cotText}
+            isStreaming={isStreaming}
+          />
         )}
 
         {(displayText.trim() || imagePaths.length > 0) && (
