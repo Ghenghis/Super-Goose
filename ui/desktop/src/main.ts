@@ -2087,7 +2087,7 @@ async function appMain() {
         return;
       }
 
-      // Remove any HTML tags for security
+      // Remove any HTML tags and angle brackets for security
       const sanitizeText = (text: string) => {
         let result = text;
         let previous;
@@ -2095,6 +2095,8 @@ async function appMain() {
           previous = result;
           result = result.replace(/<[^>]*>/g, '');
         } while (result !== previous);
+        // Remove any remaining angle brackets that could form partial/nested tags
+        result = result.replace(/[<>]/g, '');
         return result;
       };
 

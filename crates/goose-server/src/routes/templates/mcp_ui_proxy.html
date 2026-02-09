@@ -121,8 +121,13 @@
         if (!sanitizedTarget) {
           document.body.textContent = 'Error: invalid URL. Only HTTP and HTTPS URLs are allowed.';
         } else {
+          // Re-validate at point of use for static analysis traceability
+          const validatedUrl = new URL(sanitizedTarget);
+          if (validatedUrl.protocol !== 'http:' && validatedUrl.protocol !== 'https:') {
+            document.body.textContent = 'Error: invalid URL protocol.';
+          } else {
           const inner = document.createElement('iframe');
-          inner.src = sanitizedTarget;
+          inner.src = validatedUrl.href;
           inner.style = 'width:100%; height:100%; border:none;';
           // Default external URL sandbox; can be adjusted later by protocol if needed
           inner.setAttribute('sandbox', 'allow-same-origin allow-scripts');
@@ -148,6 +153,7 @@
                 .postMessage(event.data, '*');
             }
           });
+          }
         }
       } else {
         document.body.textContent = 'Error: missing url or html parameter';

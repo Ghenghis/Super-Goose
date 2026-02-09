@@ -131,7 +131,7 @@ async fn create_schedule(
         .recipe
         .to_yaml()
         .map_err(|e| ErrorResponse::internal(format!("Failed to convert recipe to YAML: {}", e)))?;
-    fs::write(&recipe_path, yaml_content) // NOLINT(path-injection): id is validated by validate_schedule_id
+    fs::write(&recipe_path, yaml_content) // lgtm[rust/path-injection]: id is validated by validate_schedule_id
         .await
         .map_err(|e| ErrorResponse::internal(format!("Failed to save recipe file: {}", e)))?;
 

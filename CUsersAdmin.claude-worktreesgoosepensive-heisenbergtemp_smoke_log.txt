@@ -1,0 +1,1068 @@
+Smoke Tests	UNKNOWN STEP	﻿2026-02-08T12:38:34.0633140Z Current runner version: '2.331.0'
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0654687Z ##[group]Runner Image Provisioner
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0655490Z Hosted Compute Agent
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0656019Z Version: 20260123.484
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0656702Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0657333Z Build Date: 2026-01-23T19:41:17Z
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0657948Z Worker ID: {83825f91-939d-4b48-8b11-6d7180a20bfd}
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0658673Z Azure Region: westcentralus
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0659240Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0660552Z ##[group]Operating System
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0661553Z Ubuntu
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0661980Z 24.04.3
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0662420Z LTS
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0662909Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0663362Z ##[group]Runner Image
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0663931Z Image: ubuntu-24.04
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0664575Z Version: 20260201.15.1
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0665745Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0667176Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0668037Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0670645Z ##[group]GITHUB_TOKEN Permissions
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0672887Z Actions: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0673392Z ArtifactMetadata: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0674005Z Attestations: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0674660Z Checks: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0675143Z Contents: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0675576Z Deployments: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0676193Z Discussions: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0676650Z Issues: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0677105Z Metadata: read
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0677643Z Models: read
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0678124Z Packages: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0678646Z Pages: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0679321Z PullRequests: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0679889Z RepositoryProjects: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0680459Z SecurityEvents: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0681077Z Statuses: write
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0681623Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0683510Z Secret source: Actions
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.0684475Z Prepare workflow directory
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.1057752Z Prepare all required actions
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.1094939Z Getting action download info
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.5090567Z Download action repository 'actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8' (SHA:8e8c483db84b4bee98b60c0593521ed34d9990e8)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:34.6788089Z Download action repository 'actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131' (SHA:37930b1c2abaa49bbe596cd826c3c89aef350131)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:35.4653597Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:35.5877988Z Download action repository 'astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b' (SHA:61cb8a9741eeb8a550a1b8544337180c0fc8476b)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.4911541Z Complete job name: Smoke Tests
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5597472Z ##[group]Run actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5598284Z with:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5598575Z   ref: refs/heads/main
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5598927Z   repository: Ghenghis/Super-Goose
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5599443Z   token: ***
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5599731Z   ssh-strict: true
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5600020Z   ssh-user: git
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5600327Z   persist-credentials: true
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5600667Z   clean: true
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5600973Z   sparse-checkout-cone-mode: true
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5601341Z   fetch-depth: 1
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5601622Z   fetch-tags: false
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5601922Z   show-progress: true
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5602207Z   lfs: false
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5602478Z   submodules: false
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5602781Z   set-safe-directory: true
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.5603301Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6537407Z Syncing repository: Ghenghis/Super-Goose
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6538947Z ##[group]Getting Git version info
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6539557Z Working directory is '/home/runner/work/Super-Goose/Super-Goose'
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6540294Z [command]/usr/bin/git version
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6589785Z git version 2.52.0
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6610017Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6623576Z Temporarily overriding HOME='/home/runner/work/_temp/2822b74e-8f89-452a-9f29-d93fe9363e23' before making global git config changes
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6625503Z Adding repository directory to the temporary git global config as a safe directory
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6628952Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Super-Goose/Super-Goose
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6666870Z Deleting the contents of '/home/runner/work/Super-Goose/Super-Goose'
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6670071Z ##[group]Initializing the repository
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6674727Z [command]/usr/bin/git init /home/runner/work/Super-Goose/Super-Goose
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6779420Z hint: Using 'master' as the name for the initial branch. This default branch name
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6780851Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6782197Z hint: to use in all of your new repositories, which will suppress this warning,
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6783204Z hint: call:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6783830Z hint:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6784701Z hint: 	git config --global init.defaultBranch <name>
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6785482Z hint:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6786350Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6787358Z hint: 'development'. The just-created branch can be renamed via this command:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6787950Z hint:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6788422Z hint: 	git branch -m <name>
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6789187Z hint:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6789970Z hint: Disable this message with "git config set advice.defaultBranchName false"
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6791126Z Initialized empty Git repository in /home/runner/work/Super-Goose/Super-Goose/.git/
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6794804Z [command]/usr/bin/git remote add origin https://github.com/Ghenghis/Super-Goose
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6827686Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6828441Z ##[group]Disabling automatic garbage collection
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6831194Z [command]/usr/bin/git config --local gc.auto 0
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6859046Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6860000Z ##[group]Setting up auth
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6860649Z Removing SSH command configuration
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6865558Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.6895438Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7212722Z Removing HTTP extra header
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7217737Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7246391Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7455487Z Removing includeIf entries pointing to credentials config files
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7460926Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7491017Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7710363Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7745073Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git.path /home/runner/work/_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7772782Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7801754Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7830140Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7855773Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7857630Z ##[group]Fetching the repository
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:36.7865096Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +refs/heads/main:refs/remotes/origin/main
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:46.9805134Z From https://github.com/Ghenghis/Super-Goose
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:46.9834743Z  * [new branch]      main       -> origin/main
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:46.9836736Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:46.9837455Z ##[group]Determining the checkout info
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:46.9838741Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:46.9843494Z [command]/usr/bin/git sparse-checkout disable
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:46.9884627Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:46.9911109Z ##[group]Checking out the ref
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:46.9916355Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.0108555Z Updating files:  53% (1739/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.1761686Z Updating files:  54% (1759/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3416534Z Updating files:  55% (1792/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3443415Z Updating files:  56% (1824/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3471315Z Updating files:  57% (1857/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3485856Z Updating files:  58% (1890/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3530380Z Updating files:  59% (1922/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3588492Z Updating files:  60% (1955/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3626064Z Updating files:  61% (1987/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3656528Z Updating files:  62% (2020/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3675873Z Updating files:  63% (2052/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3696105Z Updating files:  64% (2085/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3727388Z Updating files:  65% (2118/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3757367Z Updating files:  66% (2150/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3778896Z Updating files:  67% (2183/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3811628Z Updating files:  68% (2215/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3841091Z Updating files:  69% (2248/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3878132Z Updating files:  70% (2280/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3916394Z Updating files:  71% (2313/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3945889Z Updating files:  72% (2346/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3969955Z Updating files:  73% (2378/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.3991594Z Updating files:  74% (2411/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4006561Z Updating files:  75% (2443/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4020135Z Updating files:  76% (2476/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4041203Z Updating files:  77% (2508/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4067682Z Updating files:  78% (2541/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4088371Z Updating files:  79% (2574/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4109419Z Updating files:  80% (2606/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4127197Z Updating files:  81% (2639/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4151124Z Updating files:  82% (2671/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4169446Z Updating files:  83% (2704/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4213091Z Updating files:  84% (2736/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4465440Z Updating files:  85% (2769/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4487508Z Updating files:  86% (2802/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4507608Z Updating files:  87% (2834/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4525675Z Updating files:  88% (2867/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4538650Z Updating files:  89% (2899/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4550073Z Updating files:  90% (2932/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4576097Z Updating files:  91% (2964/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4601829Z Updating files:  92% (2997/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4621388Z Updating files:  93% (3030/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4633430Z Updating files:  94% (3062/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4653107Z Updating files:  95% (3095/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.4951072Z Updating files:  96% (3127/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.7830576Z Updating files:  97% (3160/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.7845283Z Updating files:  98% (3192/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.7861879Z Updating files:  99% (3225/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.7862740Z Updating files: 100% (3257/3257)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.7864517Z Updating files: 100% (3257/3257), done.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.7921170Z Switched to a new branch 'main'
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.7924783Z branch 'main' set up to track 'origin/main'.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.8092216Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.8136504Z [command]/usr/bin/git log -1 --format=%H
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.8161377Z 5d18ced7c15300cdb041f4fff087e9c1d36e8b62
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.8466772Z ##[group]Run actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.8467192Z with:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.8467365Z   name: goose-binary
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.8467558Z   path: target/release
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.8467766Z   merge-multiple: false
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.8467978Z   repository: Ghenghis/Super-Goose
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.8468221Z   run-id: 21798156277
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.8468424Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:48.9876230Z Downloading single artifact
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:49.2144313Z Preparing to download the following artifacts:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:49.2145497Z - goose-binary (ID: 5422457481, Size: 73187438, Expected Digest: sha256:2f7b6978d43e51973de2f0a0843499fa1f6ebcbc7df385336350d941ac215c0a)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:49.5351479Z Redirecting to blob download url: https://productionresultssa6.blob.core.windows.net/actions-results/74a280da-40d5-448a-948f-f9f121fb4c3a/workflow-job-run-99d8b01f-3245-5b8f-b88d-74553b561444/artifacts/f8f6598be3104dea16ad8a1ed21d4b8c5cd68a2af379fc88b97934e03275a1cd.zip
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:49.5353526Z Starting download of artifact to: /home/runner/work/Super-Goose/Super-Goose/target/release
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:49.7729289Z (node:2198) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:49.7730786Z (Use `node --trace-deprecation ...` to show where the warning was created)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.2980168Z SHA256 digest of downloaded artifact is 2f7b6978d43e51973de2f0a0843499fa1f6ebcbc7df385336350d941ac215c0a
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.2980795Z Artifact download completed successfully.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.2981096Z Total of 1 artifact(s) downloaded
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.2988190Z Download artifact has finished successfully
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3107731Z ##[group]Run chmod +x target/release/goose
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3108099Z [36;1mchmod +x target/release/goose[0m
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3141975Z shell: /usr/bin/bash -e {0}
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3142234Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3259240Z ##[group]Run # Ensure the HOME directory structure exists
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3259694Z [36;1m# Ensure the HOME directory structure exists[0m
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3260056Z [36;1mmkdir -p $HOME/.local/share/goose/sessions[0m
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3260357Z [36;1mmkdir -p $HOME/.config/goose[0m
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3260595Z [36;1m[0m
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3260910Z [36;1m# Run the provider test script (binary already built and downloaded)[0m
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3261307Z [36;1mbash scripts/test_providers.sh[0m
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3289028Z shell: /usr/bin/bash -e {0}
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3289277Z env:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3289445Z   ANTHROPIC_API_KEY: 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3289656Z   OPENAI_API_KEY: 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3289849Z   GOOGLE_API_KEY: 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3290040Z   DATABRICKS_HOST: 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3290234Z   DATABRICKS_TOKEN: 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3290432Z   OPENROUTER_API_KEY: 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3290620Z   XAI_API_KEY: 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3291147Z   TETRATE_API_KEY: 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3291340Z   HOME: /tmp/goose-home
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3291545Z   GOOSE_DISABLE_KEYRING: 1
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3291757Z   SKIP_BUILD: 1
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3291928Z   SKIP_PROVIDERS: 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3292109Z ##[endgroup]
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3377717Z Skipping build (SKIP_BUILD is set)...
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3378057Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3383627Z ⚠️  Skipping Databricks tests (DATABRICKS_HOST and DATABRICKS_TOKEN required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3385194Z ⚠️  Skipping Azure OpenAI tests (AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_DEPLOYMENT_NAME required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3386327Z ⚠️  Skipping AWS Bedrock tests (AWS_REGION and AWS_PROFILE or AWS credentials required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3387217Z ⚠️  Skipping GCP Vertex AI tests (GCP_PROJECT_ID required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3388050Z ⚠️  Skipping Snowflake tests (SNOWFLAKE_HOST and SNOWFLAKE_TOKEN required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3388837Z ⚠️  Skipping Venice tests (VENICE_API_KEY required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3389497Z ⚠️  Skipping LiteLLM tests (LITELLM_API_KEY required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3390300Z ⚠️  Skipping Ollama tests (OLLAMA_HOST required or ollama must be installed)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3391287Z ⚠️  Skipping SageMaker TGI tests (SAGEMAKER_ENDPOINT_NAME and AWS_REGION required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3392334Z ⚠️  Skipping GitHub Copilot tests (OAuth setup required - run 'goose configure' first)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3393416Z ⚠️  Skipping ChatGPT Codex tests (OAuth setup required - run 'goose configure' first)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3394579Z ⚠️  Skipping Claude Code CLI tests ('claude' CLI tool required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3395318Z ⚠️  Skipping Codex CLI tests ('codex' CLI tool required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3395966Z ⚠️  Skipping Gemini CLI tests ('gemini' CLI tool required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3396465Z ⚠️  Skipping Cursor Agent tests ('cursor-agent' CLI tool required)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3396769Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3396872Z Mode: normal (direct tool calls)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3397049Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3437516Z Running tests with up to 4 parallel jobs
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3437922Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3444814Z Starting 17 tests...
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3445044Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.3445243Z Running first test sequentially...
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.7285669Z First test completed.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.7285963Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:52.7286341Z Running remaining tests in parallel...
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6248813Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6249315Z === Test Results ===
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6249602Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6250667Z Provider: openrouter
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6251068Z Model: google/gemini-2.5-pro
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6251322Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6261560Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6262447Z starting session | provider: openrouter model: google/gemini-2.5-pro
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6263069Z     session id: 20260208_1
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6263493Z     working directory: /tmp/tmp.xzuefl3TxA
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6265078Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No cookie auth credentials found.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6265653Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6265843Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6266139Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6277202Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6277731Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6278019Z Provider: openrouter
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6278417Z Model: anthropic/claude-sonnet-4.5
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6278720Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6289155Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6290068Z starting session | provider: openrouter model: anthropic/claude-sonnet-4.5
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6290713Z     session id: 20260208_2
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6291100Z     working directory: /tmp/tmp.zh49H5wIc5
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6292135Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No cookie auth credentials found.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6293019Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6293331Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6293789Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6306005Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6306519Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6308292Z Provider: openrouter
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6308660Z Model: qwen/qwen3-coder:exacto
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6308923Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6318193Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6319446Z starting session | provider: openrouter model: qwen/qwen3-coder:exacto
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6320122Z     session id: 20260208_5
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6320560Z     working directory: /tmp/tmp.USdqOSmbZR
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6321632Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No cookie auth credentials found.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6322572Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6322899Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6323402Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6333330Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6334025Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6334540Z Provider: openrouter
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6334907Z Model: z-ai/glm-4.6:exacto
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6335174Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6344014Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6345239Z starting session | provider: openrouter model: z-ai/glm-4.6:exacto
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6345889Z     session id: 20260208_4
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6346316Z     working directory: /tmp/tmp.orlZm8buJa
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6347421Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No cookie auth credentials found.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6348084Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6348280Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6348569Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6359295Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6359832Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6362119Z Provider: openrouter
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6362520Z Model: nvidia/nemotron-3-nano-30b-a3b
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6362836Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6372775Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6373686Z starting session | provider: openrouter model: nvidia/nemotron-3-nano-30b-a3b
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6374904Z     session id: 20260208_3
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6375316Z     working directory: /tmp/tmp.GKRruZqygp
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6376352Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No cookie auth credentials found.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6377226Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6377519Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6377976Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6389602Z ⚠ FLAKY: Test failed but model is in allowed failures list - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6390040Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6390442Z Provider: xai
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6391004Z Model: grok-3
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6391189Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6400136Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6400906Z starting session | provider: xai model: grok-3
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6401401Z     session id: 20260208_6
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6401827Z     working directory: /tmp/tmp.3M2g1VzkuE
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6403347Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No or an invalid authentication header was provided on the request. Please make sure you pass your API key in the corresponding HTTP header..
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6404831Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6405027Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6405301Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6414802Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6415618Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6416100Z Provider: openai
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6416671Z Model: gpt-4o
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6416857Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6425781Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6426498Z starting session | provider: openai model: gpt-4o
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6426878Z     session id: 20260208_7
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6427277Z     working directory: /tmp/tmp.RPMnc9ESO9
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6430697Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: You didn't provide an API key. You need to provide your API key in an Authorization header using *** (i.e. Authorization: *** or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys..
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6433731Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6434674Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6435198Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6442157Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6442710Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6442981Z Provider: openai
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6443425Z Model: gpt-4o-mini
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6443625Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6452298Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6453102Z starting session | provider: openai model: gpt-4o-mini
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6453504Z     session id: 20260208_8
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6453954Z     working directory: /tmp/tmp.0qQsZjYDcP
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6456795Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: You didn't provide an API key. You need to provide your API key in an Authorization header using *** (i.e. Authorization: *** or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys..
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6459716Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6460059Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6460638Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6469037Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6469546Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6472286Z Provider: openai
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6472607Z Model: gpt-3.5-turbo
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6472834Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6480306Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6481161Z starting session | provider: openai model: gpt-3.5-turbo
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6481718Z     session id: 20260208_9
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6482112Z     working directory: /tmp/tmp.aWRSHPQnuU
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6485838Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: You didn't provide an API key. You need to provide your API key in an Authorization header using *** (i.e. Authorization: *** or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys..
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6487627Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6487818Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6488096Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6497716Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6498240Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6498534Z Provider: openai
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6498860Z Model: gpt-5
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6499137Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6508469Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6509220Z starting session | provider: openai model: gpt-5
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6509672Z     session id: 20260208_10
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6510117Z     working directory: /tmp/tmp.QTJoVbvsF2
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6512915Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: You didn't provide an API key. You need to provide your API key in an Authorization header using *** (i.e. Authorization: *** or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys..
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6515388Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6515579Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6516041Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6523900Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6524567Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6524847Z Provider: anthropic
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6525198Z Model: claude-sonnet-4-5-20250929
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6525478Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6533856Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6534879Z starting session | provider: anthropic model: claude-sonnet-4-5-20250929
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6535270Z     session id: 20260208_11
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6535712Z     working directory: /tmp/tmp.d5dNhdRZBE
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6536584Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: x-api-key header is required.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6537097Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6537286Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6537576Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6548375Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6548863Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6549137Z Provider: anthropic
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6549472Z Model: claude-opus-4-1-20250805
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6549733Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6558346Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6559100Z starting session | provider: anthropic model: claude-opus-4-1-20250805
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6559474Z     session id: 20260208_12
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6559891Z     working directory: /tmp/tmp.Cp5EvArtXk
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6560887Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: x-api-key header is required.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6561735Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6562019Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6562469Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6572425Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6572906Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6573167Z Provider: google
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6573484Z Model: gemini-2.5-pro
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6573707Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6582335Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6583078Z starting session | provider: google model: gemini-2.5-pro
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6583399Z     session id: 20260208_13
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6583781Z     working directory: /tmp/tmp.v9oHYWoGdV
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6585295Z Ran into this error: Authentication error: Authentication failed. Status: 403 Forbidden. Response: Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API..
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6586473Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6586659Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6586936Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6596609Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6597092Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6597351Z Provider: google
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6597668Z Model: gemini-2.5-flash
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6597911Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6606513Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6607314Z starting session | provider: google model: gemini-2.5-flash
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6607841Z     session id: 20260208_14
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6608229Z     working directory: /tmp/tmp.bDitzc9s90
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6610000Z Ran into this error: Authentication error: Authentication failed. Status: 403 Forbidden. Response: Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API..
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6611341Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6611519Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6611795Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6621353Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6621826Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6622090Z Provider: google
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6622406Z Model: gemini-3-pro-preview
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6622666Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6631226Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6631991Z starting session | provider: google model: gemini-3-pro-preview
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6632353Z     session id: 20260208_15
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6632761Z     working directory: /tmp/tmp.r9hHn710ro
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6634306Z Ran into this error: Authentication error: Authentication failed. Status: 403 Forbidden. Response: Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API..
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6635300Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6635486Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6635764Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6645775Z ⚠ FLAKY: Test failed but model is in allowed failures list - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6646448Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6646706Z Provider: google
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6646975Z Model: gemini-3-flash-preview
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6647143Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6655999Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6656831Z starting session | provider: google model: gemini-3-flash-preview
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6657419Z     session id: 20260208_16
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6657809Z     working directory: /tmp/tmp.zzetHzmN6p
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6659579Z Ran into this error: Authentication error: Authentication failed. Status: 403 Forbidden. Response: Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API..
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6660862Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6661029Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6661299Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6670245Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6670718Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6670986Z Provider: tetrate
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6671309Z Model: claude-sonnet-4-20250514
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6671586Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6680182Z Warning: Failed to initialize Linux automation: Unable to detect display server
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6681022Z starting session | provider: tetrate model: claude-sonnet-4-20250514
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6681617Z     session id: 20260208_17
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6681998Z     working directory: /tmp/tmp.ACJPVAAYIV
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6682928Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: API key is required.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6683724Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6684378Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6684802Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6694501Z ✗ FAILED: Test failed - no developer tools called
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6694969Z ---
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6695126Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6695245Z === Test Summary ===
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6695689Z ✗ openrouter: google/gemini-2.5-pro
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6696212Z ✗ openrouter: anthropic/claude-sonnet-4.5
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6696752Z ✗ openrouter: qwen/qwen3-coder:exacto
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6697241Z ✗ openrouter: z-ai/glm-4.6:exacto
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6697793Z ⚠ openrouter: nvidia/nemotron-3-nano-30b-a3b (flaky)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6698311Z ✗ xai: grok-3
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6698641Z ✗ openai: gpt-4o
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6699006Z ✗ openai: gpt-4o-mini
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6699388Z ✗ openai: gpt-3.5-turbo
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6699755Z ✗ openai: gpt-5
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6700152Z ✗ anthropic: claude-sonnet-4-5-20250929
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6700666Z ✗ anthropic: claude-opus-4-1-20250805
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6701131Z ✗ google: gemini-2.5-pro
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6701557Z ✗ google: gemini-2.5-flash
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6702001Z ⚠ google: gemini-3-pro-preview (flaky)
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6702295Z ✗ google: gemini-3-flash-preview
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6702575Z ✗ tetrate: claude-sonnet-4-20250514
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6702741Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6702820Z Hard failures (15):
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6703029Z   - openrouter: google/gemini-2.5-pro
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6703470Z   - openrouter: anthropic/claude-sonnet-4.5
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6703754Z   - openrouter: qwen/qwen3-coder:exacto
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6704011Z   - openrouter: z-ai/glm-4.6:exacto
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6704501Z   - xai: grok-3
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6704688Z   - openai: gpt-4o
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6704890Z   - openai: gpt-4o-mini
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6705111Z   - openai: gpt-3.5-turbo
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6705329Z   - openai: gpt-5
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6705539Z   - anthropic: claude-sonnet-4-5-20250929
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6705814Z   - anthropic: claude-opus-4-1-20250805
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6706081Z   - google: gemini-2.5-pro
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6706304Z   - google: gemini-2.5-flash
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6706536Z   - google: gemini-3-flash-preview
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6706798Z   - tetrate: claude-sonnet-4-20250514
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6706974Z 
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6707053Z Some tests failed!
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6732863Z ##[error]Process completed with exit code 1.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.6853116Z Post job cleanup.
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.7616175Z [command]/usr/bin/git version
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.7684291Z git version 2.52.0
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.7721628Z Temporarily overriding HOME='/home/runner/work/_temp/ca073243-3ce0-42a9-881c-3e05c58852e6' before making global git config changes
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.7722996Z Adding repository directory to the temporary git global config as a safe directory
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.7727762Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Super-Goose/Super-Goose
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.7757818Z Removing SSH command configuration
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.7763661Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.7798843Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8023919Z Removing HTTP extra header
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8028454Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8060288Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8278231Z Removing includeIf entries pointing to credentials config files
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8283825Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8305539Z includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git.path
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8306359Z includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git/worktrees/*.path
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8306821Z includeif.gitdir:/github/workspace/.git.path
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8307380Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8315556Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git.path
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8335842Z /home/runner/work/_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8345825Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git.path /home/runner/work/_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8377333Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git/worktrees/*.path
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8398008Z /home/runner/work/_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8408303Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8438846Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8459546Z /github/runner_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8468115Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8498473Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8518534Z /github/runner_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8528047Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8558808Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8779361Z Removing credentials config '/home/runner/work/_temp/git-credentials-1b90629f-472e-456d-8f7f-42e07a84f635.config'
+Smoke Tests	UNKNOWN STEP	2026-02-08T12:38:54.8922072Z Cleaning up orphan processes
+Smoke Tests (Code Execution)	UNKNOWN STEP	﻿2026-02-08T12:38:34.0683625Z Current runner version: '2.331.0'
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0707452Z ##[group]Runner Image Provisioner
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0708305Z Hosted Compute Agent
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0709216Z Version: 20260123.484
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0709884Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0710569Z Build Date: 2026-01-23T19:41:17Z
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0711186Z Worker ID: {11a6fed0-dc30-4105-841b-fdb84b717bd1}
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0711947Z Azure Region: westus3
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0712446Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0713892Z ##[group]Operating System
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0714563Z Ubuntu
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0714992Z 24.04.3
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0715434Z LTS
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0715922Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0716435Z ##[group]Runner Image
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0716932Z Image: ubuntu-24.04
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0717464Z Version: 20260201.15.1
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0718607Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0720357Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0721205Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0723870Z ##[group]GITHUB_TOKEN Permissions
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0725885Z Actions: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0726495Z ArtifactMetadata: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0726996Z Attestations: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0727599Z Checks: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0728039Z Contents: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0728521Z Deployments: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0729234Z Discussions: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0729743Z Issues: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0730247Z Metadata: read
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0730764Z Models: read
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0731237Z Packages: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0731720Z Pages: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0732353Z PullRequests: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0732870Z RepositoryProjects: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0733483Z SecurityEvents: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0734363Z Statuses: write
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0734852Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0736923Z Secret source: Actions
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.0737663Z Prepare workflow directory
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.1079159Z Prepare all required actions
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.1121501Z Getting action download info
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.5137095Z Download action repository 'actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8' (SHA:8e8c483db84b4bee98b60c0593521ed34d9990e8)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:34.6521663Z Download action repository 'actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131' (SHA:37930b1c2abaa49bbe596cd826c3c89aef350131)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.6308892Z Complete job name: Smoke Tests (Code Execution)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7137587Z ##[group]Run actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7139543Z with:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7140313Z   ref: refs/heads/main
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7141228Z   repository: Ghenghis/Super-Goose
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7142523Z   token: ***
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7143312Z   ssh-strict: true
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7144110Z   ssh-user: git
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7144974Z   persist-credentials: true
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7145897Z   clean: true
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7146737Z   sparse-checkout-cone-mode: true
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7147756Z   fetch-depth: 1
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7148573Z   fetch-tags: false
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7149758Z   show-progress: true
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7150605Z   lfs: false
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7151376Z   submodules: false
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7152215Z   set-safe-directory: true
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.7153436Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8082462Z Syncing repository: Ghenghis/Super-Goose
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8085323Z ##[group]Getting Git version info
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8086872Z Working directory is '/home/runner/work/Super-Goose/Super-Goose'
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8089276Z [command]/usr/bin/git version
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8167056Z git version 2.52.0
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8190802Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8205317Z Temporarily overriding HOME='/home/runner/work/_temp/12ec2a0e-4c51-4a53-9ddc-6752a10a90a1' before making global git config changes
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8208998Z Adding repository directory to the temporary git global config as a safe directory
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8212245Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Super-Goose/Super-Goose
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8252012Z Deleting the contents of '/home/runner/work/Super-Goose/Super-Goose'
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8254890Z ##[group]Initializing the repository
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8259987Z [command]/usr/bin/git init /home/runner/work/Super-Goose/Super-Goose
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8384877Z hint: Using 'master' as the name for the initial branch. This default branch name
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8387205Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8389827Z hint: to use in all of your new repositories, which will suppress this warning,
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8391805Z hint: call:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8393130Z hint:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8394825Z hint: 	git config --global init.defaultBranch <name>
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8396935Z hint:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8399108Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8402400Z hint: 'development'. The just-created branch can be renamed via this command:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8404969Z hint:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8406205Z hint: 	git branch -m <name>
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8407620Z hint:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8409630Z hint: Disable this message with "git config set advice.defaultBranchName false"
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8411817Z Initialized empty Git repository in /home/runner/work/Super-Goose/Super-Goose/.git/
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8415702Z [command]/usr/bin/git remote add origin https://github.com/Ghenghis/Super-Goose
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8440494Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8443005Z ##[group]Disabling automatic garbage collection
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8445272Z [command]/usr/bin/git config --local gc.auto 0
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8473541Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8475856Z ##[group]Setting up auth
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8477534Z Removing SSH command configuration
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8480733Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8514235Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8854824Z Removing HTTP extra header
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8860655Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.8892884Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.9102753Z Removing includeIf entries pointing to credentials config files
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.9108866Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.9141527Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.9362615Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.9399126Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git.path /home/runner/work/_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.9431893Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.9472223Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.9516857Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.9521692Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.9522958Z ##[group]Fetching the repository
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:35.9526299Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +refs/heads/main:refs/remotes/origin/main
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:46.8993409Z From https://github.com/Ghenghis/Super-Goose
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:46.8994146Z  * [new branch]      main       -> origin/main
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:46.9045485Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:46.9046410Z ##[group]Determining the checkout info
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:46.9048604Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:46.9053716Z [command]/usr/bin/git sparse-checkout disable
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:46.9099111Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:46.9125587Z ##[group]Checking out the ref
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:46.9129643Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:47.9421933Z Updating files:  53% (1731/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.1081731Z Updating files:  54% (1759/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.2734044Z Updating files:  55% (1792/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.2762658Z Updating files:  56% (1824/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.2794862Z Updating files:  57% (1857/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.2817279Z Updating files:  58% (1890/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.2876660Z Updating files:  59% (1922/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.2929201Z Updating files:  60% (1955/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.2961083Z Updating files:  61% (1987/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.2983076Z Updating files:  62% (2020/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3001573Z Updating files:  63% (2052/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3021756Z Updating files:  64% (2085/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3052561Z Updating files:  65% (2118/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3080558Z Updating files:  66% (2150/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3112935Z Updating files:  67% (2183/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3145634Z Updating files:  68% (2215/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3172661Z Updating files:  69% (2248/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3210103Z Updating files:  70% (2280/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3251778Z Updating files:  71% (2313/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3295370Z Updating files:  72% (2346/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3331126Z Updating files:  73% (2378/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3364440Z Updating files:  74% (2411/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3387374Z Updating files:  75% (2443/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3407782Z Updating files:  76% (2476/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3439012Z Updating files:  77% (2508/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3478977Z Updating files:  78% (2541/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3511000Z Updating files:  79% (2574/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3539198Z Updating files:  80% (2606/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3563251Z Updating files:  81% (2639/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3588610Z Updating files:  82% (2671/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3606840Z Updating files:  83% (2704/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3650370Z Updating files:  84% (2736/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3904711Z Updating files:  85% (2769/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3923421Z Updating files:  86% (2802/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3943947Z Updating files:  87% (2834/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3962787Z Updating files:  88% (2867/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3975442Z Updating files:  89% (2899/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.3987108Z Updating files:  90% (2932/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.4011465Z Updating files:  91% (2964/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.4037084Z Updating files:  92% (2997/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.4055897Z Updating files:  93% (3030/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.4068058Z Updating files:  94% (3062/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.4087650Z Updating files:  95% (3095/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.4387023Z Updating files:  96% (3127/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8433691Z Updating files:  97% (3160/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8448404Z Updating files:  98% (3192/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8464493Z Updating files:  99% (3225/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8464922Z Updating files: 100% (3257/3257)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8465293Z Updating files: 100% (3257/3257), done.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8534106Z Switched to a new branch 'main'
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8537157Z branch 'main' set up to track 'origin/main'.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8709495Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8753327Z [command]/usr/bin/git log -1 --format=%H
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8776820Z 5d18ced7c15300cdb041f4fff087e9c1d36e8b62
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8969104Z ##[group]Run actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8969522Z with:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8969707Z   name: goose-binary
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8969917Z   path: target/release
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8970125Z   merge-multiple: false
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8970523Z   repository: Ghenghis/Super-Goose
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8970901Z   run-id: 21798156277
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:48.8971198Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:49.0327025Z Downloading single artifact
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:49.2697406Z Preparing to download the following artifacts:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:49.2698556Z - goose-binary (ID: 5422457481, Size: 73187438, Expected Digest: sha256:2f7b6978d43e51973de2f0a0843499fa1f6ebcbc7df385336350d941ac215c0a)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:49.6641107Z Redirecting to blob download url: https://productionresultssa6.blob.core.windows.net/actions-results/74a280da-40d5-448a-948f-f9f121fb4c3a/workflow-job-run-99d8b01f-3245-5b8f-b88d-74553b561444/artifacts/f8f6598be3104dea16ad8a1ed21d4b8c5cd68a2af379fc88b97934e03275a1cd.zip
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:49.6643448Z Starting download of artifact to: /home/runner/work/Super-Goose/Super-Goose/target/release
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:49.9314011Z (node:2182) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:49.9315675Z (Use `node --trace-deprecation ...` to show where the warning was created)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4356386Z SHA256 digest of downloaded artifact is 2f7b6978d43e51973de2f0a0843499fa1f6ebcbc7df385336350d941ac215c0a
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4357000Z Artifact download completed successfully.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4357310Z Total of 1 artifact(s) downloaded
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4365514Z Download artifact has finished successfully
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4487201Z ##[group]Run chmod +x target/release/goose
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4487571Z [36;1mchmod +x target/release/goose[0m
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4523314Z shell: /usr/bin/bash -e {0}
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4523573Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4643820Z ##[group]Run mkdir -p $HOME/.local/share/goose/sessions
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4644247Z [36;1mmkdir -p $HOME/.local/share/goose/sessions[0m
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4644564Z [36;1mmkdir -p $HOME/.config/goose[0m
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4644870Z [36;1mbash scripts/test_providers.sh --code-exec[0m
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4673747Z shell: /usr/bin/bash -e {0}
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4673992Z env:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4674168Z   ANTHROPIC_API_KEY: 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4674392Z   OPENAI_API_KEY: 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4674591Z   GOOGLE_API_KEY: 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4674786Z   DATABRICKS_HOST: 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4674975Z   DATABRICKS_TOKEN: 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4675188Z   OPENROUTER_API_KEY: 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4675386Z   XAI_API_KEY: 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4675582Z   TETRATE_API_KEY: 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4675777Z   HOME: /tmp/goose-home
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4675988Z   GOOSE_DISABLE_KEYRING: 1
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4676210Z   SKIP_BUILD: 1
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4676391Z   SKIP_PROVIDERS: 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4676597Z ##[endgroup]
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4778358Z Skipping build (SKIP_BUILD is set)...
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4779989Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4781442Z ⚠️  Skipping Databricks tests (DATABRICKS_HOST and DATABRICKS_TOKEN required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4782570Z ⚠️  Skipping Azure OpenAI tests (AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_DEPLOYMENT_NAME required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4783678Z ⚠️  Skipping AWS Bedrock tests (AWS_REGION and AWS_PROFILE or AWS credentials required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4784283Z ⚠️  Skipping GCP Vertex AI tests (GCP_PROJECT_ID required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4784758Z ⚠️  Skipping Snowflake tests (SNOWFLAKE_HOST and SNOWFLAKE_TOKEN required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4785402Z ⚠️  Skipping Venice tests (VENICE_API_KEY required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4785806Z ⚠️  Skipping LiteLLM tests (LITELLM_API_KEY required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4786261Z ⚠️  Skipping Ollama tests (OLLAMA_HOST required or ollama must be installed)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4786814Z ⚠️  Skipping SageMaker TGI tests (SAGEMAKER_ENDPOINT_NAME and AWS_REGION required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4787400Z ⚠️  Skipping GitHub Copilot tests (OAuth setup required - run 'goose configure' first)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4788220Z ⚠️  Skipping ChatGPT Codex tests (OAuth setup required - run 'goose configure' first)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4788985Z ⚠️  Skipping Claude Code CLI tests ('claude' CLI tool required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4789631Z ⚠️  Skipping Codex CLI tests ('codex' CLI tool required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4790428Z ⚠️  Skipping Gemini CLI tests ('gemini' CLI tool required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4791192Z ⚠️  Skipping Cursor Agent tests ('cursor-agent' CLI tool required)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4791645Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4791829Z Mode: code_execution (JS batching)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4792035Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4826794Z Running tests with up to 4 parallel jobs
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4827181Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4834251Z Starting 17 tests...
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4834481Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.4835925Z Running first test sequentially...
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.7528977Z First test completed.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.7529272Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:52.7529466Z Running remaining tests in parallel...
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9129925Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9130395Z === Test Results ===
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9130601Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9131762Z Provider: openrouter
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9132056Z Model: google/gemini-2.5-pro
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9132221Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9142183Z starting session | provider: openrouter model: google/gemini-2.5-pro
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9142792Z     session id: 20260208_1
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9143054Z     working directory: /tmp/tmp.GydxDpMzlE
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9143847Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No cookie auth credentials found.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9144557Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9144751Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9145038Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9157466Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9157986Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9158575Z Provider: openrouter
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9159108Z Model: anthropic/claude-sonnet-4.5
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9159287Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9168124Z starting session | provider: openrouter model: anthropic/claude-sonnet-4.5
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9169003Z     session id: 20260208_4
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9169348Z     working directory: /tmp/tmp.2MChHSO7VS
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9170054Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No cookie auth credentials found.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9170561Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9170744Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9171042Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9182582Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9182888Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9183202Z Provider: openrouter
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9183425Z Model: qwen/qwen3-coder:exacto
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9183585Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9193043Z starting session | provider: openrouter model: qwen/qwen3-coder:exacto
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9193671Z     session id: 20260208_2
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9193937Z     working directory: /tmp/tmp.nhyOG4TWEI
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9194801Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No cookie auth credentials found.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9195292Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9195469Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9195746Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9207421Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9207774Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9208014Z Provider: openrouter
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9208491Z Model: z-ai/glm-4.6:exacto
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9208790Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9217285Z starting session | provider: openrouter model: z-ai/glm-4.6:exacto
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9217648Z     session id: 20260208_5
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9217891Z     working directory: /tmp/tmp.O4MtEzVObE
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9218474Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No cookie auth credentials found.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9219329Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9219512Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9219775Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9231957Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9232255Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9232550Z Provider: openrouter
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9232783Z Model: nvidia/nemotron-3-nano-30b-a3b
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9232962Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9242103Z starting session | provider: openrouter model: nvidia/nemotron-3-nano-30b-a3b
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9242732Z     session id: 20260208_3
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9243086Z     working directory: /tmp/tmp.9UtuWw8W1w
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9243790Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No cookie auth credentials found.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9244281Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9244467Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9244739Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9256654Z ⚠ FLAKY: Test failed but model is in allowed failures list - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9257131Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9257308Z Provider: xai
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9257500Z Model: grok-3
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9257610Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9266673Z starting session | provider: xai model: grok-3
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9267174Z     session id: 20260208_6
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9267544Z     working directory: /tmp/tmp.EbVL8xIMv6
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9268960Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: No or an invalid authentication header was provided on the request. Please make sure you pass your API key in the corresponding HTTP header..
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9269856Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9270035Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9270305Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9281396Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9281819Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9281995Z Provider: openai
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9282189Z Model: gpt-4o
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9282297Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9291262Z starting session | provider: openai model: gpt-4o
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9291765Z     session id: 20260208_7
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9292100Z     working directory: /tmp/tmp.wXbRAYwNYo
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9294272Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: You didn't provide an API key. You need to provide your API key in an Authorization header using *** (i.e. Authorization: *** or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys..
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9295779Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9295957Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9296233Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9305871Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9306288Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9306470Z Provider: openai
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9306705Z Model: gpt-4o-mini
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9306873Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9315697Z starting session | provider: openai model: gpt-4o-mini
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9316223Z     session id: 20260208_8
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9316533Z     working directory: /tmp/tmp.RTfrF0HGyD
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9318556Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: You didn't provide an API key. You need to provide your API key in an Authorization header using *** (i.e. Authorization: *** or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys..
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9320546Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9320737Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9321007Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9330515Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9330836Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9331086Z Provider: openai
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9331285Z Model: gpt-3.5-turbo
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9331415Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9340969Z starting session | provider: openai model: gpt-3.5-turbo
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9341508Z     session id: 20260208_9
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9341812Z     working directory: /tmp/tmp.lmAak40rVR
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9343784Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: You didn't provide an API key. You need to provide your API key in an Authorization header using *** (i.e. Authorization: *** or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys..
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9345295Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9345479Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9345768Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9355086Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9355490Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9355668Z Provider: openai
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9355856Z Model: gpt-5
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9355970Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9364848Z starting session | provider: openai model: gpt-5
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9365357Z     session id: 20260208_10
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9365692Z     working directory: /tmp/tmp.Cr9KdvhDn5
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9367651Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: You didn't provide an API key. You need to provide your API key in an Authorization header using *** (i.e. Authorization: *** or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys..
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9369504Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9369695Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9369964Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9379434Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9379757Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9380154Z Provider: anthropic
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9380381Z Model: claude-sonnet-4-5-20250929
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9380552Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9389686Z starting session | provider: anthropic model: claude-sonnet-4-5-20250929
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9390295Z     session id: 20260208_11
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9390563Z     working directory: /tmp/tmp.qd1hUMU5e7
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9391368Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: x-api-key header is required.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9391852Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9392036Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9392310Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9403973Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9404324Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9404576Z Provider: anthropic
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9404791Z Model: claude-opus-4-1-20250805
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9404963Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9414094Z starting session | provider: anthropic model: claude-opus-4-1-20250805
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9414702Z     session id: 20260208_12
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9414979Z     working directory: /tmp/tmp.RXuoEWONHa
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9415728Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: x-api-key header is required.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9416214Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9416391Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9416840Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9428808Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9429232Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9429465Z Provider: google
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9429674Z Model: gemini-2.5-pro
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9429806Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9438810Z starting session | provider: google model: gemini-2.5-pro
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9439366Z     session id: 20260208_13
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9439668Z     working directory: /tmp/tmp.wRDkRCyjL2
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9440895Z Ran into this error: Authentication error: Authentication failed. Status: 403 Forbidden. Response: Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API..
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9441807Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9441989Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9442255Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9453374Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9453754Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9453977Z Provider: google
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9454182Z Model: gemini-2.5-flash
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9454314Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9463486Z starting session | provider: google model: gemini-2.5-flash
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9464060Z     session id: 20260208_14
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9464498Z     working directory: /tmp/tmp.jKbRrvpI5C
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9466240Z Ran into this error: Authentication error: Authentication failed. Status: 403 Forbidden. Response: Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API..
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9467178Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9467357Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9467649Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9477936Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9478471Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9478892Z Provider: google
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9479253Z Model: gemini-3-pro-preview
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9479510Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9487868Z starting session | provider: google model: gemini-3-pro-preview
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9488442Z     session id: 20260208_15
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9488923Z     working directory: /tmp/tmp.wzBOx7Gy4f
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9490309Z Ran into this error: Authentication error: Authentication failed. Status: 403 Forbidden. Response: Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API..
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9491228Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9491402Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9491672Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9502820Z ⚠ FLAKY: Test failed but model is in allowed failures list - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9503332Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9503509Z Provider: google
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9503725Z Model: gemini-3-flash-preview
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9503889Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9512509Z starting session | provider: google model: gemini-3-flash-preview
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9512861Z     session id: 20260208_16
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9513101Z     working directory: /tmp/tmp.BXrENRii2X
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9514276Z Ran into this error: Authentication error: Authentication failed. Status: 403 Forbidden. Response: Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API..
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9515160Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9515338Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9515598Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9526881Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9527190Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9527690Z Provider: tetrate
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9528071Z Model: claude-sonnet-4-20250514
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9528350Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9537593Z starting session | provider: tetrate model: claude-sonnet-4-20250514
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9538355Z     session id: 20260208_17
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9538857Z     working directory: /tmp/tmp.De5yXUf1c1
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9539540Z Ran into this error: Authentication error: Authentication failed. Status: 401 Unauthorized. Response: API key is required.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9539982Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9540176Z Please retry if you think this is a transient or recoverable error.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9540445Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9552268Z ✗ FAILED: Test failed - no code_execution tools called
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9552797Z ---
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9552972Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9553106Z === Test Summary ===
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9553591Z ✗ openrouter: google/gemini-2.5-pro
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9554155Z ✗ openrouter: anthropic/claude-sonnet-4.5
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9554854Z ✗ openrouter: qwen/qwen3-coder:exacto
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9555397Z ✗ openrouter: z-ai/glm-4.6:exacto
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9556006Z ⚠ openrouter: nvidia/nemotron-3-nano-30b-a3b (flaky)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9556573Z ✗ xai: grok-3
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9556951Z ✗ openai: gpt-4o
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9557313Z ✗ openai: gpt-4o-mini
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9557748Z ✗ openai: gpt-3.5-turbo
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9558156Z ✗ openai: gpt-5
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9558503Z ✗ anthropic: claude-sonnet-4-5-20250929
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9559103Z ✗ anthropic: claude-opus-4-1-20250805
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9559415Z ✗ google: gemini-2.5-pro
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9559673Z ✗ google: gemini-2.5-flash
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9559951Z ⚠ google: gemini-3-pro-preview (flaky)
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9560254Z ✗ google: gemini-3-flash-preview
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9560542Z ✗ tetrate: claude-sonnet-4-20250514
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9560713Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9560791Z Hard failures (15):
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9561017Z   - openrouter: google/gemini-2.5-pro
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9561301Z   - openrouter: anthropic/claude-sonnet-4.5
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9561578Z   - openrouter: qwen/qwen3-coder:exacto
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9561839Z   - openrouter: z-ai/glm-4.6:exacto
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9562088Z   - xai: grok-3
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9562273Z   - openai: gpt-4o
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9562473Z   - openai: gpt-4o-mini
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9562692Z   - openai: gpt-3.5-turbo
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9562908Z   - openai: gpt-5
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9563115Z   - anthropic: claude-sonnet-4-5-20250929
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9563553Z   - anthropic: claude-opus-4-1-20250805
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9563823Z   - google: gemini-2.5-pro
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9564046Z   - google: gemini-2.5-flash
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9564285Z   - google: gemini-3-flash-preview
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9564544Z   - tetrate: claude-sonnet-4-20250514
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9564713Z 
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9564803Z Some tests failed!
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9591683Z ##[error]Process completed with exit code 1.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:54.9690873Z Post job cleanup.
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.0466866Z [command]/usr/bin/git version
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.0504208Z git version 2.52.0
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.0541561Z Temporarily overriding HOME='/home/runner/work/_temp/beebc82b-86ce-494b-9076-3799d448b9a4' before making global git config changes
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.0542532Z Adding repository directory to the temporary git global config as a safe directory
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.0548389Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Super-Goose/Super-Goose
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.0581221Z Removing SSH command configuration
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.0587666Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.0620582Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.0850927Z Removing HTTP extra header
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.0856176Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.0888804Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1109599Z Removing includeIf entries pointing to credentials config files
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1115711Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1137965Z includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git.path
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1138622Z includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git/worktrees/*.path
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1139752Z includeif.gitdir:/github/workspace/.git.path
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1140388Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1148244Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git.path
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1168897Z /home/runner/work/_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1179305Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git.path /home/runner/work/_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1212095Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git/worktrees/*.path
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1232535Z /home/runner/work/_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1241672Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/Super-Goose/Super-Goose/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1270867Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1292299Z /github/runner_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1299674Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1330157Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1352647Z /github/runner_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1362260Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1394245Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1616039Z Removing credentials config '/home/runner/work/_temp/git-credentials-2bb40b10-5d40-40e8-805d-9f59998f530e.config'
+Smoke Tests (Code Execution)	UNKNOWN STEP	2026-02-08T12:38:55.1733371Z Cleaning up orphan processes

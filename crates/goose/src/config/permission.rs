@@ -41,15 +41,15 @@ const SMART_APPROVE_PERMISSION: &str = "smart_approve";
 
 impl PermissionManager {
     pub fn new(config_dir: PathBuf) -> Self {
-        // NOLINT(path-injection): config_dir is always from Paths::config_dir(), a trusted internal source
+        // lgtm[rust/path-injection] - config_dir is always from Paths::config_dir(), a trusted internal source
         let permission_path = config_dir.join(PERMISSION_FILE);
         let permission_map = if permission_path.exists() {
             let file_contents =
-                fs::read_to_string(&permission_path).expect("Failed to read permission.yaml"); // NOLINT(path-injection)
+                fs::read_to_string(&permission_path).expect("Failed to read permission.yaml"); // lgtm[rust/path-injection]
             serde_yaml::from_str(&file_contents).unwrap_or_else(|_| HashMap::new())
         } else {
             // Consolidate directory creation for re-use in global singleton or ACP.
-            fs::create_dir_all(&config_dir).expect("Failed to create config directory"); // NOLINT(path-injection)
+            fs::create_dir_all(&config_dir).expect("Failed to create config directory"); // lgtm[rust/path-injection]
             HashMap::new()
         };
         PermissionManager {
