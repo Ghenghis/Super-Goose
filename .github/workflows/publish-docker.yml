@@ -1,15 +1,10 @@
-name: Publish Docker Image
+# DISABLED: Requires GitHub Container Registry (ghcr.io) write permissions.
+# The repo check (github.repository == 'Ghenghis/Super-Goose') should prevent runs,
+# but removing auto-triggers stops the workflow from even starting.
+# Re-enable when GHCR publishing is needed.
+name: Publish Docker Image (DISABLED)
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*'
-      - 'v*.*.*-*'  # For pre-releases like v1.2.3-beta
-    paths-ignore:
-      - 'documentation/**'
-      - '*.md'
   workflow_dispatch:
 
 permissions:

@@ -1,11 +1,10 @@
-name: Deploy Documentation
+# DISABLED: Requires INKEEP_API_KEY, INKEEP_INTEGRATION_ID, INKEEP_ORG_ID secrets
+# for documentation search functionality. Also needs gh-pages branch setup.
+# Re-enable when documentation deployment is configured.
+name: Deploy Documentation (DISABLED)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'documentation/**'
+  workflow_dispatch:
 
 # Use same concurrency group as PR preview workflow to prevent race conditions
 # when both workflows try to modify gh-pages branch simultaneously.

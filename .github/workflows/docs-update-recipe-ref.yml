@@ -5,27 +5,12 @@
 # Testing: Use dry_run mode to review outputs without creating PRs
 # See: documentation/automation/recipe-schema-tracking/TESTING.md
 
-name: Update Recipe Documentation
+# DISABLED: Requires OPENAI_API_KEY for AI-powered recipe documentation updates.
+# Also needs goose CLI and release infrastructure. Re-enable when configured.
+name: Update Recipe Documentation (DISABLED)
 
 on:
-  workflow_dispatch:  # Manual trigger for testing
-    inputs:
-      old_version:
-        description: 'Previous version (e.g., v1.14.0). Leave empty to auto-detect.'
-        required: false
-        type: string
-      new_version:
-        description: 'New version (e.g., v1.15.0). Leave empty to use HEAD.'
-        required: false
-        type: string
-      dry_run:
-        description: 'Dry run mode - generate files but do not create PR'
-        required: false
-        type: boolean
-        default: true
-      
-  release:
-    types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: write       # Create branches and commit files

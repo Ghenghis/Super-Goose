@@ -1,16 +1,10 @@
-# This workflow is for canary releases, automatically triggered by push to main
-# This workflow is identical to "release.yml" with these exceptions:
-#  - Triggered by push to main
-#  - Github Release tagged as "canary"
-# NOTE: Only runs on the canonical repo (block/goose), not on forks
+# DISABLED: Canary releases require the full build/bundle infrastructure.
+# Triggered on every push to main - wastes CI minutes without signing certs.
+# Re-enable when release infrastructure is configured.
 on:
-  push:
-    paths-ignore:
-      - "documentation/**"
-    branches:
-      - main
+  workflow_dispatch:
 
-name: Canary
+name: Canary (DISABLED)
 
 # Only run on the canonical repository, skip forks
 env:

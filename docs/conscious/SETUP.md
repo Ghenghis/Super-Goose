@@ -13,7 +13,7 @@
 ## 1. Clone & Install — Conscious Python Backend
 
 ```bash
-cd D:\conscious
+cd G:\goose\external\conscious
 pip install -e .
 
 # Verify installation
@@ -37,7 +37,7 @@ pip install pytest pytest-asyncio aiohttp
 ## 2. Install — Super-Goose Electron UI
 
 ```bash
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 npm install
 
 # Verify TypeScript
@@ -50,7 +50,7 @@ npx eslint src/components/conscious/ src/components/settings/conscious/ --max-wa
 ## 3. Build — Super-Goose Rust Backend
 
 ```bash
-cd D:\goose
+cd G:\goose
 source bin/activate-hermit   # Linux/macOS
 cargo build
 just generate-openapi
@@ -61,7 +61,7 @@ just generate-openapi
 ### Start Conscious API Server
 
 ```bash
-cd D:\conscious
+cd G:\goose\external\conscious
 python -m conscious
 # Server starts on http://127.0.0.1:8999
 ```
@@ -69,7 +69,7 @@ python -m conscious
 ### Start Super-Goose Desktop
 
 ```bash
-cd D:\goose
+cd G:\goose
 just run-ui
 # Electron app launches, connects to Conscious via HTTP + WebSocket
 ```
@@ -91,7 +91,7 @@ curl http://localhost:8999/api/emotion/status
 
 ```bash
 # Python unit tests
-cd D:\conscious
+cd G:\goose\external\conscious
 python -m pytest tests/unit/ -v --timeout=30
 
 # Python integration tests
@@ -101,15 +101,15 @@ python -m pytest tests/integration/ -v --timeout=60
 python -m pytest tests/ -v --timeout=60
 
 # TypeScript typecheck
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 npx tsc --noEmit
 
 # UI unit tests
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 npm run test:run
 
 # Rust tests
-cd D:\goose
+cd G:\goose
 cargo test
 ```
 
@@ -129,7 +129,7 @@ cargo test
 npm may create an empty `@types/node` directory. Fix:
 
 ```powershell
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 npm pack @types/node@22.15.0
 Remove-Item -Recurse -Force node_modules\@types\node
 New-Item -ItemType Directory -Path node_modules\@types\node -Force
@@ -150,6 +150,6 @@ Conscious works without CUDA — emotion detection falls back to CPU (slower but
 Close all IDE instances, then:
 
 ```powershell
-Remove-Item -Recurse -Force D:\goose\ui\desktop\node_modules
+Remove-Item -Recurse -Force G:\goose\ui\desktop\node_modules
 npm install
 ```

@@ -1,14 +1,8 @@
-name: Rebuild Skills Marketplace
-
-# This workflow rebuilds the documentation site to pull in new skills
-# from the Agent-Skills repository. It runs:
-# 1. Every hour on a schedule
-# 2. On manual trigger for testing
+# DISABLED: Was running EVERY HOUR rebuilding docs site. Requires INKEEP secrets
+# and gh-pages branch. Massive waste of CI minutes. Re-enable when docs are configured.
+name: Rebuild Skills Marketplace (DISABLED)
 
 on:
-  schedule:
-    # Run every hour at minute 15
-    - cron: '15 * * * *'
   workflow_dispatch:
     inputs:
       reason:

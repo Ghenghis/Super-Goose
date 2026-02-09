@@ -20,11 +20,14 @@
 #   - PR content could prompt-inject the agent; only trigger on PRs you trust.
 #   - Do not add workflow_dispatch: API calls fetch mutable data, enabling TOCTOU attacks.
 
-name: goose PR Reviewer
+# DISABLED: Requires ANTHROPIC_API_KEY and ghcr.io/ghenghis/super-goose Docker image.
+# Triggers on issue_comment which fires on EVERY PR comment (including bot comments),
+# causing cascading failures when secrets are missing. Costs money per API call.
+# Re-enable when ANTHROPIC_API_KEY is configured.
+name: goose PR Reviewer (DISABLED)
 
 on:
-  issue_comment:
-    types: [created]
+  workflow_dispatch:
 
 env:
   GOOSE_RECIPE: |

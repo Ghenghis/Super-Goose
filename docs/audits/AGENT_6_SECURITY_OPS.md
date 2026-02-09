@@ -18,7 +18,7 @@ Perform STRIDE analysis on all entry points:
 - Risk: Low (localhost-only by default), but HIGH if exposed on 0.0.0.0
 - **Action:** Document that Conscious MUST only bind to 127.0.0.1 in production
 - **Action:** Add a `--bind` CLI flag that defaults to `127.0.0.1` (currently `0.0.0.0`)
-- **File:** `D:\conscious\src\conscious\voice\agent_api.py:1009` — change default host
+- **File:** `G:\goose\external\conscious\src\conscious\voice\agent_api.py:1009` — change default host
 
 **T — Tampering (Integrity):**
 - SSH commands via `/api/devices/ssh` — **CRITICAL: command injection risk**
@@ -54,10 +54,10 @@ Run these commands and document results:
 
 ```bash
 # Python dependencies
-cd D:\conscious && pip install pip-audit && pip-audit
+cd G:\goose\external\conscious && pip install pip-audit && pip-audit
 
 # Node.js dependencies
-cd D:\goose\ui\desktop && npm audit
+cd G:\goose\ui\desktop && npm audit
 
 # Check for known CVEs in specific packages
 pip install safety && safety check
@@ -74,7 +74,7 @@ pip install safety && safety check
 
 ### TASK 6.3: SSH Command Injection Prevention
 
-**File:** `D:\conscious\src\conscious\devices\manager.py`
+**File:** `G:\goose\external\conscious\src\conscious\devices\manager.py`
 
 **CRITICAL:** The SSH endpoint accepts a `command` string and passes it to paramiko. Without sanitization, this allows command injection.
 
@@ -105,7 +105,7 @@ logger.warning(f"SSH command executed on {device_id}: {command}")
 
 ### TASK 6.4: Path Traversal Prevention in Creator
 
-**File:** `D:\conscious\src\conscious\agentic\creator.py`
+**File:** `G:\goose\external\conscious\src\conscious\agentic\creator.py`
 
 **Verify/implement:**
 1. `save_artifact` path is always within the staging directory:
@@ -132,7 +132,7 @@ def save_artifact(self, artifact_type: str, content: str) -> Optional[str]:
 
 ### TASK 6.5: Rate Limiting on Expensive Endpoints
 
-**File:** `D:\conscious\src\conscious\voice\agent_api.py`
+**File:** `G:\goose\external\conscious\src\conscious\voice\agent_api.py`
 
 Add simple rate limiting middleware for expensive endpoints:
 
@@ -167,7 +167,7 @@ Apply to these endpoints:
 
 ### TASK 6.6: Create Security Tests (20 tests across 4 files)
 
-**Location:** `D:\conscious\tests\security\`
+**Location:** `G:\goose\external\conscious\tests\security\`
 
 **test_api_input_validation.py (~8 tests):**
 ```python
@@ -247,9 +247,9 @@ class TestSSHSecurity:
 
 ### TASK 6.7: Create 9 Documentation Files
 
-**All in `D:\conscious\docs\` (create `docs/` directory if needed):**
+**All in `G:\goose\external\conscious\docs\` (create `docs/` directory if needed):**
 
-**1. README.md** (`D:\conscious\README.md` — update or create):
+**1. README.md** (`G:\goose\external\conscious\README.md` — update or create):
 - Project description
 - Quick start (3 commands to running)
 - Prerequisites (Python 3.10+, hardware requirements for Moshi)
@@ -301,14 +301,14 @@ class TestSSHSecurity:
 - Trend analysis explanation
 - Response modulation behavior
 
-**9. CHANGELOG.md** (`D:\conscious\CHANGELOG.md`):
+**9. CHANGELOG.md** (`G:\goose\external\conscious\CHANGELOG.md`):
 - Version 1.0.0 release notes
 - All features implemented
 - Known limitations
 
 ### TASK 6.8: Health Check Enhancement
 
-**File:** `D:\conscious\src\conscious\voice\agent_api.py`
+**File:** `G:\goose\external\conscious\src\conscious\voice\agent_api.py`
 
 The current `/api/voice/status` endpoint returns basic status. Enhance or create a dedicated `/api/health` endpoint:
 
@@ -352,18 +352,18 @@ Register the route: `app.router.add_get("/api/health", self.handle_health)`
 **Search for violations:**
 ```bash
 # Find print statements
-grep -rn "print(" D:\conscious\src\conscious\ --include="*.py" | grep -v "__name__"
+grep -rn "print(" G:\goose\external\conscious\src\conscious\ --include="*.py" | grep -v "__name__"
 
 # Find bare except
-grep -rn "except:" D:\conscious\src\conscious\ --include="*.py"
+grep -rn "except:" G:\goose\external\conscious\src\conscious\ --include="*.py"
 
 # Find logger.error without exc_info
-grep -rn "logger.error" D:\conscious\src\conscious\ --include="*.py" | grep -v "exc_info"
+grep -rn "logger.error" G:\goose\external\conscious\src\conscious\ --include="*.py" | grep -v "exc_info"
 ```
 
 ### TASK 6.10: Bind Address Security Fix
 
-**File:** `D:\conscious\src\conscious\voice\agent_api.py`
+**File:** `G:\goose\external\conscious\src\conscious\voice\agent_api.py`
 
 Change default bind address from `0.0.0.0` to `127.0.0.1`:
 
@@ -384,7 +384,7 @@ Also update the CLI argument parser to accept `--host` with default `127.0.0.1`.
 
 ### After Phase 2 (Security Tests):
 ```bash
-cd D:\conscious && python -m pytest tests/security/ -v --timeout=30 -x
+cd G:\goose\external\conscious && python -m pytest tests/security/ -v --timeout=30 -x
 # Target: 20 tests, ALL passing
 ```
 
@@ -404,18 +404,18 @@ Verify ALL items in MASTER_ACTION_PLAN.md section 7 "Go/No-Go Release Criteria"
 
 | Action | File |
 |--------|------|
-| MODIFY | `D:\conscious\src\conscious\voice\agent_api.py` (health endpoint, bind address, rate limiting) |
-| MODIFY | `D:\conscious\src\conscious\devices\manager.py` (SSH hardening) |
-| MODIFY | `D:\conscious\src\conscious\agentic\creator.py` (path traversal prevention) |
-| CREATE | `D:\conscious\tests\security\test_api_input_validation.py` |
-| CREATE | `D:\conscious\tests\security\test_ssh_security.py` |
-| CREATE | `D:\conscious\tests\security\test_device_scan_security.py` |
-| CREATE | `D:\conscious\tests\security\test_cors_headers.py` |
-| CREATE | `D:\conscious\README.md` (or update) |
-| CREATE | `D:\conscious\docs\ARCHITECTURE.md` |
-| CREATE | `D:\conscious\docs\SETUP.md` |
-| CREATE | `D:\conscious\docs\TESTING.md` |
-| CREATE | `D:\conscious\docs\PERSONALITIES.md` |
-| CREATE | `D:\conscious\docs\DEVICES.md` |
-| CREATE | `D:\conscious\docs\EMOTION.md` |
-| CREATE | `D:\conscious\CHANGELOG.md` |
+| MODIFY | `G:\goose\external\conscious\src\conscious\voice\agent_api.py` (health endpoint, bind address, rate limiting) |
+| MODIFY | `G:\goose\external\conscious\src\conscious\devices\manager.py` (SSH hardening) |
+| MODIFY | `G:\goose\external\conscious\src\conscious\agentic\creator.py` (path traversal prevention) |
+| CREATE | `G:\goose\external\conscious\tests\security\test_api_input_validation.py` |
+| CREATE | `G:\goose\external\conscious\tests\security\test_ssh_security.py` |
+| CREATE | `G:\goose\external\conscious\tests\security\test_device_scan_security.py` |
+| CREATE | `G:\goose\external\conscious\tests\security\test_cors_headers.py` |
+| CREATE | `G:\goose\external\conscious\README.md` (or update) |
+| CREATE | `G:\goose\external\conscious\docs\ARCHITECTURE.md` |
+| CREATE | `G:\goose\external\conscious\docs\SETUP.md` |
+| CREATE | `G:\goose\external\conscious\docs\TESTING.md` |
+| CREATE | `G:\goose\external\conscious\docs\PERSONALITIES.md` |
+| CREATE | `G:\goose\external\conscious\docs\DEVICES.md` |
+| CREATE | `G:\goose\external\conscious\docs\EMOTION.md` |
+| CREATE | `G:\goose\external\conscious\CHANGELOG.md` |

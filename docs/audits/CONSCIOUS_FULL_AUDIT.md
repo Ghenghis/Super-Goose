@@ -2,7 +2,7 @@
 
 > **Generated**: 2026-02-08 | **Auditor**: Cascade + Opus 4.5
 > **Purpose**: Comprehensive task list for Claude agents to complete all remaining work.
-> **Scope**: Conscious (D:\conscious) + Super-Goose UI (D:\goose\ui\desktop) + Android (D:\goose\ui\mobile\android)
+> **Scope**: Conscious (G:\goose\external\conscious) + Super-Goose UI (G:\goose\ui\desktop) + Android (G:\goose\ui\mobile\android)
 
 ---
 
@@ -89,10 +89,10 @@
 
 ### Conscious (Python Backend)
 ```
-Root:           D:\conscious
-Source:         D:\conscious\src\conscious\
-Tests:          D:\conscious\tests\
-Config:         D:\conscious\pyproject.toml
+Root:           G:\goose\external\conscious
+Source:         G:\goose\external\conscious\src\conscious\
+Tests:          G:\goose\external\conscious\tests\
+Config:         G:\goose\external\conscious\pyproject.toml
 Entry point:    python -m conscious   (runs conscious.server:main)
 API port:       8999 (HTTP REST)
 Moshi port:     8998 (WebSocket audio)
@@ -102,17 +102,17 @@ Python:         >=3.10, tested on 3.13
 
 ### Super-Goose Electron UI
 ```
-Root:           D:\goose\ui\desktop
-Components:     D:\goose\ui\desktop\src\components\
-Conscious UI:   D:\goose\ui\desktop\src\components\conscious\
-Settings:       D:\goose\ui\desktop\src\components\settings\
+Root:           G:\goose\ui\desktop
+Components:     G:\goose\ui\desktop\src\components\
+Conscious UI:   G:\goose\ui\desktop\src\components\conscious\
+Settings:       G:\goose\ui\desktop\src\components\settings\
 Build:          npm run build (Vite + Electron Forge)
 Test:           npm run test:run (Vitest)
 ```
 
 ### Android App
 ```
-Root:           D:\goose\ui\mobile\android
+Root:           G:\goose\ui\mobile\android
 Package:        com.block.goose
 Build:          ./gradlew assembleDebug
 Kotlin:         2.1.0, Compose BOM 2024.12.01
@@ -122,19 +122,19 @@ Min SDK:        28 (Android 9), Target: 35 (Android 15)
 ### Key Commands
 ```bash
 # Start Conscious backend
-cd D:\conscious && python -m conscious --auto-start
+cd G:\goose\external\conscious && python -m conscious --auto-start
 
 # Run Python syntax check on all modules
 python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
 
 # Run existing E2E tests
-cd D:\conscious && python -m pytest tests/e2e/ -v
+cd G:\goose\external\conscious && python -m pytest tests/e2e/ -v
 
 # Run Electron UI tests
-cd D:\goose\ui\desktop && npm run test:run
+cd G:\goose\ui\desktop && npm run test:run
 
 # Build Android
-cd D:\goose\ui\mobile\android && gradlew assembleDebug
+cd G:\goose\ui\mobile\android && gradlew assembleDebug
 ```
 
 ---
@@ -247,48 +247,48 @@ These bugs were found and fixed during the audit. **No action needed.**
 ## 4. Critical Bugs — Must Fix
 
 ### ~~BUG-001: `aiohttp` missing from pyproject.toml dependencies~~ ✅ FIXED
-- **File**: `D:\conscious\pyproject.toml`
+- **File**: `G:\goose\external\conscious\pyproject.toml`
 - **Fix Applied**: Added `"aiohttp>=3.9.0"` and `"aiohttp-cors>=0.7.0"` to `dependencies` list
 - **Fixed By**: Lead Engineer (2026-02-09)
 
 ### ~~BUG-002: `websockets` missing from pyproject.toml dependencies~~ ✅ FIXED
-- **File**: `D:\conscious\pyproject.toml`
+- **File**: `G:\goose\external\conscious\pyproject.toml`
 - **Fix Applied**: Added `"websockets>=12.0"` to `dependencies` list
 - **Fixed By**: Lead Engineer (2026-02-09)
 
 ### ~~BUG-003: `openwakeword` missing from pyproject.toml dependencies~~ ✅ FIXED
-- **File**: `D:\conscious\pyproject.toml`
+- **File**: `G:\goose\external\conscious\pyproject.toml`
 - **Fix Applied**: Added `openwakeword>=0.6.0` and `onnxruntime>=1.16.0` to `[wake]` optional deps
 - **Fixed By**: Lead Engineer (2026-02-09)
 
 ### ~~BUG-004: `paramiko` missing from pyproject.toml dependencies~~ ✅ FIXED
-- **File**: `D:\conscious\pyproject.toml`
+- **File**: `G:\goose\external\conscious\pyproject.toml`
 - **Fix Applied**: Added `paramiko>=3.4.0` to `[devices]` optional deps
 - **Fixed By**: Lead Engineer (2026-02-09)
 
 ### ~~BUG-005: No CORS headers on API~~ ✅ FIXED
-- **File**: `D:\conscious\src\conscious\voice\agent_api.py`
+- **File**: `G:\goose\external\conscious\src\conscious\voice\agent_api.py`
 - **Fix Applied**: Added `aiohttp_cors` middleware to `build_app()` with all routes registered
 - **Fixed By**: Lead Engineer (2026-02-09)
 
 ### ~~BUG-006: `ConversationHistory.clear()` method may not exist~~ ❌ FALSE POSITIVE
-- **File**: `D:\conscious\src\conscious\memory\conversation_history.py:180-182`
+- **File**: `G:\goose\external\conscious\src\conscious\memory\conversation_history.py:180-182`
 - **Status**: Method EXISTS. `clear()` is implemented and clears `self._entries`.
 - **Verified By**: Lead Engineer (2026-02-09)
 
 ### BUG-007: Android `gradle-wrapper.jar` binary missing
-- **File**: `D:\goose\ui\mobile\android\gradle\wrapper\`
+- **File**: `G:\goose\ui\mobile\android\gradle\wrapper\`
 - **Impact**: `gradlew` / `gradlew.bat` scripts exist but the jar binary doesn't
 - **Fix**: Run `gradle wrapper` in the android directory, or download from Gradle releases
 - **Priority**: MEDIUM — Android build won't bootstrap
 
 ### ~~BUG-008: `SelfHealingLoop._save_artifact` is never set~~ ❌ FALSE POSITIVE
-- **File**: `D:\conscious\src\conscious\testing\self_healing.py:71-83`
+- **File**: `G:\goose\external\conscious\src\conscious\testing\self_healing.py:71-83`
 - **Status**: `__init__` accepts `save_artifact: Optional[SaveFn] = None` (line 75). It IS accepted.
 - **Verified By**: Lead Engineer (2026-02-09)
 
 ### ~~BUG-009: `ResultSpeaker.to_speech()` may not match signature~~ ❌ FALSE POSITIVE
-- **File**: `D:\conscious\src\conscious\agentic\result_speaker.py:62`
+- **File**: `G:\goose\external\conscious\src\conscious\agentic\result_speaker.py:62`
 - **Status**: Signature is `to_speech(self, text: str, action: str = "")` — matches call site exactly.
 - **Verified By**: Lead Engineer (2026-02-09)
 
@@ -299,7 +299,7 @@ These bugs were found and fixed during the audit. **No action needed.**
 **Current coverage: 74 tests passing (50 unit + 24 integration). Target: 80%+**
 **Status**: ✅ PARTIAL — Core test infrastructure created. Key modules covered: SkillBridge (12), ResultSpeaker (8), Capabilities (7), PersonalitySwitcher (7), SSH Security (16), API Validation (24).
 
-Tests live in `D:\conscious\tests\unit\` and `D:\conscious\tests\integration\`. Use `pytest` + `pytest-asyncio`.
+Tests live in `G:\goose\external\conscious\tests\unit\` and `G:\goose\external\conscious\tests\integration\`. Use `pytest` + `pytest-asyncio`.
 
 ### 5.1 Agentic Module Tests
 ```
@@ -629,7 +629,7 @@ tests/unit/voice/
 
 **Current coverage: 0 integration tests.**
 
-Create in `D:\conscious\tests\integration\`.
+Create in `G:\goose\external\conscious\tests\integration\`.
 
 ### 6.1 Subsystem Pair Tests
 ```
@@ -757,7 +757,7 @@ tests/e2e/
 
 ## 8. Missing Performance Tests
 
-Create in `D:\conscious\tests\performance\`.
+Create in `G:\goose\external\conscious\tests\performance\`.
 
 ```
 tests/performance/
@@ -803,7 +803,7 @@ tests/performance/
 
 ## 9. Missing Security Tests
 
-Create in `D:\conscious\tests\security\`.
+Create in `G:\goose\external\conscious\tests\security\`.
 
 ```
 tests/security/
@@ -1035,15 +1035,15 @@ app/src/androidTest/
 ## 15. Documentation Gaps
 
 ### 15.1 Missing Documentation Files
-- [ ] `D:\conscious\README.md` — Verify exists and is comprehensive
-- [ ] `D:\conscious\docs\API.md` — Full API reference for all 33 endpoints
-- [ ] `D:\conscious\docs\ARCHITECTURE.md` — System architecture diagram
-- [ ] `D:\conscious\docs\SETUP.md` — Installation and setup guide
-- [ ] `D:\conscious\docs\TESTING.md` — Testing guide and how to run tests
-- [ ] `D:\conscious\docs\PERSONALITIES.md` — Personality system documentation
-- [ ] `D:\conscious\docs\DEVICES.md` — Device manager documentation
-- [ ] `D:\conscious\docs\EMOTION.md` — Emotion engine documentation
-- [ ] `D:\conscious\CHANGELOG.md` — Version history
+- [ ] `G:\goose\external\conscious\README.md` — Verify exists and is comprehensive
+- [ ] `G:\goose\external\conscious\docs\API.md` — Full API reference for all 33 endpoints
+- [ ] `G:\goose\external\conscious\docs\ARCHITECTURE.md` — System architecture diagram
+- [ ] `G:\goose\external\conscious\docs\SETUP.md` — Installation and setup guide
+- [ ] `G:\goose\external\conscious\docs\TESTING.md` — Testing guide and how to run tests
+- [ ] `G:\goose\external\conscious\docs\PERSONALITIES.md` — Personality system documentation
+- [ ] `G:\goose\external\conscious\docs\DEVICES.md` — Device manager documentation
+- [ ] `G:\goose\external\conscious\docs\EMOTION.md` — Emotion engine documentation
+- [ ] `G:\goose\external\conscious\CHANGELOG.md` — Version history
 
 ### 15.2 Code Documentation
 - [ ] All public methods should have docstrings (most do — verify edge cases)
@@ -1101,11 +1101,11 @@ app/src/androidTest/
 
 ## 16.5 Test Fixtures & Shared Utilities (Create BEFORE writing tests)
 
-All tests share common setup. Create these fixtures first in `D:\conscious\tests\`.
+All tests share common setup. Create these fixtures first in `G:\goose\external\conscious\tests\`.
 
 ### conftest.py (Root)
 ```python
-# D:\conscious\tests\conftest.py
+# G:\goose\external\conscious\tests\conftest.py
 import pytest
 import asyncio
 
@@ -1229,7 +1229,7 @@ def get_test_profile(name="spark"):
 
 ### Directory Structure to Create
 ```
-D:\conscious\tests\
+G:\goose\external\conscious\tests\
 ├── conftest.py
 ├── fixtures/
 │   ├── __init__.py
@@ -1261,35 +1261,35 @@ Run these after any fix to verify nothing is broken:
 
 ```bash
 # 1. Python syntax check (all modules)
-cd D:\conscious
+cd G:\goose\external\conscious
 python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
 
 # 2. Import check (all modules load without error)
-cd D:\conscious
+cd G:\goose\external\conscious
 python -c "from conscious.agentic import *; from conscious.emotion import *; from conscious.personality import *; from conscious.memory import *; from conscious.testing import *; from conscious.devices import *; print('All imports OK')"
 
 # 3. Run existing E2E tests
-cd D:\conscious
+cd G:\goose\external\conscious
 python -m pytest tests/e2e/ -v --timeout=60
 
 # 4. Run unit tests (once created)
-cd D:\conscious
+cd G:\goose\external\conscious
 python -m pytest tests/unit/ -v --timeout=30
 
 # 5. TypeScript type check
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 npx tsc --noEmit
 
 # 6. Electron UI lint
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 npx eslint src/components/conscious/ src/components/settings/conscious/ --max-warnings 0
 
 # 7. Electron UI tests
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 npm run test:run
 
 # 8. Android build check
-cd D:\goose\ui\mobile\android
+cd G:\goose\ui\mobile\android
 gradlew assembleDebug
 ```
 

@@ -12,7 +12,7 @@
 ### TASK 5.1: Create Test Directory Structure
 
 ```bash
-D:\conscious\tests\
+G:\goose\external\conscious\tests\
 ├── conftest.py                    # Root conftest with shared fixtures
 ├── __init__.py                    # Make tests a package
 ├── fixtures/
@@ -93,7 +93,7 @@ Create ALL `__init__.py` files and the directory structure.
 
 ### TASK 5.2: Create Root conftest.py
 
-**File:** `D:\conscious\tests\conftest.py`
+**File:** `G:\goose\external\conscious\tests\conftest.py`
 
 ```python
 """Root conftest — shared fixtures for all Conscious tests."""
@@ -322,25 +322,25 @@ class TestIntentRouter:
 
 ### After Phase 1 (Infrastructure):
 ```bash
-cd D:\conscious && python -m pytest tests/ --collect-only 2>&1 | head -20
+cd G:\goose\external\conscious && python -m pytest tests/ --collect-only 2>&1 | head -20
 # Should show "X items collected" with no import errors
 ```
 
 ### After Phase 2 (Unit Tests):
 ```bash
-cd D:\conscious && python -m pytest tests/unit/ -v --timeout=30 -x
+cd G:\goose\external\conscious && python -m pytest tests/unit/ -v --timeout=30 -x
 # Target: 238+ tests, ALL passing
 ```
 
 ### After Phase 3 (Integration + E2E + Performance):
 ```bash
-cd D:\conscious && python -m pytest tests/ -v --timeout=120
+cd G:\goose\external\conscious && python -m pytest tests/ -v --timeout=120
 # Target: 363+ tests total, ALL passing
 ```
 
 ### Coverage Report:
 ```bash
-cd D:\conscious && python -m pytest tests/unit/ --cov=conscious --cov-report=term-missing --timeout=30
+cd G:\goose\external\conscious && python -m pytest tests/unit/ --cov=conscious --cov-report=term-missing --timeout=30
 # Target: >80% coverage on critical modules
 ```
 

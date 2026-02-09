@@ -24,7 +24,7 @@
 
 ### 1. Create Safety Backup
 ```bash
-cd D:\goose
+cd G:\goose
 
 # Create backup branch
 git checkout -b backup-before-fixes
@@ -76,7 +76,7 @@ echo "Will rebrand from block/goose to ${GITHUB_ORG}/${GITHUB_REPO}"
 **Implementation:**
 
 ```bash
-cd D:\goose/.github/workflows
+cd G:\goose/.github/workflows
 
 # Create backup of workflows directory
 cp -r . ../../.github-workflows-backup
@@ -226,7 +226,7 @@ git diff .github/workflows/ | less
 **Option A: Fix Properly (Recommended for maintaining upstream sync)**
 
 ```bash
-cd D:\goose
+cd G:\goose
 
 # Read current sync-upstream.yml
 cat .github/workflows/sync-upstream.yml
@@ -332,7 +332,7 @@ cat .github/workflows/sync-upstream.yml | curl -X POST --data-binary @- https://
 1. **README.md**
 
 ```bash
-cd D:\goose
+cd G:\goose
 
 # Backup
 cp README.md README.md.backup
@@ -419,7 +419,7 @@ jq '.homepage, .repository.url, .author.name' package.json
 3. **Documentation directory**
 
 ```bash
-cd D:\goose/docs
+cd G:\goose/docs
 
 # Find all markdown files with block references
 grep -r "block\.github\.io" . || echo "None found"
@@ -443,7 +443,7 @@ grep -r "block" . --include="*.md" | grep -v "upstream" | grep -v "fork"
 **Professional Commit Strategy:**
 
 ```bash
-cd D:\goose
+cd G:\goose
 
 # Stage 1: Quality improvements (Clippy fixes)
 git add crates/goose/src/agents/

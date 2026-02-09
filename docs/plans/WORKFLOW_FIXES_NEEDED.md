@@ -46,7 +46,7 @@ rustc --version
 
 #### Step 2: Format All Rust Code
 ```bash
-cd D:\goose
+cd G:\goose
 cargo fmt --all
 ```
 
@@ -109,7 +109,7 @@ The OpenAPI schema in `ui/desktop/src/api/generated` is out of sync with the act
 
 #### Step 1: Navigate to Project Root
 ```bash
-cd D:\goose
+cd G:\goose
 ```
 
 #### Step 2: Check Current Schema Status
@@ -130,7 +130,7 @@ npm run generate-api
 
 **Alternative using just:**
 ```bash
-cd D:\goose
+cd G:\goose
 source ./bin/activate-hermit
 just generate-openapi-schema
 ```
@@ -152,7 +152,7 @@ npm run type-check
 
 #### Step 6: Commit with Professional Message
 ```bash
-cd D:\goose
+cd G:\goose
 git add ui/desktop/src/api/generated/
 git commit -m "fix(api): regenerate OpenAPI schema to match current backend
 

@@ -40,7 +40,7 @@ jobs:
 **Update canary.yml:**
 
 ```bash
-cd D:\goose
+cd G:\goose
 
 cat > .github/workflows/canary.yml << 'EOF'
 name: Canary Build
@@ -231,7 +231,7 @@ git commit -m "feat(ci): configure nightly builds with unsigned artifacts
 **Best Practice:** Use GitHub Container Registry with proper org references
 
 ```bash
-cd D:\goose/.github/workflows
+cd G:\goose/.github/workflows
 
 # Fix goose-issue-solver.yml
 cat > goose-issue-solver.yml << 'EOF'
@@ -579,7 +579,7 @@ Makes it clear which secrets are needed for different use cases."
 **Check package.json and forge.config.ts:**
 
 ```bash
-cd D:\goose/ui/desktop
+cd G:\goose/ui/desktop
 
 # Backup
 cp package.json package.json.phase2-backup

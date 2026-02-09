@@ -1,10 +1,7 @@
+# DISABLED: Requires 8+ LLM provider API keys (Anthropic, OpenAI, Google, Databricks,
+# OpenRouter, XAI, Tetrate). These are Block Inc's credentials, not available on this fork.
+# Each run costs real money in API calls. Re-enable when you have your own API keys configured.
 on:
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       branch:
@@ -13,7 +10,7 @@ on:
         default: "main"
         type: string
 
-name: Live Provider Tests
+name: Live Provider Tests (DISABLED)
 
 permissions:
   contents: read

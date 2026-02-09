@@ -258,7 +258,7 @@ pub fn compare_prompts(a: &Prompt, b: &Prompt) -> PromptComparison { ... }
 
 ### Run All Failing Tests:
 ```bash
-cd D:\goose\crates
+cd G:\goose\crates
 
 # ALMAS Team tests
 cargo test --lib -- agents::team::enforcer::tests --nocapture

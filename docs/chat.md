@@ -5429,7 +5429,7 @@ Show more
 the markdowns are here
 
 
-D:\goose\docs\audits
+G:\goose\docs\audits
 
 
 
@@ -5438,7 +5438,7 @@ The user mentioned the markdowns are on their screen. Based on the screenshot, t
 Bash
 find /c/Users/Admin -maxdepth 2 -name "MASTER_ACTION_PLAN.md" -newer /c/Users/Admin/.claude-worktrees/goose/friendly-shannon/docs/plans/MASTER_ACTION_PLAN.md 2>/dev/null; find /c/Users/Admin/Desktop -name "AGENT_1*" 2>/dev/null; find /c/Users/Admin/Documents -name "AGENT_1*" 2>/dev/null
 
-Found it — D:\goose\docs\audits. Let me read all the files now.
+Found it — G:\goose\docs\audits. Let me read all the files now.
 
 Bash
 ls -la /d/goose/docs/audits/
@@ -5620,197 +5620,197 @@ Show more
 
 Ran 2 commands
 Desktop Commander: List Directory Contents
-D:\conscious
+G:\goose\external\conscious
 [DIR] config
 [FILE] config\default.yaml
 [DIR] docs
 Show more
 Desktop Commander: List Directory Contents
-D:\goose\ui\desktop\src\components
+G:\goose\ui\desktop\src\components
 [FILE] AnimatedIcons.tsx
 [FILE] AnnouncementModal.tsx
 [FILE] ApiKeyTester.tsx
 Show more
 Desktop Commander: Get File Information
-D:\conscious\src\conscious\config.py
+G:\goose\external\conscious\src\conscious\config.py
 size: 8555
 created: "2026-02-07T12:53:27.240Z"
 modified: "2026-02-09T14:36:08.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\src\conscious\memory\memory_manager.py
+G:\goose\external\conscious\src\conscious\memory\memory_manager.py
 size: 5447
 created: "2026-02-09T14:36:47.000Z"
 modified: "2026-02-09T14:36:48.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\src\conscious\voice\agent_api.py
+G:\goose\external\conscious\src\conscious\voice\agent_api.py
 size: 58529
 created: "2026-02-08T10:50:20.820Z"
 modified: "2026-02-09T14:43:54.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\src\conscious\agentic\goose_bridge.py
+G:\goose\external\conscious\src\conscious\agentic\goose_bridge.py
 size: 17761
 created: "2026-02-08T22:14:51.320Z"
 modified: "2026-02-09T14:37:10.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\src\conscious\agentic\action_queue.py
+G:\goose\external\conscious\src\conscious\agentic\action_queue.py
 size: 8612
 created: "2026-02-08T22:16:00.660Z"
 modified: "2026-02-09T14:38:00.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\src\conscious\agentic\ui_bridge.py
+G:\goose\external\conscious\src\conscious\agentic\ui_bridge.py
 size: 7282
 created: "2026-02-08T23:45:54.120Z"
 modified: "2026-02-09T14:41:08.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\src\conscious\devices\manager.py
+G:\goose\external\conscious\src\conscious\devices\manager.py
 size: 14183
 created: "2026-02-08T23:36:10.520Z"
 modified: "2026-02-09T14:41:16.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\src\conscious\agentic\creator.py
+G:\goose\external\conscious\src\conscious\agentic\creator.py
 size: 13226
 created: "2026-02-08T23:08:42.970Z"
 modified: "2026-02-09T14:40:02.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\src\conscious\personality\profile.py
+G:\goose\external\conscious\src\conscious\personality\profile.py
 size: 15643
 created: "2026-02-08T23:00:22.830Z"
 modified: "2026-02-08T23:00:24.000Z"
 Show more
 Desktop Commander: List Directory Contents
-D:\conscious\src\conscious\data\personalities
+G:\goose\external\conscious\src\conscious\data\personalities
 [DENIED] personalities
 Desktop Commander: List Directory Contents
-D:\conscious\tests\unit
+G:\goose\external\conscious\tests\unit
 [FILE] __init__.py
 [DIR] agentic
 [FILE] agentic\__init__.py
 Show more
 Desktop Commander: Get File Information
-D:\conscious\tests\conftest.py
+G:\goose\external\conscious\tests\conftest.py
 size: 1954
 created: "2026-02-09T10:29:32.660Z"
 modified: "2026-02-09T10:29:34.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\tests\fixtures\mock_goose_bridge.py
+G:\goose\external\conscious\tests\fixtures\mock_goose_bridge.py
 size: 2522
 created: "2026-02-09T10:29:57.730Z"
 modified: "2026-02-09T10:29:58.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\tests\integration\test_api_endpoints.py
+G:\goose\external\conscious\tests\integration\test_api_endpoints.py
 size: 8951
 created: "2026-02-09T11:21:03.650Z"
 modified: "2026-02-09T11:24:08.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\tests\e2e\test_conscious_api.py
+G:\goose\external\conscious\tests\e2e\test_conscious_api.py
 size: 9605
 created: "2026-02-08T23:54:26.230Z"
 modified: "2026-02-08T23:54:28.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\README.md
+G:\goose\external\conscious\README.md
 size: 18226
 created: "2026-02-07T12:17:17.730Z"
 modified: "2026-02-08T10:57:14.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\conscious\CHANGELOG.md
+G:\goose\external\conscious\CHANGELOG.md
 size: 2680
 created: "2026-02-09T14:39:08.290Z"
 modified: "2026-02-09T14:39:10.000Z"
 Show more
 Desktop Commander: List Directory Contents
-D:\goose\ui\desktop\src\components\settings\conscious
+G:\goose\ui\desktop\src\components\settings\conscious
 [FILE] ConsciousSection.tsx
 Desktop Commander: Get File Information
-D:\goose\ui\desktop\src\components\conscious\ConsciousBridge.ts
+G:\goose\ui\desktop\src\components\conscious\ConsciousBridge.ts
 size: 3121
 created: "2026-02-08T23:52:50.860Z"
 modified: "2026-02-09T14:38:46.000Z"
 Show more
 Desktop Commander: Get File Information
-D:\goose\ui\desktop\src\components\conscious\ConsciousSection.tsx
-Error: ENOENT: no such file or directory, stat 'D:\goose\ui\desktop\src\components\conscious\ConsciousSection.tsx'
+G:\goose\ui\desktop\src\components\conscious\ConsciousSection.tsx
+Error: ENOENT: no such file or directory, stat 'G:\goose\ui\desktop\src\components\conscious\ConsciousSection.tsx'
 Desktop Commander: List Directory Contents
-D:\goose\ui\desktop\src\components\conscious
+G:\goose\ui\desktop\src\components\conscious
 [FILE] ConsciousBridge.ts
 [FILE] VoiceToggle.tsx
 [FILE] OutputWaveform.tsx
 Show more
 Desktop Commander: Read File or URL
-D:\conscious\src\conscious\config.py
+G:\goose\external\conscious\src\conscious\config.py
 [Reading 218 lines from start (total: 219 lines, 1 remaining)]
 """Configuration loader for Conscious.
 Show more
 Desktop Commander: Read File or URL
-D:\conscious\src\conscious\voice\agent_api.py
+G:\goose\external\conscious\src\conscious\voice\agent_api.py
 [Reading 1000 lines from start (total: 1257 lines, 257 remaining)]
 """Moshi Agent API — HTTP/WebSocket API layer for Super-Goose integration.
 Show more
 Desktop Commander: Read File or URL
-D:\conscious\src\conscious\agentic\goose_bridge.py
+G:\goose\external\conscious\src\conscious\agentic\goose_bridge.py
 [Reading 465 lines from start (total: 466 lines, 1 remaining)]
 """Goose Bridge — HTTP client to Super-Goose (goosed) server for tool execution.
 Show more
 Desktop Commander: Read File or URL
-D:\conscious\src\conscious\agentic\action_queue.py
+G:\goose\external\conscious\src\conscious\agentic\action_queue.py
 [Reading 250 lines from start (total: 251 lines, 1 remaining)]
 """Action Queue — Async queue decoupling voice I/O from tool execution.
 Show more
 Desktop Commander: Read File or URL
-D:\conscious\src\conscious\agentic\ui_bridge.py
+G:\goose\external\conscious\src\conscious\agentic\ui_bridge.py
 [Reading 192 lines from start (total: 193 lines, 1 remaining)]
 """UI Bridge \u2014 WebSocket server for Conscious -> Electron UI communication.
 Show more
 Desktop Commander: Read File or URL
-D:\conscious\src\conscious\devices\manager.py
+G:\goose\external\conscious\src\conscious\devices\manager.py
 [Reading 344 lines from start (total: 345 lines, 1 remaining)]
 """Device Manager — register, track, and control connected devices.
 Show more
 Desktop Commander: Read File or URL
-D:\conscious\src\conscious\agentic\creator.py
+G:\goose\external\conscious\src\conscious\agentic\creator.py
 [Reading 336 lines from start (total: 337 lines, 1 remaining)]
 """AI Creator — generates profiles, skills, prompts, and documents from chat.
 Show more
 Desktop Commander: Read File or URL
-D:\conscious\src\conscious\personality\profile.py
+G:\goose\external\conscious\src\conscious\personality\profile.py
 [Reading 322 lines from start (total: 323 lines, 1 remaining)]
 """Personality Profile — dataclass + built-in profiles for Conscious voice agent.
 Show more
 Desktop Commander: Read File or URL
-D:\conscious\tests\conftest.py
+G:\goose\external\conscious\tests\conftest.py
 [Reading 75 lines from start (total: 76 lines, 1 remaining)]
 """Root conftest — shared fixtures for all Conscious tests."""
 Show more
 Desktop Commander: Read File or URL
-D:\conscious\CHANGELOG.md
+G:\goose\external\conscious\CHANGELOG.md
 [Reading 53 lines from start (total: 54 lines, 1 remaining)]
 # Changelog
 Show more
 Desktop Commander: Read File or URL
-D:\goose\ui\desktop\src\components\conscious\ConsciousBridge.ts
+G:\goose\ui\desktop\src\components\conscious\ConsciousBridge.ts
 [Reading 115 lines from start (total: 115 lines, 0 remaining)]
 ﻿/**
 Show more
 Desktop Commander: List Directory Contents
-D:\conscious\src\conscious\voice
+G:\goose\external\conscious\src\conscious\voice
 [FILE] __init__.py
 [FILE] moshi_engine.py
 [FILE] audio_stream.py
 Show more
 Desktop Commander: List Directory Contents
-D:\conscious\src\conscious\agentic
+G:\goose\external\conscious\src\conscious\agentic
 [FILE] __init__.py
 [FILE] intent_router.py
 [FILE] goose_bridge.py
@@ -5831,7 +5831,7 @@ Let me do a deeper check on the specific gaps - what's wired and what's not in t
 
 Searched 3 patterns
 Bash
-ls -la D:\conscious\tests\unit\agentic\ 2>/dev/null && echo "---" && ls -la D:\conscious\tests\unit\personality\ 2>/dev/null && echo "---" && ls -la D:\conscious\tests\unit\memory\ 2>/dev/null && echo "---" && ls -la D:\conscious\tests\unit\devices\ 2>/dev/null && echo "---" && ls -la D:\conscious\tests\unit\voice\ 2>/dev/null && echo "---" && ls -la D:\conscious\tests\security\ 2>/dev/null && echo "---" && ls -la D:\conscious\tests\performance\ 2>/dev/null
+ls -la G:\goose\external\conscious\tests\unit\agentic\ 2>/dev/null && echo "---" && ls -la G:\goose\external\conscious\tests\unit\personality\ 2>/dev/null && echo "---" && ls -la G:\goose\external\conscious\tests\unit\memory\ 2>/dev/null && echo "---" && ls -la G:\goose\external\conscious\tests\unit\devices\ 2>/dev/null && echo "---" && ls -la G:\goose\external\conscious\tests\unit\voice\ 2>/dev/null && echo "---" && ls -la G:\goose\external\conscious\tests\security\ 2>/dev/null && echo "---" && ls -la G:\goose\external\conscious\tests\performance\ 2>/dev/null
 Exit code 2
 ls: cannot access 'D:conscioustestsunitagentic 2': No such file or directory
 Bash
@@ -6100,10 +6100,10 @@ jarvis.yaml (47 lines), buddy.yaml (51), professor.yaml (47), spark.yaml (45), s
 The __main__ bind address was fixed (defaults to 127.0.0.1), but there's a cosmetic log message at line 277 that still references 0.0.0.0. Let me fix that now, then run the final verification:
 
 Read
-D:\conscious\src\conscious\voice\agent_api.py
+G:\goose\external\conscious\src\conscious\voice\agent_api.py
 Read 10 lines
 Edit
-D:\conscious\src\conscious\voice\agent_api.py
+G:\goose\external\conscious\src\conscious\voice\agent_api.py
 +1
 -1
 
@@ -6194,7 +6194,7 @@ Bash
 cd /d/goose/ui/desktop && ls node_modules/@types/electron 2>/dev/null || echo "NOT INSTALLED"; ls node_modules/electron 2>/dev/null | head -3 || echo "electron NOT INSTALLED"; npm ls @testing-library/react 2>&1 | head -3; npm ls vitest 2>&1 | head -3; npm ls react-router-dom 2>&1 | head -3
 NOT INSTALLED
 node_modules
-goose-app@1.23.0 D:\goose\ui\desktop
+goose-app@1.23.0 G:\goose\ui\desktop
 Show more
 Bash
 cd /d/goose/ui/desktop && cat package.json | python -c "import json,sys; d=json.load(sys.stdin); deps=list(d.get('dependencies',{}).keys())+list(d.get('devDependencies',{}).keys()); [print(x) for x in sorted(deps) if 'test' in x.lower() or 'vitest' in x.lower() or 'electron' in x.lower() or 'router' in x.lower() or 'cronstrue' in x.lower() or 'react-select' in x.lower() or 'react-icon' in x.lower()]"
@@ -6231,7 +6231,7 @@ no types dir
 electron.d.ts missing
 Bash
 cd /d/goose/ui/desktop && npm ls electron 2>&1 | head -5; echo "---"; npm ls vitest 2>&1 | head -5; echo "---"; npm ls @testing-library/react 2>&1 | head -5
-goose-app@1.23.0 D:\goose\ui\desktop
+goose-app@1.23.0 G:\goose\ui\desktop
 └── (empty)
 Show more
 
@@ -6301,7 +6301,7 @@ find /d/goose/ui/desktop/node_modules -name "node" -maxdepth 3 -type d 2>/dev/nu
 /d/goose/ui/desktop/node_modules/electron-log/src/node
 Bash
 cd /d/goose/ui/desktop && npm ls @types/node 2>&1 | head -5
-goose-app@1.23.0 D:\goose\ui\desktop
+goose-app@1.23.0 G:\goose\ui\desktop
 └── (empty)
 Grep
 "@types/node"
@@ -6520,7 +6520,7 @@ how is the overall progress? are we getting close to a stable codebase? action p
 
 
 Read
-D:\conscious\src\conscious\voice\agent_api.py
+G:\goose\external\conscious\src\conscious\voice\agent_api.py
 Read 30 lines
 
 Ran 6 commands
@@ -6554,12 +6554,12 @@ Bash
 cd /d/conscious && python -m pytest tests/ --ignore=tests/unit/emotion -x --tb=short 2>&1 | tail -80
 Command running in background with ID: b97c980. Output is being written to: C:\Users\Admin\AppData\Local\Temp\claude\C--Users-Admin--claude-worktrees-goose-friendly-shannon\tasks\b97c980.output
 Read
-D:\conscious\src\conscious\__init__.py
+G:\goose\external\conscious\src\conscious\__init__.py
 Read 16 lines
 
 Ran 2 commands
 Read
-D:\conscious\pyproject.toml
+G:\goose\external\conscious\pyproject.toml
 Read 73 lines
 
 Ran 7 commands
@@ -6569,7 +6569,7 @@ super-goose codebase is stable and ready for release, what left todo? have agent
 
 Ran 2 commands
 Read
-D:\conscious\src\conscious\server.py
+G:\goose\external\conscious\src\conscious\server.py
 Read 169 lines
 
 Ran 5 commands
@@ -6599,13 +6599,13 @@ Traceback (most recent call last):
   File "<string>", line 1, in <module>
     import sys; sys.path.insert(0, 'src'); from conscious.voice import *; from conscious.personality import *; from conscious.agentic import *; from conscious.memory import *; from conscious.devices import *; from conscious.testing import *; print('ALL SUBSYSTEMS IMPORTED SUCCESSFULLY')
                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\conscious\src\conscious\voice\__init__.py", line 11, in <module>
+  File "G:\goose\external\conscious\src\conscious\voice\__init__.py", line 11, in <module>
     from .moshi_agent import MoshiAgent, AgentConfig, AgentState
-  File "D:\conscious\src\conscious\voice\moshi_agent.py", line 30, in <module>
+  File "G:\goose\external\conscious\src\conscious\voice\moshi_agent.py", line 30, in <module>
     import numpy as np
 ModuleNotFoundError: No module named 'numpy'
 Read
-D:\conscious\tests\e2e\test_conscious_api.py
+G:\goose\external\conscious\tests\e2e\test_conscious_api.py
 Read 50 lines
 
 Ran 3 commands

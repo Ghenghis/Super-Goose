@@ -42,7 +42,7 @@
 ### Immediate Action Required:
 ```bash
 # Run tests locally to reproduce
-cd D:\goose\crates
+cd G:\goose\crates
 cargo test --lib -- --nocapture agents::team::enforcer::tests::test_qa_no_edit_permissions
 cargo test --lib -- --nocapture agents::adversarial::integration_tests::tests::test_complete_workflow_with_approval
 cargo test --lib -- --nocapture agents::evolution::integration_tests::tests::test_end_to_end_evolution_cycle
@@ -103,7 +103,7 @@ Schema out of sync with Rust backend API
 **Investigation Steps**:
 ```bash
 # Check what changed
-cd D:\goose
+cd G:\goose
 just check-openapi-schema
 
 # Regenerate schema
@@ -1384,7 +1384,7 @@ e2e-tests:
 **ZenCoder Testing Checklist**:
 ```bash
 # 1. Run all tests locally
-cd D:\goose
+cd G:\goose
 cargo test --all                                    # Rust unit + integration
 cd ui/desktop && npm run test:run                   # TypeScript unit
 cd ui/desktop && npm run test:e2e                   # E2E tests

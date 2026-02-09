@@ -1,7 +1,7 @@
 # Agentic Voice & Conscious Integration Plan
 
 **Date**: 2026-02-08
-**Scope**: Make `D:\conscious` truly agentic with real-time voice interaction, integrated with Super-Goose (`D:\goose`)
+**Scope**: Make `G:\goose\external\conscious` truly agentic with real-time voice interaction, integrated with Super-Goose (`G:\goose`)
 **Method**: SOTA research (GitHub repos, papers, frameworks) + honest audit of current state + prioritized action plan
 **Goal**: Real working agentic voice — not mocked, not stubbed — instant responses with tool calling
 
@@ -9,7 +9,7 @@
 
 ## 1. Current State Audit (Honest)
 
-### D:\conscious — What's REAL code vs EMPTY stubs
+### G:\goose\external\conscious — What's REAL code vs EMPTY stubs
 
 | Component              | File                        | Lines | Status                                                                           |
 | ---------------------- | --------------------------- | ----- | -------------------------------------------------------------------------------- |
@@ -30,7 +30,7 @@
 | **EmotionTracker**     | `emotion/tracker.py`        | ~170  | **REAL (Phase 2)** — Sliding window mood tracking, trend analysis                |
 | **EmotionResponder**   | `emotion/responder.py`      | ~210  | **REAL (Phase 2)** — Emotion → response modulation, break detection              |
 
-### D:\conscious — What WORKS today
+### G:\goose\external\conscious — What WORKS today
 
 - Moshi server launches via subprocess with correct env vars
 - WebSocket client connects, streams opus audio bidirectionally
@@ -44,7 +44,7 @@
 - **[NEW] ActionQueue** — async non-blocking tool dispatch
 - **[NEW] 3 agentic REST endpoints** — /api/agentic/status, toggle, execute
 
-### D:\conscious — What DOESN'T work (the gap)
+### G:\goose\external\conscious — What DOESN'T work (the gap)
 
 | Missing Capability           | Impact                                                                    |
 | ---------------------------- | ------------------------------------------------------------------------- |
@@ -406,7 +406,7 @@ ACTION_TRIGGERS = [
 
 ---
 
-## 6. Integration Points with Super-Goose (D:\goose)
+## 6. Integration Points with Super-Goose (G:\goose)
 
 ### Existing Super-Goose APIs to leverage
 
@@ -473,7 +473,7 @@ ACTION_TRIGGERS = [
 ## 10. Files to Create (Phase 1 — Minimal Agentic Voice)
 
 ```
-D:\conscious\src\conscious\agentic\
+G:\goose\external\conscious\src\conscious\agentic\
 ├── __init__.py              # Package: agentic voice layer
 ├── intent_router.py         # Accumulate text tokens → classify intent
 ├── goose_bridge.py          # HTTP client to Super-Goose (goosed)
@@ -481,8 +481,8 @@ D:\conscious\src\conscious\agentic\
 └── action_queue.py          # Async queue for pending tool actions
 
 # Modifications to existing files:
-D:\conscious\src\conscious\voice\agent_api.py   # Wire IntentRouter into on_text_received
-D:\conscious\src\conscious\voice\moshi_agent.py  # Add action callback alongside existing audio/text callbacks
+G:\goose\external\conscious\src\conscious\voice\agent_api.py   # Wire IntentRouter into on_text_received
+G:\goose\external\conscious\src\conscious\voice\moshi_agent.py  # Add action callback alongside existing audio/text callbacks
 ```
 
 ---

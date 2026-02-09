@@ -11,7 +11,7 @@
 
 ### TASK 1.1: Create 7 Missing UI Components
 
-All new components go in `D:\goose\ui\desktop\src\components\conscious\`.
+All new components go in `G:\goose\ui\desktop\src\components\conscious\`.
 
 #### 1.1.1 MemoryPanel.tsx
 **Purpose:** Display conversation transcript history from `/api/memory/status`  
@@ -122,7 +122,7 @@ All new components go in `D:\goose\ui\desktop\src\components\conscious\`.
 
 ### TASK 1.2: Integrate New Components into ConsciousSection.tsx
 
-**File:** `D:\goose\ui\desktop\src\components\settings\conscious\ConsciousSection.tsx`
+**File:** `G:\goose\ui\desktop\src\components\settings\conscious\ConsciousSection.tsx`
 
 After creating all 7 components, add them as collapsible sections within ConsciousSection:
 - Import all 7 new components
@@ -132,7 +132,7 @@ After creating all 7 components, add them as collapsible sections within Conscio
 
 ### TASK 1.3: Expand ConsciousBridge Command Handlers
 
-**File:** `D:\goose\ui\desktop\src\components\conscious\ConsciousBridge.ts`
+**File:** `G:\goose\ui\desktop\src\components\conscious\ConsciousBridge.ts`
 
 Currently only handles `set_theme`. Add handlers for:
 
@@ -204,11 +204,11 @@ For ALL interactive elements in `src/components/conscious/` and `src/components/
 
 ### TASK 1.6: Android — Generate gradle-wrapper.jar (BUG-007)
 
-**Location:** `D:\goose\ui\mobile\android\`
+**Location:** `G:\goose\ui\mobile\android\`
 
 Run this command to generate the missing binary:
 ```bash
-cd D:\goose\ui\mobile\android
+cd G:\goose\ui\mobile\android
 gradle wrapper --gradle-version 8.9
 ```
 
@@ -219,7 +219,7 @@ Extract and copy `gradle/wrapper/gradle-wrapper.jar` to the android project.
 
 ### TASK 1.7: Android — ConsciousClient.kt
 
-**Create:** `D:\goose\ui\mobile\android\app\src\main\java\com\block\goose\conscious\ConsciousClient.kt`
+**Create:** `G:\goose\ui\mobile\android\app\src\main\java\com\block\goose\conscious\ConsciousClient.kt`
 
 ```kotlin
 class ConsciousClient(private val baseUrl: String = "http://10.0.2.2:8999") {
@@ -239,7 +239,7 @@ Use OkHttp + Gson (already in Android dependencies).
 
 ### TASK 1.8: Android — ConsciousScreen.kt
 
-**Create:** `D:\goose\ui\mobile\android\app\src\main\java\com\block\goose\ui\screens\ConsciousScreen.kt`
+**Create:** `G:\goose\ui\mobile\android\app\src\main\java\com\block\goose\ui\screens\ConsciousScreen.kt`
 
 Compose UI screen showing:
 - Connection status to Conscious API
@@ -256,19 +256,19 @@ Add navigation entry in the app's nav graph.
 
 ### After Phase 1:
 ```bash
-cd D:\goose\ui\desktop && npx tsc --noEmit
-cd D:\goose\ui\desktop && npx eslint src/components/conscious/ src/components/settings/conscious/ --max-warnings 0
+cd G:\goose\ui\desktop && npx tsc --noEmit
+cd G:\goose\ui\desktop && npx eslint src/components/conscious/ src/components/settings/conscious/ --max-warnings 0
 ```
 
 ### After Phase 2:
-- Start Conscious backend: `cd D:\conscious && python -m conscious --auto-start`
+- Start Conscious backend: `cd G:\goose\external\conscious && python -m conscious --auto-start`
 - Open Electron UI, navigate to Settings → Conscious tab
 - Verify each component renders without errors
 - Verify each button makes a real API call (check browser Network tab)
 
 ### After Phase 3:
 ```bash
-cd D:\goose\ui\mobile\android && gradlew assembleDebug
+cd G:\goose\ui\mobile\android && gradlew assembleDebug
 ```
 
 ---

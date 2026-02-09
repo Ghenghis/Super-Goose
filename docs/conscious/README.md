@@ -6,7 +6,7 @@
 
 ```bash
 # Install (editable mode)
-cd D:\conscious
+cd G:\goose\external\conscious
 pip install -e .
 
 # Run the API server (binds to 127.0.0.1:8999)
@@ -86,7 +86,7 @@ See [API.md](../audits/API.md) for full documentation.
 
 ```bash
 # Run all tests
-cd D:\conscious
+cd G:\goose\external\conscious
 python -m pytest tests/ -v --timeout=60
 
 # Unit tests only
@@ -110,7 +110,7 @@ python -m pytest tests/integration/ -v --timeout=60
 
 ## Electron UI Components
 
-Located in `D:\goose\ui\desktop\src\components\conscious\`:
+Located in `G:\goose\ui\desktop\src\components\conscious\`:
 
 | Component | Purpose |
 |-----------|---------|

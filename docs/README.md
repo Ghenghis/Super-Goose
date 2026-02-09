@@ -31,9 +31,9 @@
 | [Project Summary](../CONSCIOUS_PROJECT_SUMMARY.md) | Root | Complete Conscious overview |
 | [Audio Visualizer Spec](../AUDIO_VISUALIZER_SPEC.md) | Root | Dual-stream visualizer design |
 | [Documentation Gap Analysis](../DOCUMENTATION_GAP_ANALYSIS.md) | Root | What's designed vs implemented |
-| [Super-Goose Integration](SUPER_GOOSE_INTEGRATION.md) | D:\conscious\docs\ | Integration plan |
+| [Super-Goose Integration](SUPER_GOOSE_INTEGRATION.md) | G:\goose\external\conscious\docs\ | Integration plan |
 
-**Full Conscious docs:** `D:\conscious\docs\` (20 specification documents)
+**Full Conscious docs:** `G:\goose\external\conscious\docs\` (20 specification documents)
 
 ## 📋 Phase Roadmaps
 

@@ -1,9 +1,8 @@
-name: Multi-Platform Release
+# DISABLED: Multi-platform release requires code signing for all platforms.
+# Uses expensive runners (windows-latest, macos-latest). Re-enable when needed.
+name: Multi-Platform Release (DISABLED)
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       build_mobile:

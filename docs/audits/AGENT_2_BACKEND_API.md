@@ -14,7 +14,7 @@
 **Problem:** `personality/modulator.py` exists (119 lines, fully implemented) but is NEVER called. When GooseBridge returns a response, it goes directly to ResultSpeaker without personality modulation.
 
 **Files to modify:**
-- `D:\conscious\src\conscious\voice\agent_api.py`
+- `G:\goose\external\conscious\src\conscious\voice\agent_api.py`
 
 **Current flow:**
 ```
@@ -48,7 +48,7 @@ In the `_emotion_loop` method, use PersonalityModulator's `get_prompt_prefix()` 
 **Problem:** `agentic/skill_bridge.py` (107 lines) parses voice commands like "run skill", "save skill", "list skills" but is NOT imported or used in VoiceAgentController.
 
 **Files to modify:**
-- `D:\conscious\src\conscious\agentic\agent_controller.py`
+- `G:\goose\external\conscious\src\conscious\agentic\agent_controller.py`
 
 **Implementation:**
 1. Import SkillBridge at top of agent_controller.py
@@ -71,7 +71,7 @@ async def _handle_goose(self, action: str, text: str, params: dict) -> dict:
 **Problem:** ConversationHistory exists and works, but nothing in the voice pipeline adds user/assistant messages to it during live conversation.
 
 **Files to modify:**
-- `D:\conscious\src\conscious\voice\agent_api.py`
+- `G:\goose\external\conscious\src\conscious\voice\agent_api.py`
 
 **Implementation:**
 1. In the voice token callback (where user speech is received from Moshi), after accumulating a complete utterance, add:
@@ -102,8 +102,8 @@ messages = self._conversation_history.get_recent_messages(limit=10)
 **Problem:** IntentRouter has ~20 hardcoded regex patterns. CapabilityRegistry has 40+ capabilities with voice triggers. They are NOT synchronized — some voice commands work via IntentRouter but not CapabilityRegistry, and vice versa.
 
 **Files to modify:**
-- `D:\conscious\src\conscious\agentic\intent_router.py`
-- `D:\conscious\src\conscious\agentic\capabilities.py`
+- `G:\goose\external\conscious\src\conscious\agentic\intent_router.py`
+- `G:\goose\external\conscious\src\conscious\agentic\capabilities.py`
 
 **Implementation approach:**
 1. Read both files fully to understand current patterns
@@ -176,7 +176,7 @@ async def handle_example(self, request: web.Request) -> web.Response:
 
 ### TASK 2.6: Create API Documentation
 
-**Create:** `D:\conscious\docs\API.md`
+**Create:** `G:\goose\external\conscious\docs\API.md`
 
 Document all 33 endpoints with:
 - Method + Path
@@ -193,16 +193,16 @@ Document all 33 endpoints with:
 ### After Phase 1:
 ```bash
 # Syntax check
-cd D:\conscious && python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
+cd G:\goose\external\conscious && python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
 
 # Import check
-cd D:\conscious && python -c "from conscious.agentic import *; from conscious.emotion import *; from conscious.personality import *; from conscious.memory import *; print('All imports OK')"
+cd G:\goose\external\conscious && python -c "from conscious.agentic import *; from conscious.emotion import *; from conscious.personality import *; from conscious.memory import *; print('All imports OK')"
 ```
 
 ### After Phase 2:
 ```bash
 # Start server and test validation
-cd D:\conscious && python -c "
+cd G:\goose\external\conscious && python -c "
 import asyncio, aiohttp
 
 async def test():
@@ -227,7 +227,7 @@ asyncio.run(test())
 
 | Action | File |
 |--------|------|
-| MODIFY | `D:\conscious\src\conscious\voice\agent_api.py` (modulator wiring, history wiring, validation) |
-| MODIFY | `D:\conscious\src\conscious\agentic\agent_controller.py` (skill_bridge wiring) |
-| MODIFY | `D:\conscious\src\conscious\agentic\intent_router.py` (sync with capabilities) |
-| CREATE | `D:\conscious\docs\API.md` |
+| MODIFY | `G:\goose\external\conscious\src\conscious\voice\agent_api.py` (modulator wiring, history wiring, validation) |
+| MODIFY | `G:\goose\external\conscious\src\conscious\agentic\agent_controller.py` (skill_bridge wiring) |
+| MODIFY | `G:\goose\external\conscious\src\conscious\agentic\intent_router.py` (sync with capabilities) |
+| CREATE | `G:\goose\external\conscious\docs\API.md` |

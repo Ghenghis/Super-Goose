@@ -11,7 +11,7 @@ Replace all `block/goose` references with your actual repository name.
 **If your repo is at `github.com/YourOrg/goose`:**
 
 ```bash
-# From D:\goose directory:
+# From G:\goose directory:
 cd /d/goose/.github/workflows
 
 # Update all repository checks

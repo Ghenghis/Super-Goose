@@ -195,7 +195,7 @@
 
 ## 🎨 Conscious Project Status
 
-**Location:** `D:\conscious`
+**Location:** `G:\goose\external\conscious`
 **Status:** Design phase 100% complete
 **Files:** 20 comprehensive documentation files
 **Default Personality:** Conscious (Morgan Freeman-inspired)
@@ -256,7 +256,7 @@
 - Implementation ready to begin
 - All design docs complete
 - Focus on Moshi voice engine integration
-- Use `D:\conscious` directory
+- Use `G:\goose\external\conscious` directory
 
 ---
 

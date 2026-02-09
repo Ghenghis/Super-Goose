@@ -190,7 +190,7 @@ signing: false
 
 ### Option A: Local Fix (Requires Rust)
 ```bash
-cd D:\goose
+cd G:\goose
 cargo fmt --all
 git add .
 git commit -m "style: format Rust code with cargo fmt

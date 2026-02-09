@@ -1,14 +1,9 @@
-name: Documentation Site Preview
+# DISABLED: Requires INKEEP secrets and gh-pages branch for doc site preview.
+# References block/goose in deploy step. Re-enable when docs infrastructure is configured.
+name: Documentation Site Preview (DISABLED)
 
 on:
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - closed
-    paths:
-      - 'documentation/**'
+  workflow_dispatch:
 
 permissions:
   contents: read

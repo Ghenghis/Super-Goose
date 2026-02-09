@@ -25,7 +25,7 @@ The `check_command_permission` method in `enforcer.rs` was extracting only the b
 ### Solution
 Changed the logic to match full commands or prefixes:
 
-**File**: `D:\goose\crates\goose\src\agents\team\enforcer.rs`
+**File**: `G:\goose\crates\goose\src\agents\team\enforcer.rs`
 **Lines**: 376-412
 
 **Before**:
@@ -93,7 +93,7 @@ Security role could not read configuration files like `Cargo.toml` needed for se
 ### Solution
 Added configuration files to Security role's allowed patterns:
 
-**File**: `D:\goose\crates\goose\src\agents\team\roles.rs`
+**File**: `G:\goose\crates\goose\src\agents\team\roles.rs`
 **Lines**: 251-267
 
 **Added Patterns**:
@@ -130,7 +130,7 @@ The `improvement_over` method only compared success rates, not quality scores. W
 ### Solution
 Changed to calculate a **combined score** that accounts for success rate, quality, and speed:
 
-**File**: `D:\goose\crates\goose\src\agents\evolution\metrics.rs`
+**File**: `G:\goose\crates\goose\src\agents\evolution\metrics.rs`
 **Lines**: 114-122
 
 **Before**:
@@ -204,17 +204,17 @@ pub fn improvement_over(&self, baseline: &PromptPerformance) -> f32 {
 
 ## Files Modified
 
-### 1. D:\goose\crates\goose\src\agents\team\enforcer.rs
+### 1. G:\goose\crates\goose\src\agents\team\enforcer.rs
 - **Function**: `check_command_permission` (lines 376-412)
 - **Change**: Fixed command matching to use prefix matching instead of exact base command matching
 - **Impact**: QA, Security, and other roles can now execute allowed commands correctly
 
-### 2. D:\goose\crates\goose\src\agents\team\roles.rs
+### 2. G:\goose\crates\goose\src\agents\team\roles.rs
 - **Function**: `FileAccessPatterns::security` (lines 251-267)
 - **Change**: Added config file patterns to Security role's allowed list
 - **Impact**: Security role can audit configuration files
 
-### 3. D:\goose\crates\goose\src\agents\evolution\metrics.rs
+### 3. G:\goose\crates\goose\src\agents\evolution\metrics.rs
 - **Function**: `PromptPerformance::improvement_over` (lines 114-127)
 - **Change**: Calculate combined score using success_rate × quality × speed
 - **Impact**: Metrics now correctly measure quality improvements, not just success rate
@@ -225,7 +225,7 @@ pub fn improvement_over(&self, baseline: &PromptPerformance) -> f32 {
 
 ### Run Fixed Tests
 ```bash
-cd D:\goose
+cd G:\goose
 
 # ALMAS enforcer tests (7 tests)
 "C:\Users\Admin\.cargo\bin\cargo.exe" test --lib -- agents::team::enforcer::tests
@@ -275,6 +275,6 @@ Based on CRITICAL_TEST_FAILURES_REPORT.md, there were **14 failing tests**:
 ---
 
 **Fixes By**: Claude Sonnet 4.5 (Manual)
-**Guided By**: D:\goose\ZENCODER_BUG_FIXING_GUIDE.md
+**Guided By**: G:\goose\ZENCODER_BUG_FIXING_GUIDE.md
 **Verified**: Pending test execution
 **Next Update**: After test suite completion

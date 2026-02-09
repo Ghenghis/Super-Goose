@@ -1,13 +1,10 @@
-# This workflow is main release, needs to be manually tagged & pushed.
-# NOTE: Only runs on the canonical repo (block/goose), not on forks
+# DISABLED: Requires code signing certs (OSX_CODESIGN_ROLE, WINDOWS_CODESIGN_CERTIFICATE),
+# AWS OIDC for notarization, and Block Inc's release infrastructure.
+# Re-enable when signing certificates and release infrastructure are configured.
 on:
-  push:
-    paths-ignore:
-      - "documentation/**"
-    tags:
-      - "v1.*"
+  workflow_dispatch:
 
-name: Release
+name: Release (DISABLED)
 
 # Permissions needed for AWS OIDC authentication in called workflows
 permissions:

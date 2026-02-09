@@ -1,7 +1,8 @@
-# This workflow is triggered by a comment on PR with the text ".build-cli"
+# DISABLED: Triggers on issue_comment which fires on EVERY PR comment including bot comments,
+# causing cascading startup_failures. Uses github/command action that needs specific repo perms.
+# This was the main source of Build CLI startup_failure errors (8+ failures).
+# Re-enable when build infrastructure is ready and add bot-comment filtering.
 on:
-  issue_comment:
-    types: [created]
   workflow_dispatch:
     inputs:
       pr_number:

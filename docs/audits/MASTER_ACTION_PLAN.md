@@ -14,11 +14,11 @@ The following 5 critical bugs have been fixed by the lead engineer and are no lo
 
 | Bug     | What                             | Fix Applied                                      | File                                            |
 | ------- | -------------------------------- | ------------------------------------------------ | ----------------------------------------------- |
-| BUG-001 | `aiohttp` missing from deps      | Added `aiohttp>=3.9.0` to pyproject.toml         | `D:\conscious\pyproject.toml`                   |
-| BUG-002 | `websockets` missing from deps   | Added `websockets>=12.0` to pyproject.toml       | `D:\conscious\pyproject.toml`                   |
-| BUG-003 | `openwakeword` missing from deps | Added to `[wake]` optional deps                  | `D:\conscious\pyproject.toml`                   |
-| BUG-004 | `paramiko` missing from deps     | Added to `[devices]` optional deps               | `D:\conscious\pyproject.toml`                   |
-| BUG-005 | No CORS on API server            | Added `aiohttp_cors` middleware to `build_app()` | `D:\conscious\src\conscious\voice\agent_api.py` |
+| BUG-001 | `aiohttp` missing from deps      | Added `aiohttp>=3.9.0` to pyproject.toml         | `G:\goose\external\conscious\pyproject.toml`                   |
+| BUG-002 | `websockets` missing from deps   | Added `websockets>=12.0` to pyproject.toml       | `G:\goose\external\conscious\pyproject.toml`                   |
+| BUG-003 | `openwakeword` missing from deps | Added to `[wake]` optional deps                  | `G:\goose\external\conscious\pyproject.toml`                   |
+| BUG-004 | `paramiko` missing from deps     | Added to `[devices]` optional deps               | `G:\goose\external\conscious\pyproject.toml`                   |
+| BUG-005 | No CORS on API server            | Added `aiohttp_cors` middleware to `build_app()` | `G:\goose\external\conscious\src\conscious\voice\agent_api.py` |
 
 Previously false-positive bugs now confirmed NOT bugs:
 - BUG-006: `ConversationHistory.clear()` EXISTS at line 180
@@ -189,13 +189,13 @@ PHASE 4: RELEASE GATE (All agents contribute)
 
 ### Paths
 ```
-Conscious Python Backend:    D:\conscious\src\conscious\
-Conscious Tests:             D:\conscious\tests\
-Conscious Config:            D:\conscious\pyproject.toml
-Electron UI Components:      D:\goose\ui\desktop\src\components\
-Conscious UI Components:     D:\goose\ui\desktop\src\components\conscious\
-Settings Components:         D:\goose\ui\desktop\src\components\settings\
-Android App:                 D:\goose\ui\mobile\android\
+Conscious Python Backend:    G:\goose\external\conscious\src\conscious\
+Conscious Tests:             G:\goose\external\conscious\tests\
+Conscious Config:            G:\goose\external\conscious\pyproject.toml
+Electron UI Components:      G:\goose\ui\desktop\src\components\
+Conscious UI Components:     G:\goose\ui\desktop\src\components\conscious\
+Settings Components:         G:\goose\ui\desktop\src\components\settings\
+Android App:                 G:\goose\ui\mobile\android\
 ```
 
 ### Ports
@@ -209,34 +209,34 @@ Goosed Server:     localhost:3000 (HTTP — Super-Goose backend)
 ### Key Commands
 ```bash
 # Python syntax check
-cd D:\conscious && python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
+cd G:\goose\external\conscious && python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
 
 # Import check
-cd D:\conscious && python -c "from conscious.agentic import *; from conscious.emotion import *; from conscious.personality import *; from conscious.memory import *; from conscious.testing import *; from conscious.devices import *; print('All imports OK')"
+cd G:\goose\external\conscious && python -c "from conscious.agentic import *; from conscious.emotion import *; from conscious.personality import *; from conscious.memory import *; from conscious.testing import *; from conscious.devices import *; print('All imports OK')"
 
 # Run unit tests
-cd D:\conscious && python -m pytest tests/unit/ -v --timeout=30
+cd G:\goose\external\conscious && python -m pytest tests/unit/ -v --timeout=30
 
 # Run integration tests
-cd D:\conscious && python -m pytest tests/integration/ -v --timeout=60
+cd G:\goose\external\conscious && python -m pytest tests/integration/ -v --timeout=60
 
 # Run E2E tests
-cd D:\conscious && python -m pytest tests/e2e/ -v --timeout=60
+cd G:\goose\external\conscious && python -m pytest tests/e2e/ -v --timeout=60
 
 # Run all tests
-cd D:\conscious && python -m pytest tests/ -v --timeout=60
+cd G:\goose\external\conscious && python -m pytest tests/ -v --timeout=60
 
 # TypeScript check
-cd D:\goose\ui\desktop && npx tsc --noEmit
+cd G:\goose\ui\desktop && npx tsc --noEmit
 
 # UI lint
-cd D:\goose\ui\desktop && npx eslint src/components/conscious/ src/components/settings/conscious/ --max-warnings 0
+cd G:\goose\ui\desktop && npx eslint src/components/conscious/ src/components/settings/conscious/ --max-warnings 0
 
 # UI tests
-cd D:\goose\ui\desktop && npm run test:run
+cd G:\goose\ui\desktop && npm run test:run
 
 # Android build
-cd D:\goose\ui\mobile\android && gradlew assembleDebug
+cd G:\goose\ui\mobile\android && gradlew assembleDebug
 ```
 
 ### 33 API Endpoints (agent_api.py)
@@ -334,7 +334,7 @@ Each agent has a dedicated task file with exact deliverables, file paths, code s
 Before doing ANY work, every agent must verify the 5 critical fixes are in place:
 
 ```bash
-cd D:\conscious && pip install -e . && python -c "
+cd G:\goose\external\conscious && pip install -e . && python -c "
 from aiohttp import web; print('aiohttp OK')
 import websockets; print('websockets OK')
 import aiohttp_cors; print('aiohttp_cors OK')
@@ -351,52 +351,52 @@ Each agent must pass these gates before marking work complete:
 
 ### Gate 1: Syntax Clean (Every Agent)
 ```bash
-cd D:\conscious && python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
+cd G:\goose\external\conscious && python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
 ```
 
 ### Gate 2: Import Clean (Every Agent)
 ```bash
-cd D:\conscious && python -c "from conscious.agentic import *; from conscious.emotion import *; from conscious.personality import *; from conscious.memory import *; from conscious.testing import *; from conscious.devices import *; print('All imports OK')"
+cd G:\goose\external\conscious && python -c "from conscious.agentic import *; from conscious.emotion import *; from conscious.personality import *; from conscious.memory import *; from conscious.testing import *; from conscious.devices import *; print('All imports OK')"
 ```
 
 ### Gate 3: Unit Tests Pass (Agent 5, verified by all)
 ```bash
-cd D:\conscious && python -m pytest tests/unit/ -v --timeout=30 -x
+cd G:\goose\external\conscious && python -m pytest tests/unit/ -v --timeout=30 -x
 ```
 
 ### Gate 4: Integration Tests Pass (Agent 5)
 ```bash
-cd D:\conscious && python -m pytest tests/integration/ -v --timeout=60 -x
+cd G:\goose\external\conscious && python -m pytest tests/integration/ -v --timeout=60 -x
 ```
 
 ### Gate 5: E2E Tests Pass (Agent 5)
 ```bash
-cd D:\conscious && python -m pytest tests/e2e/ -v --timeout=60 -x
+cd G:\goose\external\conscious && python -m pytest tests/e2e/ -v --timeout=60 -x
 ```
 
 ### Gate 6: TypeScript Clean (Agent 1)
 ```bash
-cd D:\goose\ui\desktop && npx tsc --noEmit
+cd G:\goose\ui\desktop && npx tsc --noEmit
 ```
 
 ### Gate 7: UI Lint Clean (Agent 1)
 ```bash
-cd D:\goose\ui\desktop && npx eslint src/components/conscious/ src/components/settings/conscious/ --max-warnings 0
+cd G:\goose\ui\desktop && npx eslint src/components/conscious/ src/components/settings/conscious/ --max-warnings 0
 ```
 
 ### Gate 8: Android Builds (Agent 1)
 ```bash
-cd D:\goose\ui\mobile\android && gradlew assembleDebug
+cd G:\goose\ui\mobile\android && gradlew assembleDebug
 ```
 
 ### Gate 9: Security Tests Pass (Agent 6)
 ```bash
-cd D:\conscious && python -m pytest tests/security/ -v --timeout=30 -x
+cd G:\goose\external\conscious && python -m pytest tests/security/ -v --timeout=30 -x
 ```
 
 ### Gate 10: Performance Tests Pass (Agent 5)
 ```bash
-cd D:\conscious && python -m pytest tests/performance/ -v --timeout=120 -x
+cd G:\goose\external\conscious && python -m pytest tests/performance/ -v --timeout=120 -x
 ```
 
 ---
@@ -455,9 +455,9 @@ cd D:\conscious && python -m pytest tests/performance/ -v --timeout=120 -x
 
 ## Appendix: Reference Documents
 
-- **20-Pass Audit Framework:** `D:\goose\docs\audits\End-to-end-Audit.md` (methodology, prompts, terminology)
-- **Detailed Findings:** `D:\goose\docs\audits\CONSCIOUS_FULL_AUDIT.md` (bugs, test specs, wiring gaps)
-- **Agent Task Files:** `D:\goose\docs\audits\AGENT_[1-6]_*.md` (per-agent assignments)
+- **20-Pass Audit Framework:** `G:\goose\docs\audits\End-to-end-Audit.md` (methodology, prompts, terminology)
+- **Detailed Findings:** `G:\goose\docs\audits\CONSCIOUS_FULL_AUDIT.md` (bugs, test specs, wiring gaps)
+- **Agent Task Files:** `G:\goose\docs\audits\AGENT_[1-6]_*.md` (per-agent assignments)
 
 ---
 

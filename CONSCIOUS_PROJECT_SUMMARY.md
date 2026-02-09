@@ -12,8 +12,8 @@
 **Conscious** is a Pi.ai-quality voice companion that runs 100% locally on your RTX 3090 Ti. It features a research-backed philosophical personality (Morgan Freeman-inspired) as the default, with 12+ alternate personalities including the fun Jarvispool (Deadpool + Jarvis).
 
 **GitHub Repository:** https://github.com/Ghenghis/Conscious
-**Local Path:** `D:\conscious`
-**Related Project:** `D:\goose` (Super-Goose - autonomous coding swarm)
+**Local Path:** `G:\goose\external\conscious`
+**Related Project:** `G:\goose` (Super-Goose - autonomous coding swarm)
 
 ---
 
@@ -528,7 +528,7 @@ python -m conscious
 ## 📁 File Structure
 
 ```
-D:\conscious\
+G:\goose\external\conscious\
 ├── README.md                           # Project overview
 ├── config/
 │   └── default.yaml                    # Conscious default config
@@ -696,8 +696,8 @@ Runs entirely on your hardware - complete data control
 ## 🔗 Links & Resources
 
 **GitHub:** https://github.com/Ghenghis/Conscious
-**Local Path:** `D:\conscious`
-**Related Project:** `D:\goose` (Super-Goose - autonomous coding swarm)
+**Local Path:** `G:\goose\external\conscious`
+**Related Project:** `G:\goose` (Super-Goose - autonomous coding swarm)
 
 **Key Documentation:**
 - Read `PERSONALITY_CONSCIOUS_ULTIMATE.md` for complete Conscious spec
@@ -708,7 +708,7 @@ Runs entirely on your hardware - complete data control
 **When Reopening:**
 1. Review this summary document
 2. Check latest GitHub commits
-3. Review `D:\conscious\docs\` for all specs
+3. Review `G:\goose\external\conscious\docs\` for all specs
 4. Start with Moshi voice engine implementation
 
 ---
@@ -732,5 +732,5 @@ In meaning... perhaps... consciousness.
 
 **Created:** February 7, 2026
 **Creator:** User + Claude Sonnet 4.5
-**Location:** `D:\conscious` + GitHub
+**Location:** `G:\goose\external\conscious` + GitHub
 **Next Session:** Implement Moshi voice engine

@@ -171,7 +171,7 @@
 ## ⚡ Quick Fix Script (Top 23 Critical)
 
 ```bash
-cd D:\goose
+cd G:\goose
 
 # 1. Fix all repository checks (13 workflows)
 find .github/workflows -type f \( -name "*.yml" -o -name "*.yaml" \) -exec sed -i \

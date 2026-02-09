@@ -1,9 +1,9 @@
-name: Daily Test Coverage Finder
+# DISABLED: Requires OPENAI_API_KEY and ghcr.io/ghenghis/super-goose Docker image.
+# AI-powered test finder that costs money per run. Schedule was already paused.
+# Re-enable when API keys and Docker image are configured.
+name: Daily Test Coverage Finder (DISABLED)
 
 on:
-  # schedule:
-  #   # Run daily at 2 AM UTC - PAUSED
-  #   - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       dry_run:

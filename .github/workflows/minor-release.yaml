@@ -1,12 +1,12 @@
-name: Create Minor Release PR
+# DISABLED: Scheduled release PR creation requires Block Inc's release tooling (hermit, just).
+# Was running every Tuesday creating PRs that fail. Re-enable when release process is set up.
+name: Create Minor Release PR (DISABLED)
 
 permissions:
   contents: write
   pull-requests: write
 
 on:
-  schedule:
-    - cron: '0 0 * * 2'
   workflow_dispatch:
 
 jobs:

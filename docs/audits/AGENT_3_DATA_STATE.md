@@ -88,7 +88,7 @@ class UIBridge:
 | Audio sample rate | Various | int | 24000/16000 | No |
 
 **Deliverables:**
-1. Create/update `D:\conscious\src\conscious\config.py` with a unified `ConsciousConfig` dataclass
+1. Create/update `G:\goose\external\conscious\src\conscious\config.py` with a unified `ConsciousConfig` dataclass
 2. All hardcoded values should reference the config
 3. Config should load from environment variables with sensible defaults
 4. Document all config keys in a section of README or SETUP.md
@@ -102,8 +102,8 @@ class UIBridge:
 **Problem:** 13 personality profiles are defined as Python dicts in `profile.py`. The original plan was to load from YAML files in `data/personalities/` for user extensibility.
 
 **Files to create/modify:**
-- Create: `D:\conscious\src\conscious\data\personalities\default.yaml` (and 12 more)
-- Modify: `D:\conscious\src\conscious\personality\profile.py`
+- Create: `G:\goose\external\conscious\src\conscious\data\personalities\default.yaml` (and 12 more)
+- Modify: `G:\goose\external\conscious\src\conscious\personality\profile.py`
 
 **Implementation:**
 1. Export each of the 13 profiles from the existing Python dicts to YAML files
@@ -162,7 +162,7 @@ For each persistence write, add validation BEFORE writing:
 
 **Purpose:** Unified interface for conversation history + future semantic memory integration.
 
-**Create:** `D:\conscious\src\conscious\memory\memory_manager.py`
+**Create:** `G:\goose\external\conscious\src\conscious\memory\memory_manager.py`
 
 ```python
 class MemoryManager:
@@ -203,10 +203,10 @@ class MemoryManager:
 ### After Phase 2 (Implementation):
 ```bash
 # Syntax check
-cd D:\conscious && python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
+cd G:\goose\external\conscious && python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
 
 # YAML loading test
-cd D:\conscious && python -c "
+cd G:\goose\external\conscious && python -c "
 from conscious.personality.profile import list_profiles, get_profile
 profiles = list_profiles()
 print(f'Loaded {len(profiles)} profiles')
@@ -217,7 +217,7 @@ print('YAML profile loading OK')
 "
 
 # Config test
-cd D:\conscious && python -c "
+cd G:\goose\external\conscious && python -c "
 from conscious.config import ConsciousConfig
 cfg = ConsciousConfig()
 print(f'API port: {cfg.api_port}')
@@ -232,9 +232,9 @@ print('Config OK')
 
 | Action | File |
 |--------|------|
-| MODIFY | `D:\conscious\src\conscious\agentic\ui_bridge.py` (add asyncio.Lock for _clients) |
-| MODIFY | `D:\conscious\src\conscious\personality\profile.py` (YAML loading) |
-| MODIFY | `D:\conscious\src\conscious\config.py` (unified config) |
-| CREATE | `D:\conscious\src\conscious\data\personalities/*.yaml` (13 files) |
-| CREATE | `D:\conscious\src\conscious\memory\memory_manager.py` |
+| MODIFY | `G:\goose\external\conscious\src\conscious\agentic\ui_bridge.py` (add asyncio.Lock for _clients) |
+| MODIFY | `G:\goose\external\conscious\src\conscious\personality\profile.py` (YAML loading) |
+| MODIFY | `G:\goose\external\conscious\src\conscious\config.py` (unified config) |
+| CREATE | `G:\goose\external\conscious\src\conscious\data\personalities/*.yaml` (13 files) |
+| CREATE | `G:\goose\external\conscious\src\conscious\memory\memory_manager.py` |
 | MODIFY | Various files (data validation on write paths) |

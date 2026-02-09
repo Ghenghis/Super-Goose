@@ -1,8 +1,9 @@
-name: goose Issue Solver
+# DISABLED: Requires ANTHROPIC_API_KEY and ghcr.io/ghenghis/super-goose Docker image.
+# Triggers on issue_comment which fires on EVERY issue comment, causing cascading failures.
+# Costs money per API call. Re-enable when ANTHROPIC_API_KEY is configured.
+name: goose Issue Solver (DISABLED)
 
 on:
-  issue_comment:
-    types: [created]
   workflow_dispatch:
     inputs:
       issue_number:

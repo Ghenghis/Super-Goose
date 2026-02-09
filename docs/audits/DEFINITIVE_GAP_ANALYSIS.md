@@ -224,7 +224,7 @@ The user's original gap analysis listed 7 modules as "NOT WIRED INTO HOT PATH". 
 
 ---
 
-## 7. Voice / Conscious Integration Status (`D:\conscious`)
+## 7. Voice / Conscious Integration Status (`G:\goose\external\conscious`)
 
 ### Current State (Honest Audit)
 

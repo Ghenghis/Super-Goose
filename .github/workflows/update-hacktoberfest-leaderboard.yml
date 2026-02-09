@@ -1,9 +1,9 @@
-name: Update Hacktoberfest Leaderboard
+# DISABLED: Hacktoberfest-specific workflow that runs hourly in October.
+# References block/goose repo and issue #4775 that doesn't exist on this fork.
+# Re-enable during Hacktoberfest if participating.
+name: Update Hacktoberfest Leaderboard (DISABLED)
 
 on:
-  schedule:
-    # Runs every hour at the start of the hour during October (UTC)
-    - cron: '0 * * 10 *'
   workflow_dispatch:
 
 jobs:

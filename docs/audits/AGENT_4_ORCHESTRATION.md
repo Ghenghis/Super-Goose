@@ -42,7 +42,7 @@ Audit each of these subsystems:
 
 **Search command:**
 ```bash
-grep -rn "except.*:" D:\conscious\src\conscious\ --include="*.py"
+grep -rn "except.*:" G:\goose\external\conscious\src\conscious\ --include="*.py"
 ```
 
 **For each exception handler, verify:**
@@ -77,7 +77,7 @@ except aiohttp.ClientError as e:
 
 ### TASK 4.3: Graceful Shutdown Audit
 
-**File:** `D:\conscious\src\conscious\voice\agent_api.py` — `stop_all()` method (around line 257-295)
+**File:** `G:\goose\external\conscious\src\conscious\voice\agent_api.py` — `stop_all()` method (around line 257-295)
 
 **Verify the shutdown sequence stops ALL subsystems:**
 1. Cancel emotion loop task
@@ -137,7 +137,7 @@ async def stop_all(self) -> None:
 
 ### TASK 4.4: ActionQueue Backpressure & Timeout
 
-**File:** `D:\conscious\src\conscious\agentic\action_queue.py`
+**File:** `G:\goose\external\conscious\src\conscious\agentic\action_queue.py`
 
 **Verify/implement:**
 1. Queue has a maximum size (e.g., 100 items) — reject new items when full
@@ -168,7 +168,7 @@ async def _process_action(self, action: IntentResult) -> None:
 
 ### TASK 4.5: GooseBridge Circuit Breaker
 
-**File:** `D:\conscious\src\conscious\agentic\goose_bridge.py`
+**File:** `G:\goose\external\conscious\src\conscious\agentic\goose_bridge.py`
 
 **Problem:** If goosed server is down, every action attempt blocks for the HTTP timeout before failing. Under load, this creates a backlog of stuck requests.
 
@@ -204,7 +204,7 @@ class GooseBridge:
 
 ### TASK 4.6: WakeVAD Pipeline State Machine Completeness
 
-**File:** `D:\conscious\src\conscious\voice\wake_vad.py`
+**File:** `G:\goose\external\conscious\src\conscious\voice\wake_vad.py`
 
 **Verify all state transitions are handled:**
 ```
@@ -226,7 +226,7 @@ STOPPED → (start called) → IDLE
 
 ### TASK 4.7: UIBridge Client Disconnect Handling
 
-**File:** `D:\conscious\src\conscious\agentic\ui_bridge.py`
+**File:** `G:\goose\external\conscious\src\conscious\agentic\ui_bridge.py`
 
 **Verify:**
 1. When a WebSocket client disconnects, it's removed from `_clients` set
@@ -246,10 +246,10 @@ STOPPED → (start called) → IDLE
 ### After Phase 2:
 ```bash
 # Syntax + import check
-cd D:\conscious && python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
+cd G:\goose\external\conscious && python -c "import py_compile; import glob; files=glob.glob('src/conscious/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in files]; print(f'{len(files)} files OK')"
 
 # Verify circuit breaker
-cd D:\conscious && python -c "
+cd G:\goose\external\conscious && python -c "
 from conscious.agentic.goose_bridge import GooseBridge
 bridge = GooseBridge(goosed_url='http://localhost:1')  # intentionally wrong
 import asyncio
@@ -267,9 +267,9 @@ asyncio.run(test())
 
 | Action | File |
 |--------|------|
-| MODIFY | `D:\conscious\src\conscious\voice\agent_api.py` (shutdown improvements) |
-| MODIFY | `D:\conscious\src\conscious\agentic\action_queue.py` (backpressure + timeout) |
-| MODIFY | `D:\conscious\src\conscious\agentic\goose_bridge.py` (circuit breaker) |
-| MODIFY | `D:\conscious\src\conscious\voice\wake_vad.py` (state machine completeness) |
-| MODIFY | `D:\conscious\src\conscious\agentic\ui_bridge.py` (disconnect handling) |
+| MODIFY | `G:\goose\external\conscious\src\conscious\voice\agent_api.py` (shutdown improvements) |
+| MODIFY | `G:\goose\external\conscious\src\conscious\agentic\action_queue.py` (backpressure + timeout) |
+| MODIFY | `G:\goose\external\conscious\src\conscious\agentic\goose_bridge.py` (circuit breaker) |
+| MODIFY | `G:\goose\external\conscious\src\conscious\voice\wake_vad.py` (state machine completeness) |
+| MODIFY | `G:\goose\external\conscious\src\conscious\agentic\ui_bridge.py` (disconnect handling) |
 | AUDIT | All files with try/except blocks |

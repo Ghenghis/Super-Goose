@@ -1,13 +1,8 @@
-name: Publish Ask AI Bot Docker Image
+# DISABLED: Requires GHCR write permissions for Docker image publishing.
+# Re-enable when Docker publishing infrastructure is configured.
+name: Publish Ask AI Bot Docker Image (DISABLED)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "services/ask-ai-bot/**"
-      - "documentation/**"
-      - ".github/workflows/publish-ask-ai-bot.yml"
   workflow_dispatch:
 
 permissions:

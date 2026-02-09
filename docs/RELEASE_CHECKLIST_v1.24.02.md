@@ -2,7 +2,7 @@
 
 **Version:** 1.24.02  
 **Date Created:** February 9, 2026  
-**Primary Repo:** `D:\goose`  
+**Primary Repo:** `G:\goose`  
 **Status:** ~90% Release Ready  
 
 ---
@@ -46,7 +46,7 @@ Goose is a sophisticated enterprise AI agent framework with:
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| Chat Coding files (55+) | ✅ Merged | From worktrees into `D:\goose` |
+| Chat Coding files (55+) | ✅ Merged | From worktrees into `G:\goose` |
 | BaseChat.tsx integration | ✅ Done | Swarm dashboard + compaction indicator JSX |
 | Enterprise panels | ✅ Type-fixed | GuardrailsPanel, HooksPanel, PoliciesPanel |
 | Stub replacements | ✅ All replaced | useContextManagement, personalities, FeatureHighlights |
@@ -85,7 +85,7 @@ Goose is a sophisticated enterprise AI agent framework with:
 
 **Fix:**
 ```bash
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 
 # Check current version
 npm ls react-router-dom
@@ -108,7 +108,7 @@ npm uninstall @types/react-router-dom
 
 **Fix:** Use the local binary directly:
 ```bash
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 
 # Use local electron-forge directly:
 node_modules\.bin\electron-forge.cmd make --platform=win32 --arch=x64
@@ -141,7 +141,7 @@ See [Blocker 1](#blocker-1-react-router-dom-version-mismatch-27-errors) above.
 ### Priority 2: Missing Type Declarations (15 errors)
 
 ```bash
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 
 # Install missing type packages:
 npm install -D @types/lodash           # for lodash/kebabCase
@@ -222,7 +222,7 @@ All test files fail with:
 ### Step 1: Fix Critical TSC Errors
 
 ```bash
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 
 # Fix react-router-dom (see Blocker 1)
 npm ls react-router-dom
@@ -237,7 +237,7 @@ npx tsc --noEmit 2>&1 | Select-String "react-router-dom" | Measure-Object
 
 The Electron Forge build includes Vite compilation. To test just the Vite part:
 ```bash
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 
 # Vite build (renderer only):
 npx vite build
@@ -247,7 +247,7 @@ npx vite build
 ### Step 3: Package the Electron App
 
 ```bash
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 
 # Ensure goosed.exe is in the right place:
 dir src\bin\goosed.exe
@@ -262,7 +262,7 @@ node_modules\.bin\electron-forge.cmd package --platform=win32 --arch=x64
 ### Step 4: Create Windows Installer
 
 ```bash
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 
 # Build installer:
 node_modules\.bin\electron-forge.cmd make --platform=win32 --arch=x64
@@ -289,7 +289,7 @@ dir out\make\
 ### Unit Tests
 
 ```bash
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 
 # Run all tests:
 npx vitest run
@@ -317,7 +317,7 @@ npx vitest run src/components/chat_coding/__tests__/chat-coding.test.tsx
 ### Integration Tests
 
 ```bash
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 
 # E2E tests (requires app running):
 npx playwright test
@@ -351,7 +351,7 @@ npx playwright test --grep "chat"
 After successful build, the following should exist:
 
 ```
-D:\goose\ui\desktop\out\
+G:\goose\ui\desktop\out\
 ├── Goose-win32-x64\           # Unpacked app
 │   ├── Goose.exe              # Main executable (~204MB)
 │   └── resources\
@@ -369,8 +369,8 @@ D:\goose\ui\desktop\out\
 ### No Rust Toolchain
 
 Rust (`cargo`) is not installed on this machine. The `goosed.exe` binary was pre-built and exists at:
-- `D:\goose\build-output\goose-portable-windows-x64\goosed.exe` (179MB)
-- `D:\goose\ui\desktop\src\bin\goosed.exe` (179MB, copy used by Electron)
+- `G:\goose\build-output\goose-portable-windows-x64\goosed.exe` (179MB)
+- `G:\goose\ui\desktop\src\bin\goosed.exe` (179MB, copy used by Electron)
 
 If you need to rebuild Rust:
 ```bash
@@ -378,7 +378,7 @@ If you need to rebuild Rust:
 # https://rustup.rs/
 
 # Build goosed:
-cd D:\goose
+cd G:\goose
 cargo build --release -p goose-server
 # Output: target\release\goosed.exe
 # Copy to: ui\desktop\src\bin\goosed.exe
@@ -425,7 +425,7 @@ Running `npx tsc --noEmit` shows ~99 errors about missing `electron` module. The
 ### Primary Workspace (ALL work goes here)
 
 ```
-D:\goose\                          # Main project root
+G:\goose\                          # Main project root
 ├── ui\desktop\                    # Electron desktop app
 │   ├── src\
 │   │   ├── components\
@@ -472,14 +472,14 @@ C:\Users\Admin\.claude-worktrees\goose\   # Claude Code's worktrees
 ├── friendly-shannon\                      # Worktree branch (already harvested)
 └── ...                                    # Other branches
 
-# Everything useful from these has already been merged into D:\goose.
+# Everything useful from these has already been merged into G:\goose.
 # These can be safely deleted to reclaim disk space.
 ```
 
 ### Separate Project (NOT part of this release)
 
 ```
-D:\conscious\                      # Separate project, not mixed with Goose
+G:\goose\external\conscious\                      # Separate project, not mixed with Goose
 ```
 
 ---
@@ -488,7 +488,7 @@ D:\conscious\                      # Separate project, not mixed with Goose
 
 | Anti-Pattern | Why |
 |-------------|-----|
-| ❌ Edit files in `C:\Users\Admin\.claude-worktrees\` | These are read-only references; all work goes in `D:\goose` |
+| ❌ Edit files in `C:\Users\Admin\.claude-worktrees\` | These are read-only references; all work goes in `G:\goose` |
 | ❌ Use `npx electron-forge make` | Global cache has stale version; use local `node_modules\.bin\electron-forge.cmd` |
 | ❌ Try to fix Electron module errors in `src/main.ts` | These are normal TSC artifacts; Forge handles them |
 | ❌ Add `electron` to renderer dependencies | Would break the build; Electron is a devDependency only |
@@ -496,7 +496,7 @@ D:\conscious\                      # Separate project, not mixed with Goose
 | ❌ Run `cargo build` without installing Rust first | Rust is not installed on this machine |
 | ❌ Edit `openapi.json` manually | Always regenerate with `just generate-openapi` |
 | ❌ Commit with `--no-verify` | Bypasses quality hooks |
-| ❌ Mix `D:\conscious` files into `D:\goose` | Separate projects |
+| ❌ Mix `G:\goose\external\conscious` files into `G:\goose` | Separate projects |
 
 ---
 
@@ -506,14 +506,14 @@ D:\conscious\                      # Separate project, not mixed with Goose
 
 The previous working build from Feb 6 exists at:
 ```
-D:\goose\ui\desktop\out\Goose-win32-x64\Goose.exe    (204MB, Feb 6 2026)
-D:\goose\ui\desktop\out\Goose-win32-x64\resources\bin\goosed.exe  (179MB)
+G:\goose\ui\desktop\out\Goose-win32-x64\Goose.exe    (204MB, Feb 6 2026)
+G:\goose\ui\desktop\out\Goose-win32-x64\resources\bin\goosed.exe  (179MB)
 ```
 
 ### If Code Changes Break Something
 
 ```bash
-cd D:\goose
+cd G:\goose
 
 # See what changed:
 git status
@@ -532,7 +532,7 @@ git reset --hard HEAD
 ### If node_modules Are Corrupted
 
 ```bash
-cd D:\goose\ui\desktop
+cd G:\goose\ui\desktop
 rm -rf node_modules
 rm package-lock.json
 npm install

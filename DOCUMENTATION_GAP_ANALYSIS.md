@@ -2,7 +2,7 @@
 
 **Date:** February 8, 2026
 **Auditor:** Claude Code Session
-**Scope:** D:\goose (Super-Goose) + D:\conscious (Conscious)
+**Scope:** G:\goose (Super-Goose) + G:\goose\external\conscious (Conscious)
 
 ---
 
@@ -227,7 +227,7 @@ SONARQUBE_SETUP_COMPLETE.md → docs/audits/
 
 ## 3. Conscious Integration Gaps (Important)
 
-### What's Designed (in D:\conscious\docs\)
+### What's Designed (in G:\goose\external\conscious\docs\)
 | Component | Doc | Implemented? |
 |-----------|-----|-------------|
 | Architecture | `ARCHITECTURE.md` | Design only |

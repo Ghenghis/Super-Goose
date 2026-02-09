@@ -1,9 +1,7 @@
-# This workflow is triggered by a comment on PR with the text ".bundle-windows"
-# It bundles the Windows Desktop App, then creates a PR comment with a link to download the app.
+# DISABLED: Triggers on issue_comment causing cascading failures on bot comments.
+# Requires Windows signing certs. Re-enable when build infra is ready.
 
 on:
-  issue_comment:
-    types: [created]
   workflow_dispatch:
     inputs:
       pr_number:

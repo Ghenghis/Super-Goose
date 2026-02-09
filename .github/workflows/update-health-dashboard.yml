@@ -1,12 +1,9 @@
-name: Update GitHub Health Dashboard
+# DISABLED: Updates a discussion (#5285) that doesn't exist on this fork.
+# References block/goose issue labels. Runs daily wasting CI minutes.
+# Re-enable if you create the health dashboard discussion.
+name: Update GitHub Health Dashboard (DISABLED)
 
-# Trigger configuration
 on:
-  # Run daily at midnight UTC
-  schedule:
-    - cron: '0 0 * * *'
-  
-  # Allow manual triggering from GitHub UI
   workflow_dispatch:
 
 # Define permissions for the GITHUB_TOKEN

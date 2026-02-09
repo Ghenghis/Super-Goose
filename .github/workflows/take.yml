@@ -1,8 +1,9 @@
-name: Auto-assign issue to contributor
+# DISABLED: Hacktoberfest-only workflow (October). Triggers on every issue_comment
+# which wastes CI minutes. Re-enable during Hacktoberfest.
+name: Auto-assign issue to contributor (DISABLED)
 
 on:
-  issue_comment:
-    types: [created]
+  workflow_dispatch:
 
 jobs:
   assign:

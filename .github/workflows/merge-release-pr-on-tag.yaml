@@ -1,9 +1,9 @@
-name: Merge release PR on tag push
+# DISABLED: Part of Block Inc's release pipeline. Auto-merges release PRs on tag push.
+# Re-enable when full release process is configured.
+name: Merge release PR on tag push (DISABLED)
 
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
 
 permissions:
   actions: write

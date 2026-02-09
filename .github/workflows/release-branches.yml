@@ -1,7 +1,9 @@
-name: Build goose release candidate
+# DISABLED: Builds release candidates on release/ branches. Requires macOS bundling
+# infrastructure. Re-enable when release process is configured.
+name: Build goose release candidate (DISABLED)
 
 on:
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   bundle-desktop:

@@ -1,9 +1,7 @@
-# This workflow is triggered by a comment on PR with the text ".bundle-intel"
-# It bundles the Intel Desktop App, then creates a PR comment with a link to download the app.
+# DISABLED: Triggers on issue_comment causing cascading failures on bot comments.
+# Requires macOS runners for Intel bundling. Re-enable when build infra is ready.
 
 on:
-  issue_comment:
-    types: [created]
   workflow_dispatch:
     inputs:
       pr_number:
