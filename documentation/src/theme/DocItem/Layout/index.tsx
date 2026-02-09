@@ -85,8 +85,12 @@ function CopyPageButton(): ReactNode {
         filter: function (node) {
           if (node.nodeName === 'IFRAME') {
             const src = (node as HTMLElement).getAttribute('src') || '';
-            // Check if it's a video embed (YouTube, Vimeo, etc.)
-            return src.includes('youtube.com') || src.includes('vimeo.com') || src.includes('youtu.be');
+            // Check if it's a video embed (YouTube, Vimeo, etc.) using URL parsing for safety
+            try {
+              const url = new URL(src);
+              const host = url.hostname;
+              return host.endsWith('youtube.com') || host.endsWith('vimeo.com') || host.endsWith('youtu.be');
+            } catch { return false; }
           }
           if (node.nodeName === 'VIDEO') {
             return true;

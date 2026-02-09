@@ -18,6 +18,11 @@ permissions:
 
 jobs:
   security-scan:
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      statuses: write
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
@@ -25,11 +30,22 @@ jobs:
         with:
           egress-policy: audit
       
-      - name: Checkout PR
+      - name: Checkout base branch
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
           fetch-depth: 0
+
+      - name: Fetch PR head for diff comparison
+        run: |
+          git fetch origin "${{ github.event.pull_request.head.sha }}" --depth=1
+
+      - name: Extract recipe files from PR head
+        run: |
+          # Security: only extract recipe YAML files from the PR head, not the full tree.
+          # The scanner Dockerfile and infrastructure remain from the base (trusted) branch.
+          git checkout ${{ github.event.pull_request.head.sha }} -- "documentation/src/pages/recipes/data/recipes/" 2>/dev/null || true
 
       - name: Check if recipe files changed in this push
         id: recipe_changes

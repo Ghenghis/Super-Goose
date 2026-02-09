@@ -15,8 +15,13 @@ on:
 
 name: Live Provider Tests
 
+permissions:
+  contents: read
+
 jobs:
   check-fork:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       has-secrets: ${{ steps.check.outputs.has-secrets }}
@@ -37,6 +42,8 @@ jobs:
           fi
 
   changes:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: check-fork
     outputs:
@@ -59,6 +66,8 @@ jobs:
 
   build-binary:
     name: Build Release Binary
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: [changes, check-fork]
     # Skip expensive build if no secrets available (smoke tests would be skipped anyway)
@@ -81,19 +90,21 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@ad397744b0d591a723ab90405b7247fac0e6b8db  # v2
 
-      - name: Build Release Binary for Smoke Tests
+      - name: Build Binary for Smoke Tests
         run: |
-          cargo build --release
+          cargo build --bin goose
 
       - name: Upload Binary for Smoke Tests
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
           name: goose-binary
-          path: target/release/goose
+          path: target/debug/goose
           retention-days: 1
 
   smoke-tests:
     name: Smoke Tests
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: [build-binary, check-fork]
     # Only run when secrets are actually available (skips gracefully otherwise)
@@ -108,10 +119,10 @@ jobs:
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
         with:
           name: goose-binary
-          path: target/release
+          path: target/debug
 
       - name: Make Binary Executable
-        run: chmod +x target/release/goose
+        run: chmod +x target/debug/goose
 
       - name: Run Smoke Tests with Provider Script
         env:
@@ -170,19 +181,10 @@ jobs:
         run: |
           bash scripts/test_subrecipes.sh
 
-      - name: Run Compaction Tests
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GOOSE_PROVIDER: anthropic
-          GOOSE_MODEL: claude-sonnet-4-5-20250929
-          HOME: /tmp/goose-home
-          GOOSE_DISABLE_KEYRING: 1
-          SKIP_BUILD: 1
-        run: |
-          bash scripts/test_compaction.sh
-
   smoke-tests-code-exec:
     name: Smoke Tests (Code Execution)
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: [build-binary, check-fork]
     # Only run when secrets are actually available (skips gracefully otherwise)
@@ -197,10 +199,10 @@ jobs:
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
         with:
           name: goose-binary
-          path: target/release
+          path: target/debug
 
       - name: Make Binary Executable
-        run: chmod +x target/release/goose
+        run: chmod +x target/debug/goose
 
       - name: Run Provider Tests (Code Execution Mode)
         env:
@@ -220,3 +222,45 @@ jobs:
           mkdir -p $HOME/.local/share/goose/sessions
           mkdir -p $HOME/.config/goose
           bash scripts/test_providers.sh --code-exec
+
+  compaction-tests:
+    name: Compaction Tests
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    needs: build-binary
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Download Binary
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
+        with:
+          name: goose-binary
+          path: target/debug
+
+      - name: Make Binary Executable
+        run: chmod +x target/debug/goose
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b  # v7.2.0
+
+      - name: Run Compaction Tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOSE_PROVIDER: anthropic
+          GOOSE_MODEL: claude-sonnet-4-5-20250929
+          HOME: /tmp/goose-home
+          GOOSE_DISABLE_KEYRING: 1
+          SKIP_BUILD: 1
+        run: |
+          mkdir -p $HOME/.local/share/goose/sessions
+          mkdir -p $HOME/.config/goose
+          bash scripts/test_compaction.sh

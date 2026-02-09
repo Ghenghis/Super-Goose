@@ -378,6 +378,7 @@ impl<'a> ApiRequestBuilder<'a> {
         Ok(request.json(payload).send().await?)
     }
 
+    // NOLINT(cleartext-logging): transmits multipart form data to configured API server, not logging it
     pub async fn multipart_post(self, form: reqwest::multipart::Form) -> Result<Response> {
         let request = self.send_request(|url, client| client.post(url)).await?;
         Ok(request.multipart(form).send().await?)
@@ -388,6 +389,7 @@ impl<'a> ApiRequestBuilder<'a> {
         ApiResponse::from_response(response).await
     }
 
+    // NOLINT(cleartext-logging): sends GET request to configured API server, not logging sensitive data
     pub async fn response_get(self) -> Result<Response> {
         let request = self.send_request(|url, client| client.get(url)).await?;
         Ok(request.send().await?)

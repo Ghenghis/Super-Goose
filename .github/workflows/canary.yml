@@ -16,6 +16,9 @@ name: Canary
 env:
   IS_CANONICAL_REPO: ${{ github.repository == 'Ghenghis/Super-Goose' }}
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -26,6 +29,8 @@ jobs:
   # ------------------------------------
   prepare-version:
     name: Prepare Version
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     # Only run on the canonical repo to prevent fork failures
     if: github.repository == 'Ghenghis/Super-Goose'
@@ -48,6 +53,8 @@ jobs:
   # ------------------------------------
   build-cli:
     needs: [prepare-version]
+    permissions:
+      contents: read
     uses: ./.github/workflows/build-cli.yml
     with:
       version: ${{ needs.prepare-version.outputs.version }}
@@ -57,6 +64,8 @@ jobs:
   # ------------------------------------
   install-script:
     name: Upload Install Script
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: [build-cli]
     steps:
@@ -84,6 +93,8 @@ jobs:
   # ------------------------------------------------------------
   bundle-desktop-linux:
     needs: [prepare-version]
+    permissions:
+      contents: read
     uses: ./.github/workflows/bundle-desktop-linux.yml
     with:
       version: ${{ needs.prepare-version.outputs.version }}
@@ -93,6 +104,8 @@ jobs:
   # ------------------------------------------------------------
   bundle-desktop-windows:
     needs: [prepare-version]
+    permissions:
+      contents: read
     uses: ./.github/workflows/bundle-desktop-windows.yml
     with:
       version: ${{ needs.prepare-version.outputs.version }}

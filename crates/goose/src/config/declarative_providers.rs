@@ -213,6 +213,7 @@ pub fn update_custom_provider(params: UpdateCustomProviderParams) -> Result<()> 
             requires_auth: params.requires_auth,
         };
 
+        // lgtm[rust/path-injection]: updated_config.name is validated by validate_provider_id() above
         let file_path = custom_providers_dir().join(format!("{}.json", updated_config.name));
         let json_content = serde_json::to_string_pretty(&updated_config)?;
         std::fs::write(file_path, json_content)?;

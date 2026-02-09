@@ -2087,8 +2087,18 @@ async function appMain() {
         return;
       }
 
-      // Remove any HTML tags for security
-      const sanitizeText = (text: string) => text.replace(/<[^>]*>/g, '');
+      // Remove any HTML tags and angle brackets for security
+      const sanitizeText = (text: string) => {
+        let result = text;
+        let previous;
+        do {
+          previous = result;
+          result = result.replace(/<[^>]*>/g, '');
+        } while (result !== previous);
+        // Remove any remaining angle brackets that could form partial/nested tags
+        result = result.replace(/[<>]/g, '');
+        return result;
+      };
 
       console.log('NOTIFY', data);
       const notification = new Notification({
