@@ -1,34 +1,14 @@
-import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-// Improved oneDark theme for better comment contrast and readability
-const customOneDarkTheme = {
-  ...oneDark,
-  'code[class*="language-"]': {
-    ...oneDark['code[class*="language-"]'],
-    color: '#e6e6e6',
-    fontSize: '14px',
-  },
-  'pre[class*="language-"]': {
-    ...oneDark['pre[class*="language-"]'],
-    color: '#e6e6e6',
-    fontSize: '14px',
-  },
-  comment: { ...oneDark.comment, color: '#a0a0a0', fontStyle: 'italic' },
-  prolog: { ...oneDark.prolog, color: '#a0a0a0' },
-  doctype: { ...oneDark.doctype, color: '#a0a0a0' },
-  cdata: { ...oneDark.cdata, color: '#a0a0a0' },
-};
 
-import { Check, Copy } from './icons';
 import { wrapHTMLInCodeBlock } from '../utils/htmlSecurity';
 import { isProtocolSafe, getProtocol, BLOCKED_PROTOCOLS } from '../utils/urlSecurity';
+import { EnhancedCodeBlock, DiffCard, parseDiffText, MermaidDiagram, ImagePreviewCard, AudioPlayer } from './chat_coding';
 
 interface CodeProps extends React.ClassAttributes<HTMLElement>, React.HTMLAttributes<HTMLElement> {
   inline?: boolean;
@@ -39,104 +19,69 @@ interface MarkdownContentProps {
   className?: string;
 }
 
-// Memoized CodeBlock component to prevent re-rendering when props haven't changed
-const CodeBlock = memo(function CodeBlock({
-  language,
-  children,
-}: {
-  language: string;
-  children: string;
-}) {
-  const [copied, setCopied] = useState(false);
-  const timeoutRef = useRef<number | null>(null);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(children);
-      setCopied(true);
-
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-
-      timeoutRef.current = window.setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy text: ', err);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Memoize the SyntaxHighlighter component to prevent re-rendering
-  // Only re-render if language or children change
-  const memoizedSyntaxHighlighter = useMemo(() => {
-    // For very large code blocks, consider truncating or lazy loading
-    const isLargeCodeBlock = children.length > 10000; // 10KB threshold
-
-    if (isLargeCodeBlock) {
-      console.log(`Large code block detected (${children.length} chars), consider optimization`);
-    }
-
-    return (
-      <SyntaxHighlighter
-        style={customOneDarkTheme}
-        language={language}
-        PreTag="div"
-        customStyle={{
-          margin: 0,
-          width: '100%',
-          maxWidth: '100%',
-        }}
-        codeTagProps={{
-          style: {
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-            overflowWrap: 'break-word',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '14px',
-          },
-        }}
-        // Performance optimizations for SyntaxHighlighter
-        showLineNumbers={false} // Disable line numbers for better performance
-        wrapLines={false} // Disable line wrapping for better performance
-        lineProps={undefined} // Don't add extra props to each line
-      >
-        {children}
-      </SyntaxHighlighter>
-    );
-  }, [language, children]);
-
-  return (
-    <div className="relative group w-full">
-      <button
-        onClick={handleCopy}
-        className="absolute right-2 bottom-2 p-1.5 rounded-lg bg-gray-700/50 text-gray-300 font-sans text-sm
-                 opacity-0 group-hover:opacity-100 transition-opacity duration-200
-                 hover:bg-gray-600/50 hover:text-gray-100 z-10"
-        title="Copy code"
-      >
-        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-      </button>
-      <div className="w-full overflow-x-auto">{memoizedSyntaxHighlighter}</div>
-    </div>
-  );
-});
-
+/**
+ * Enhanced MarkdownCode component that uses EnhancedCodeBlock for fenced code blocks.
+ * Automatically detects diff content and renders with DiffCard.
+ * Falls back to inline code styling for inline code spans.
+ */
 const MarkdownCode = memo(
   React.forwardRef(function MarkdownCode(
     { inline, className, children, ...props }: CodeProps,
     ref: React.Ref<HTMLElement>
   ) {
     const match = /language-(\w+)/.exec(className || '');
-    return !inline && match ? (
-      <CodeBlock language={match[1]}>{String(children).replace(/\n$/, '')}</CodeBlock>
-    ) : (
+    const code = String(children).replace(/\n$/, '');
+
+    // Fenced code block (has language class)
+    if (!inline && match) {
+      const language = match[1];
+
+      // Detect mermaid language -> render as interactive MermaidDiagram
+      if (language === 'mermaid') {
+        return <MermaidDiagram code={code} />;
+      }
+
+      // Detect diff language -> render as DiffCard
+      if (language === 'diff' && (code.startsWith('--- ') || code.startsWith('diff --git'))) {
+        const parsed = parseDiffText(code);
+        return (
+          <DiffCard
+            filePath={parsed.filePath || 'diff'}
+            status={parsed.status as 'added' | 'modified' | 'deleted' | 'renamed'}
+            additions={parsed.additions}
+            deletions={parsed.deletions}
+            lines={parsed.lines}
+            collapsed={false}
+          />
+        );
+      }
+
+      // Use EnhancedCodeBlock for all other fenced code blocks
+      return (
+        <EnhancedCodeBlock
+          code={code}
+          language={language}
+          showLineNumbers={true}
+          collapsible={true}
+          maxHeight={600}
+        />
+      );
+    }
+
+    // Unfenced but multi-line code block (no language specified)
+    if (!inline && code.includes('\n') && code.split('\n').length > 3) {
+      return (
+        <EnhancedCodeBlock
+          code={code}
+          showLineNumbers={false}
+          collapsible={true}
+          maxHeight={600}
+        />
+      );
+    }
+
+    // Inline code
+    return (
       <code ref={ref} {...props} className="break-all bg-inline-code whitespace-pre-wrap font-mono">
         {children}
       </code>
@@ -240,6 +185,18 @@ const MarkdownContent = memo(function MarkdownContent({
                 }}
               />
             );
+          },
+          img: ({ src, alt, ...imgProps }) => {
+            if (src) {
+              return (
+                <ImagePreviewCard
+                  src={src}
+                  alt={alt || 'Image'}
+                  className="my-2"
+                />
+              );
+            }
+            return <img src={src} alt={alt} {...imgProps} />;
           },
           code: MarkdownCode,
         }}

@@ -24,6 +24,7 @@ import { useIsMobile } from '../hooks/use-mobile';
 import { useSidebar } from './ui/sidebar';
 import { cn } from '../utils';
 import { useChatStream } from '../hooks/useChatStream';
+import { useTaskStream, notificationToTaskEvent } from '../hooks/useTaskStream';
 import { useNavigation } from '../hooks/useNavigation';
 import { RecipeHeader } from './RecipeHeader';
 import { RecipeWarningModal } from './ui/RecipeWarningModal';
@@ -41,6 +42,8 @@ import { Recipe } from '../recipe';
 import { useAutoSubmit } from '../hooks/useAutoSubmit';
 import { Goose } from './icons';
 import EnvironmentBadge from './GooseSidebar/EnvironmentBadge';
+import { SwarmOverview, SwarmProgress, CompactionIndicator } from './chat_coding';
+import type { AgentInfo } from './chat_coding/SwarmOverview';
 
 const CurrentModelContext = createContext<{ model: string; mode: string } | null>(null);
 export const useCurrentModelInfo = () => useContext(CurrentModelContext);
@@ -110,6 +113,89 @@ export default function BaseChat({
     sessionId,
     onStreamFinish,
   });
+
+  // Task stream for agent swarm activities
+  const { activeTasks, emitEvent } = useTaskStream({ sessionId, enabled: true });
+
+  // Derive agent-style info from active tasks for SwarmOverview
+  const agentInfos = useMemo<AgentInfo[]>(() => {
+    if (!activeTasks || activeTasks.length === 0) return [];
+    return activeTasks.map((task) => ({
+      id: task.id,
+      name: task.title,
+      status: task.status === 'running' ? 'running' as const
+        : task.status === 'success' ? 'completed' as const
+        : task.status === 'error' ? 'error' as const
+        : 'idle' as const,
+      currentTask: task.logs?.[task.logs.length - 1]?.message,
+      startedAt: task.startedAt || Date.now(),
+      completedAt: task.completedAt,
+      toolCallCount: task.logs?.length || 0,
+    }));
+  }, [activeTasks]);
+
+  const swarmCounts = useMemo(() => {
+    const completed = agentInfos.filter(a => a.status === 'completed').length;
+    const failed = agentInfos.filter(a => a.status === 'error').length;
+    return { total: agentInfos.length, completed, failed };
+  }, [agentInfos]);
+
+  // Bridge: convert toolCallNotifications into task stream events
+  const prevNotifCountRef = useRef<Map<string, number>>(new Map());
+  const emittedTaskIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    toolCallNotifications.forEach((notifications, requestId) => {
+      const prevCount = prevNotifCountRef.current.get(requestId) || 0;
+
+      // Emit task_started for new tool call IDs we haven't seen before
+      if (!emittedTaskIdsRef.current.has(requestId) && notifications.length > 0) {
+        emittedTaskIdsRef.current.add(requestId);
+        emitEvent({
+          type: 'task_started',
+          taskId: requestId,
+          title: `Tool call ${requestId.slice(0, 8)}`,
+        });
+      }
+
+      // Process only new notifications
+      if (notifications.length > prevCount) {
+        const newNotifications = notifications.slice(prevCount);
+        for (const notif of newNotifications) {
+          const taskEvent = notificationToTaskEvent(
+            { method: 'notifications/message', params: { data: notif.message } },
+            requestId
+          );
+          if (taskEvent) {
+            emitEvent(taskEvent);
+          }
+        }
+      }
+
+      prevNotifCountRef.current.set(requestId, notifications.length);
+    });
+  }, [toolCallNotifications, emitEvent]);
+
+  // Mark tasks as done when tool calls receive responses (chatState returns to idle)
+  const prevChatStateRef = useRef(chatState);
+  useEffect(() => {
+    if (
+      prevChatStateRef.current !== ChatState.Idle &&
+      chatState === ChatState.Idle &&
+      emittedTaskIdsRef.current.size > 0
+    ) {
+      emittedTaskIdsRef.current.forEach((taskId) => {
+        emitEvent({
+          type: 'task_done',
+          taskId,
+          ok: true,
+        });
+      });
+      emittedTaskIdsRef.current.clear();
+      prevNotifCountRef.current.clear();
+    }
+    prevChatStateRef.current = chatState;
+  }, [chatState, emitEvent]);
 
   useAutoSubmit({
     sessionId,
@@ -420,11 +506,22 @@ export default function BaseChat({
 
             {messages.length > 0 || recipe ? (
               <>
+                {agentInfos.length > 0 && (
+                  <div className="mb-4 space-y-2">
+                    <SwarmProgress
+                      totalAgents={swarmCounts.total}
+                      completedAgents={swarmCounts.completed}
+                      failedAgents={swarmCounts.failed}
+                    />
+                    <SwarmOverview agents={agentInfos} />
+                  </div>
+                )}
                 <SearchView>
                   <ProgressiveMessageList
                     messages={messages}
                     chat={{ sessionId }}
                     toolCallNotifications={toolCallNotifications}
+                    activeTasks={activeTasks}
                     append={(text: string) => handleSubmit({ msg: text, images: [] })}
                     isUserMessage={(m: Message) => m.role === 'user'}
                     isStreamingMessage={chatState !== ChatState.Idle}
@@ -443,6 +540,11 @@ export default function BaseChat({
             ) : null}
           </ScrollArea>
 
+          {chatState === ChatState.Compacting && (
+            <div className="absolute top-2 right-4 z-20">
+              <CompactionIndicator isCompacting={true} />
+            </div>
+          )}
           {chatState !== ChatState.Idle && (
             <div className="absolute bottom-1 left-4 z-20 pointer-events-none">
               <LoadingGoose

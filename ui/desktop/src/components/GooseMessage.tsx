@@ -20,6 +20,8 @@ import ElicitationRequest from './ElicitationRequest';
 import MessageCopyLink from './MessageCopyLink';
 import { cn } from '../utils';
 import { identifyConsecutiveToolCalls, shouldHideTimestamp } from '../utils/toolCallChaining';
+import { TaskCardGroup, ThinkingBlock } from './chat_coding';
+import type { TaskState } from '../hooks/useTaskStream';
 
 interface GooseMessageProps {
   sessionId: string;
@@ -27,6 +29,7 @@ interface GooseMessageProps {
   messages: Message[];
   metadata?: string[];
   toolCallNotifications: Map<string, NotificationEvent[]>;
+  activeTasks?: TaskState[];
   append: (value: string) => void;
   isStreaming: boolean;
   submitElicitationResponse?: (
@@ -40,6 +43,7 @@ export default function GooseMessage({
   message,
   messages,
   toolCallNotifications,
+  activeTasks,
   append,
   isStreaming,
   submitElicitationResponse,
@@ -130,14 +134,10 @@ export default function GooseMessage({
     <div className="goose-message flex w-[90%] justify-start min-w-0">
       <div className="flex flex-col w-full min-w-0">
         {cotText && (
-          <details className="bg-background-muted border border-border-default rounded p-2 mb-2">
-            <summary className="cursor-pointer text-sm text-text-muted select-none">
-              Show thinking
-            </summary>
-            <div className="mt-2">
-              <MarkdownContent content={cotText} />
-            </div>
-          </details>
+          <ThinkingBlock
+            content={cotText}
+            isStreaming={isStreaming}
+          />
         )}
 
         {(displayText.trim() || imagePaths.length > 0) && (
@@ -204,6 +204,29 @@ export default function GooseMessage({
                 {!isStreaming && !hideTimestamp && timestamp}
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTasks && activeTasks.length > 0 && (
+          <div className="mt-2">
+            <TaskCardGroup
+              title="Agent Activities"
+              tasks={activeTasks.map((task) => ({
+                id: task.id,
+                title: task.title,
+                status: task.status,
+                progress: task.progress,
+                startedAt: task.startedAt,
+                completedAt: task.completedAt,
+                logs: task.logs,
+                subtasks: task.subtasks.map((st) => ({
+                  id: st.id,
+                  title: st.title,
+                  status: st.status,
+                  logs: st.logs,
+                })),
+              }))}
+            />
           </div>
         )}
 

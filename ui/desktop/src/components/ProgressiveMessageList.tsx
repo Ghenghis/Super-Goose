@@ -23,11 +23,13 @@ import { NotificationEvent } from '../types/message';
 import LoadingGoose from './LoadingGoose';
 import { ChatType } from '../types/chat';
 import { identifyConsecutiveToolCalls, isInChain } from '../utils/toolCallChaining';
+import type { TaskState } from '../hooks/useTaskStream';
 
 interface ProgressiveMessageListProps {
   messages: Message[];
   chat: Pick<ChatType, 'sessionId'>;
   toolCallNotifications?: Map<string, NotificationEvent[]>; // Make optional
+  activeTasks?: TaskState[];
   append?: (value: string) => void; // Make optional
   isUserMessage: (message: Message) => boolean;
   batchSize?: number;
@@ -48,6 +50,7 @@ export default function ProgressiveMessageList({
   messages,
   chat,
   toolCallNotifications = new Map(),
+  activeTasks,
   append = () => {},
   isUserMessage,
   batchSize = 20,
@@ -221,6 +224,11 @@ export default function ProgressiveMessageList({
                 messages={messages}
                 append={append}
                 toolCallNotifications={toolCallNotifications}
+                activeTasks={
+                  index === messagesToRender.length - 1 && message.role === 'assistant'
+                    ? activeTasks
+                    : undefined
+                }
                 isStreaming={
                   isStreamingMessage &&
                   !isUser &&
@@ -242,6 +250,7 @@ export default function ProgressiveMessageList({
     chat,
     append,
     toolCallNotifications,
+    activeTasks,
     isStreamingMessage,
     onMessageUpdate,
     toolCallChains,

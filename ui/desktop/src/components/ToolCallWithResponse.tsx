@@ -20,6 +20,8 @@ import { isUIResource } from '@mcp-ui/client';
 import { CallToolResponse, Content, EmbeddedResource } from '../api';
 import McpAppRenderer from './McpApps/McpAppRenderer';
 import ToolApprovalButtons from './ToolApprovalButtons';
+import { ToolResultCodeBlock, looksLikeCode, FileChangeGroup, detectLanguageFromPath } from './chat_coding';
+import type { FileChange } from './chat_coding';
 
 interface ToolGraphNode {
   tool: string;
@@ -793,6 +795,48 @@ function ToolCallView({
           ))}
         </>
       )}
+
+      {/* File Changes for text_editor write/str_replace */}
+      {!isCancelledMessage && (() => {
+        const toolName = getToolName(toolCall.name);
+        const args = toolCall.arguments || {};
+        const command = args.command as string | undefined;
+        const filePath = (args.path || args.file_path) as string | undefined;
+
+        if (
+          toolName === 'text_editor' &&
+          filePath &&
+          (command === 'write' || command === 'str_replace' || command === 'create')
+        ) {
+          const lang = detectLanguageFromPath(filePath);
+          const fileChange: FileChange = {
+            filePath,
+            status: command === 'write' || command === 'create' ? 'added' : 'modified',
+            additions: typeof args.file_text === 'string'
+              ? args.file_text.split('\n').length
+              : typeof args.new_str === 'string'
+                ? args.new_str.split('\n').length
+                : 0,
+            deletions: typeof args.old_str === 'string'
+              ? args.old_str.split('\n').length
+              : 0,
+            language: lang,
+          };
+
+          return (
+            <div className="border-t border-border-default">
+              <FileChangeGroup
+                files={[fileChange]}
+                collapsed={false}
+                showDiffs={false}
+                className="border-0 rounded-none"
+              />
+            </div>
+          );
+        }
+
+        return null;
+      })()}
     </ToolCallExpandable>
   );
 }
@@ -903,10 +947,18 @@ function ToolResultView({ toolCall, result, isStartExpanded }: ToolResultViewPro
     >
       <div className="pl-4 pr-4 py-4">
         {hasText(result) && (
-          <MarkdownContent
-            content={wrapMarkdown(result.text)}
-            className="whitespace-pre-wrap max-w-full overflow-x-auto"
-          />
+          looksLikeCode(result.text) || ['shell', 'bash', 'text_editor', 'read_file', 'execute', 'execute_command'].includes(getToolName(toolCall.name)) ? (
+            <ToolResultCodeBlock
+              toolName={toolCall.name}
+              toolArgs={toolCall.arguments}
+              content={result.text}
+            />
+          ) : (
+            <MarkdownContent
+              content={wrapMarkdown(result.text)}
+              className="whitespace-pre-wrap max-w-full overflow-x-auto"
+            />
+          )
         )}
         {hasImage(result) && (
           <img
