@@ -157,11 +157,11 @@ export default function ImportRecipeForm({ isOpen, onClose, onSuccess }: ImportR
             }}
           >
             <div className="space-y-4">
-              <importRecipeForm.Subscribe selector={(state) => state.values}>
-                {(values) => (
+              <importRecipeForm.Subscribe selector={(state: { values: { deeplink: string; recipeUploadFile: File | null } }) => state.values}>
+                {(values: { deeplink: string; recipeUploadFile: File | null }) => (
                   <>
                     <importRecipeForm.Field name="deeplink">
-                      {(field) => {
+                      {(field: { state: { value: string; meta: { errors: Array<string | { message?: string } | undefined> } }; handleChange: (value: string) => void; handleBlur: () => void }) => {
                         const isDisabled = values.recipeUploadFile !== null;
 
                         return (
@@ -217,7 +217,7 @@ export default function ImportRecipeForm({ isOpen, onClose, onSuccess }: ImportR
                     </div>
 
                     <importRecipeForm.Field name="recipeUploadFile">
-                      {(field) => {
+                      {(field: { state: { value: File | null; meta: { errors: Array<string | { message?: string } | undefined> } }; handleBlur: () => void }) => {
                         const hasDeeplink = values.deeplink?.trim();
                         const isDisabled = !!hasDeeplink;
 
@@ -286,9 +286,9 @@ export default function ImportRecipeForm({ isOpen, onClose, onSuccess }: ImportR
                 Cancel
               </Button>
               <importRecipeForm.Subscribe
-                selector={(state) => [state.canSubmit, state.isSubmitting]}
+                selector={(state: { canSubmit: boolean; isSubmitting: boolean }) => [state.canSubmit, state.isSubmitting]}
               >
-                {([canSubmit, isSubmitting]) => (
+                {([canSubmit, isSubmitting]: boolean[]) => (
                   <Button
                     type="submit"
                     disabled={!canSubmit || importing || isSubmitting}

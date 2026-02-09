@@ -16,7 +16,7 @@ async function getRecipeHashesDir(): Promise<string> {
   return hashesDir;
 }
 
-ipcMain.handle('has-accepted-recipe-before', async (_event, recipe) => {
+ipcMain.handle('has-accepted-recipe-before', async (_event: Electron.IpcMainInvokeEvent, recipe: unknown) => {
   const hash = calculateRecipeHash(recipe);
   const hashFile = path.join(await getRecipeHashesDir(), `${hash}.hash`);
   try {
@@ -30,7 +30,7 @@ ipcMain.handle('has-accepted-recipe-before', async (_event, recipe) => {
   }
 });
 
-ipcMain.handle('record-recipe-hash', async (_event, recipe) => {
+ipcMain.handle('record-recipe-hash', async (_event: Electron.IpcMainInvokeEvent, recipe: unknown) => {
   const hash = calculateRecipeHash(recipe);
   const filePath = path.join(await getRecipeHashesDir(), `${hash}.hash`);
   const timestamp = new Date().toISOString();

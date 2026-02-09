@@ -43,7 +43,7 @@ export default function CreateRecipeFromSessionModal({
       recipeName: '',
       global: true,
     } as RecipeFormData,
-    onSubmit: async ({ value }) => {
+    onSubmit: async ({ value }: { value: RecipeFormData }) => {
       await handleCreateRecipe(value);
     },
   });

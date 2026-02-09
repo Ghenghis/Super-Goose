@@ -659,7 +659,7 @@ interface UpdaterEvent {
 
 function sendStatusToWindow(event: string, data?: unknown) {
   const windows = BrowserWindow.getAllWindows();
-  windows.forEach((win) => {
+  windows.forEach((win: BrowserWindow) => {
     win.webContents.send('updater-event', { event, data } as UpdaterEvent);
   });
 }

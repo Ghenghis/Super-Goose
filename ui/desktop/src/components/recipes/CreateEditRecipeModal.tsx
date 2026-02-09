@@ -8,7 +8,7 @@ import { ExtensionConfig } from '../ConfigContext';
 import { Button } from '../ui/button';
 
 import { RecipeFormFields } from './shared/RecipeFormFields';
-import { RecipeFormData } from './shared/recipeFormSchema';
+import { RecipeFormData, RecipeParameter } from './shared/recipeFormSchema';
 import { toastSuccess, toastError } from '../../toasts';
 import { saveRecipe } from '../../recipe/recipe_management';
 import { errorMessage } from '../../utils/conversionUtils';
@@ -95,7 +95,7 @@ export default function CreateEditRecipeModal({
 
   const getCurrentRecipe = useCallback((): Recipe => {
     // Transform the internal parameters state into the desired output format.
-    const formattedParameters = parameters.map((param) => {
+    const formattedParameters = parameters.map((param: RecipeParameter) => {
       const formattedParam: Parameter = {
         key: param.key,
         input_type: param.input_type || 'string',
@@ -110,7 +110,7 @@ export default function CreateEditRecipeModal({
 
       // Add options for select input type
       if (param.input_type === 'select' && param.options) {
-        formattedParam.options = param.options.filter((opt) => opt.trim() !== ''); // Filter empty options when saving
+        formattedParam.options = param.options.filter((opt: string) => opt.trim() !== ''); // Filter empty options when saving
       }
 
       return formattedParam;
