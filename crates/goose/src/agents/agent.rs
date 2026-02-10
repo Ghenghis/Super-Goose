@@ -256,9 +256,11 @@ pub struct Agent {
     reasoning_manager: Mutex<ReasoningManager>,
     reflexion_agent: Mutex<ReflexionAgent>,
     #[cfg(feature = "memory")]
-    memory_manager: Mutex<crate::memory::MemoryManager>,
+    pub(crate) memory_manager: Mutex<crate::memory::MemoryManager>,
     #[cfg(feature = "memory")]
     memory_loaded: AtomicBool,
+    #[cfg(feature = "memory")]
+    pub(crate) mem0_client: Mutex<Option<super::mem0_client::Mem0Client>>,
     checkpoint_manager: Mutex<Option<CheckpointManager>>,
     checkpoint_initialized: AtomicBool,
 }
@@ -364,6 +366,8 @@ impl Agent {
             ),
             #[cfg(feature = "memory")]
             memory_loaded: AtomicBool::new(false),
+            #[cfg(feature = "memory")]
+            mem0_client: Mutex::new(None),
             checkpoint_manager: Mutex::new(None),
             checkpoint_initialized: AtomicBool::new(false),
         }
@@ -1732,7 +1736,7 @@ impl Agent {
         #[cfg(feature = "memory")]
         {
             if !self.memory_loaded.load(Ordering::Relaxed) {
-                let memory_mgr = self.memory_manager.lock().await;
+                let mut memory_mgr = self.memory_manager.lock().await;
                 if memory_mgr.config().enabled {
                     match memory_mgr.load_from_disk().await {
                         Ok(0) => { /* No persisted memories on disk */ }
@@ -1740,6 +1744,20 @@ impl Agent {
                         Err(e) => warn!("Failed to load persisted memories (non-blocking): {}", e),
                     }
                 }
+                // Initialize embedding provider (real sentence-transformer or hash fallback)
+                let embedding_dim = memory_mgr.config().embedding_dimension;
+                let provider = crate::memory::embeddings::create_embedding_provider(embedding_dim).await;
+                info!(provider = provider.name(), "Memory embedding provider ready");
+                memory_mgr.set_embedding_provider(provider);
+                drop(memory_mgr); // Release lock before Mem0 initialization
+                // Initialize Mem0 client (graph memory — optional, graceful fallback)
+                let mut mem0 = super::mem0_client::Mem0Client::new();
+                if mem0.check_health().await {
+                    info!("Mem0 graph memory service connected — dual-write enabled");
+                } else {
+                    debug!("Mem0 not available — using local memory only (this is OK)");
+                }
+                *self.mem0_client.lock().await = Some(mem0);
                 self.memory_loaded.store(true, Ordering::Relaxed);
             }
         }
@@ -1768,17 +1786,49 @@ impl Agent {
 
                         match memory_mgr.recall(&query, &recall_ctx).await {
                             Ok(memories) if !memories.is_empty() => {
-                                let memory_context: String = memories.iter()
+                                let mut memory_context: String = memories.iter()
                                     .map(|m| format!("- [{}] {}", m.memory_type, m.content))
                                     .collect::<Vec<_>>()
                                     .join("\n");
+                                // Merge Mem0 graph memory results (if available)
+                                drop(memory_mgr); // Release lock before async Mem0 call
+                                if let Some(ref mem0) = *self.mem0_client.lock().await {
+                                    if mem0.is_available() {
+                                        let mem0_results = mem0.search_memory(&query, &session_config.id).await;
+                                        for r in &mem0_results {
+                                            memory_context.push_str(&format!("\n- [graph] {}", r));
+                                        }
+                                        if !mem0_results.is_empty() {
+                                            info!("Merged {} Mem0 graph memories into context", mem0_results.len());
+                                        }
+                                    }
+                                }
                                 system_prompt.push_str(&format!(
                                     "\n\n[RECALLED MEMORIES]:\n{}\n",
                                     memory_context
                                 ));
-                                info!("Injected {} recalled memories into context", memories.len());
+                                info!("Injected recalled memories into context");
                             }
-                            Ok(_) => { /* No relevant memories */ }
+                            Ok(_) => {
+                                // No local memories — still check Mem0 for graph memories
+                                drop(memory_mgr); // Release lock before async Mem0 call
+                                if let Some(ref mem0) = *self.mem0_client.lock().await {
+                                    if mem0.is_available() {
+                                        let mem0_results = mem0.search_memory(&query, &session_config.id).await;
+                                        if !mem0_results.is_empty() {
+                                            let memory_context: String = mem0_results.iter()
+                                                .map(|r| format!("- [graph] {}", r))
+                                                .collect::<Vec<_>>()
+                                                .join("\n");
+                                            system_prompt.push_str(&format!(
+                                                "\n\n[RECALLED MEMORIES]:\n{}\n",
+                                                memory_context
+                                            ));
+                                            info!("Injected {} Mem0 graph memories into context", mem0_results.len());
+                                        }
+                                    }
+                                }
+                            }
                             Err(e) => {
                                 warn!("Memory recall failed (non-blocking): {}", e);
                             }
@@ -2957,6 +3007,13 @@ impl Agent {
                 warn!("Failed to store user input to working memory (non-blocking): {}", e);
             } else {
                 debug!("Stored user input in working memory for session {}", session_id);
+            }
+        }
+        // Dual-write to Mem0 graph memory (if available)
+        drop(memory_mgr); // Release lock before async Mem0 call
+        if let Some(ref mem0) = *self.mem0_client.lock().await {
+            if mem0.is_available() {
+                let _ = mem0.add_memory(user_text, session_id).await;
             }
         }
     }

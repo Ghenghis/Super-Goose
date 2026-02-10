@@ -91,3 +91,9 @@ clippy-results.json
 canonical_mapping_report.json
 **/.scannerwork/
 goose/audit_out/
+
+# Coverage reports (generated HTML, 450K+ lines)
+ui/desktop/coverage/
+
+# NUL device file (Windows artifact)
+nul

@@ -35,6 +35,7 @@
 //! ```
 
 pub mod consolidation;
+pub mod embeddings;
 pub mod episodic_memory;
 pub mod errors;
 pub mod retrieval;
@@ -554,6 +555,8 @@ pub struct MemoryManager {
     consolidator: Arc<MemoryConsolidator>,
     /// Memory retriever
     retriever: Arc<MemoryRetriever>,
+    /// Embedding provider for real vector embeddings (optional — falls back to hash-based)
+    embedding_provider: Option<Arc<dyn embeddings::EmbeddingProvider>>,
     /// Configuration
     config: MemoryConfig,
 }
@@ -578,8 +581,28 @@ impl MemoryManager {
             semantic,
             consolidator,
             retriever,
+            embedding_provider: None,
             config,
         })
+    }
+
+    /// Set the embedding provider for real vector embeddings.
+    /// When set, semantic store/recall will use real embeddings instead of hash-based fallback.
+    pub fn set_embedding_provider(&mut self, provider: Arc<dyn embeddings::EmbeddingProvider>) {
+        tracing::info!(
+            provider = provider.name(),
+            dimension = provider.dimension(),
+            "Embedding provider configured for memory system"
+        );
+        self.embedding_provider = Some(provider);
+    }
+
+    /// Get the name of the active embedding provider (for diagnostics).
+    pub fn embedding_provider_name(&self) -> &str {
+        self.embedding_provider
+            .as_ref()
+            .map(|p| p.name())
+            .unwrap_or("hash-fallback")
     }
 
     /// Store a new memory entry
@@ -602,6 +625,24 @@ impl MemoryManager {
                 episodic.store(entry)?;
             }
             MemoryType::Semantic | MemoryType::Procedural => {
+                // Pre-compute embedding via provider if available and entry lacks one
+                let mut entry = entry;
+                if entry.embedding.is_none() {
+                    if let Some(ref provider) = self.embedding_provider {
+                        match provider.embed(&entry.content).await {
+                            Ok(emb) => {
+                                entry.embedding = Some(emb);
+                            }
+                            Err(e) => {
+                                tracing::debug!(
+                                    "Embedding provider failed, using hash fallback: {}",
+                                    e
+                                );
+                                // SemanticStore will generate hash-based embedding
+                            }
+                        }
+                    }
+                }
                 let mut semantic = self.semantic.write().await;
                 semantic.store(entry)?;
             }
@@ -635,7 +676,17 @@ impl MemoryManager {
         // Collect from semantic memory
         if context.include_semantic || context.include_procedural {
             let semantic = self.semantic.read().await;
-            let semantic_results = semantic.search(query, context)?;
+            // Use real embedding provider if available for higher quality search
+            let semantic_results = if let Some(ref provider) = self.embedding_provider {
+                match provider.embed(query).await {
+                    Ok(query_embedding) => {
+                        semantic.search_with_embedding(&query_embedding, query, context)?
+                    }
+                    Err(_) => semantic.search(query, context)?, // Fall back to hash
+                }
+            } else {
+                semantic.search(query, context)?
+            };
             results.extend(semantic_results);
         }
 
@@ -926,6 +977,24 @@ impl MemoryStats {
             0.0
         } else {
             self.working_count as f64 / self.working_capacity as f64
+        }
+    }
+
+    /// Episodic memory utilization (0.0 - 1.0)
+    pub fn episodic_utilization(&self) -> f64 {
+        if self.episodic_capacity == 0 {
+            0.0
+        } else {
+            self.episodic_count as f64 / self.episodic_capacity as f64
+        }
+    }
+
+    /// Semantic memory utilization (0.0 - 1.0)
+    pub fn semantic_utilization(&self) -> f64 {
+        if self.semantic_capacity == 0 {
+            0.0
+        } else {
+            self.semantic_count as f64 / self.semantic_capacity as f64
         }
     }
 }

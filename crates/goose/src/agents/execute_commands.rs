@@ -72,6 +72,8 @@ impl Agent {
             "prompt" => self.handle_prompt_command(&params, session_id).await,
             "compact" => self.handle_compact_command(session_id).await,
             "clear" => self.handle_clear_command(session_id).await,
+            #[cfg(feature = "memory")]
+            "memory" | "memories" => self.handle_memory_command(&params, session_id).await,
             _ => {
                 self.handle_recipe_command(command, params_str, session_id)
                     .await
@@ -388,5 +390,93 @@ impl Agent {
             .join("\n\n");
 
         Ok(Some(Message::user().with_text(prompt)))
+    }
+
+    /// Handle /memory command — show stats, list memories, or clear
+    #[cfg(feature = "memory")]
+    async fn handle_memory_command(
+        &self,
+        params: &[&str],
+        _session_id: &str,
+    ) -> Result<Option<Message>> {
+        let memory_mgr = self.memory_manager.lock().await;
+
+        match params.first().copied() {
+            None | Some("stats") | Some("status") => {
+                // Show memory statistics
+                let stats = memory_mgr.stats().await;
+                let provider_name = memory_mgr.embedding_provider_name().to_string();
+                drop(memory_mgr); // Release before checking mem0
+
+                let mem0_status = {
+                    let mem0_guard = self.mem0_client.lock().await;
+                    match mem0_guard.as_ref() {
+                        Some(client) if client.is_available() => "connected",
+                        Some(_) => "configured (offline)",
+                        None => "not configured",
+                    }
+                };
+
+                let output = format!(
+                    "## Memory System Status\n\n\
+                     | Store | Count | Capacity | Utilization |\n\
+                     |-------|------:|------:|-----------:|\n\
+                     | Working | {} | {} | {:.0}% |\n\
+                     | Episodic | {} | {} | {:.0}% |\n\
+                     | Semantic | {} | {} | {:.0}% |\n\
+                     | **Total** | **{}** | | |\n\n\
+                     **Embedding provider:** {}\n\
+                     **Mem0 graph memory:** {}\n\
+                     **Persistence:** ~/.config/goose/memory/memories.json",
+                    stats.working_count,
+                    stats.working_capacity,
+                    stats.working_utilization() * 100.0,
+                    stats.episodic_count,
+                    stats.episodic_capacity,
+                    stats.episodic_utilization() * 100.0,
+                    stats.semantic_count,
+                    stats.semantic_capacity,
+                    stats.semantic_utilization() * 100.0,
+                    stats.total_count(),
+                    provider_name,
+                    mem0_status,
+                );
+
+                Ok(Some(Message::assistant().with_text(output)))
+            }
+            Some("clear") => {
+                memory_mgr.clear().await?;
+                drop(memory_mgr);
+                Ok(Some(
+                    Message::assistant().with_text("All memories cleared."),
+                ))
+            }
+            Some("save") | Some("persist") => {
+                match memory_mgr.save_to_disk().await {
+                    Ok(path) => {
+                        drop(memory_mgr);
+                        Ok(Some(Message::assistant().with_text(format!(
+                            "Memories saved to {}",
+                            path.display()
+                        ))))
+                    }
+                    Err(e) => {
+                        drop(memory_mgr);
+                        Ok(Some(Message::assistant().with_text(format!(
+                            "Failed to save memories: {}",
+                            e
+                        ))))
+                    }
+                }
+            }
+            Some(other) => Ok(Some(Message::assistant().with_text(format!(
+                "Unknown /memory subcommand: `{}`\n\n\
+                 Usage:\n\
+                 - `/memory` or `/memory stats` — Show memory statistics\n\
+                 - `/memory clear` — Clear all memories\n\
+                 - `/memory save` — Persist memories to disk",
+                other
+            )))),
+        }
     }
 }
