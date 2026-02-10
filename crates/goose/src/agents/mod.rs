@@ -14,6 +14,8 @@ pub mod execute_commands;
 pub mod extension;
 #[cfg(feature = "memory")]
 pub mod hitl;
+#[cfg(feature = "memory")]
+pub mod benchmark;
 pub mod extension_malware_check;
 pub mod extension_manager;
 pub mod extension_manager_extension;
