@@ -32,19 +32,23 @@ jobs:
           key: windows-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Build goosed
         run: cargo build --release
+      - name: Copy goosed binary
+        shell: bash
+        run: |
+          mkdir -p ui/desktop/src/bin
+          cp target/release/goosed.exe ui/desktop/src/bin/
       - name: Build Electron app
         working-directory: ui/desktop
         run: |
           npm ci
-          npm run bundle:windows
+          npm run make -- --platform=win32
       - uses: actions/upload-artifact@v4
         with:
           name: goose-windows
           path: |
             ui/desktop/out/**/*.exe
-            ui/desktop/out/**/*.msi
+            ui/desktop/out/**/*.zip
             target/release/goosed.exe
-            target/release/goose.exe
 
   # ─── Desktop: Linux ───────────────────────────────────────────────
   build-linux:
@@ -67,20 +71,30 @@ jobs:
           sudo apt-get install -y protobuf-compiler libssl-dev \
             libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
             libx11-dev libxkbcommon-dev
+      - name: Install Electron system deps
+        run: |
+          sudo apt-get install -y \
+            libnss3-dev libatk-bridge2.0-dev libdrm2 libxcomposite1 \
+            libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 \
+            rpm fakeroot dpkg-dev
       - name: Build goosed
         run: cargo build --release
+      - name: Copy goosed binary
+        run: |
+          mkdir -p ui/desktop/src/bin
+          cp target/release/goosed ui/desktop/src/bin/
+          chmod +x ui/desktop/src/bin/goosed
       - name: Build Electron app
         working-directory: ui/desktop
         run: |
           npm ci
-          npm run bundle:default
+          npm run make -- --platform=linux --arch=x64
       - uses: actions/upload-artifact@v4
         with:
           name: goose-linux
           path: |
             ui/desktop/out/**/*.deb
             ui/desktop/out/**/*.rpm
-            ui/desktop/out/**/*.AppImage
             target/release/goosed
             target/release/goose
 
@@ -94,6 +108,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Add Intel target
         run: rustup target add x86_64-apple-darwin
+      - name: Install protobuf
+        run: brew install protobuf
       - uses: actions/cache@v4
         with:
           path: |
@@ -105,11 +121,16 @@ jobs:
         run: cargo build --release
       - name: Build goosed (Intel)
         run: cargo build --release --target x86_64-apple-darwin
+      - name: Copy goosed binary
+        run: |
+          mkdir -p ui/desktop/src/bin
+          cp target/release/goosed ui/desktop/src/bin/
+          chmod +x ui/desktop/src/bin/goosed
       - name: Build Electron app
         working-directory: ui/desktop
         run: |
           npm ci
-          npm run bundle:default
+          npm run make
       - uses: actions/upload-artifact@v4
         with:
           name: goose-macos
@@ -117,7 +138,6 @@ jobs:
             ui/desktop/out/**/*.dmg
             ui/desktop/out/**/*.zip
             target/release/goosed
-            target/release/goose
 
   # ─── Mobile: iOS ──────────────────────────────────────────────────
   build-ios:
