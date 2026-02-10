@@ -126,6 +126,52 @@ jobs:
         working-directory: ui/desktop
 
   #─────────────────────────────────────────────────────────────
+  # CODE PATH - STAGE 2b: CARGO QUALITY TOOLS (parallel with build)
+  # NON-BLOCKING: continue-on-error lets this job warn without
+  # failing CI. Remove continue-on-error once results are stable.
+  #─────────────────────────────────────────────────────────────
+  cargo-tools:
+    name: Cargo Quality Tools
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [detect-changes, lint-rust]
+    if: needs.detect-changes.outputs.docs-only != 'true' && needs.detect-changes.outputs.rust-changed == 'true'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c  # v1
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@ad397744b0d591a723ab90405b7247fac0e6b8db  # v2
+        with:
+          cache-on-failure: true
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y libdbus-1-dev gnome-keyring libxcb1-dev
+
+      - name: Install cargo tools
+        run: |
+          cargo install cargo-machete --locked || true
+          cargo install cargo-hack --locked || true
+
+      - name: Check for unused dependencies
+        run: cargo machete --skip-target-dir || echo "::warning::cargo-machete found unused dependencies"
+
+      - name: Check no-default-features builds
+        run: |
+          cargo hack check --no-default-features -p goose-cli -p goose -p goose-server 2>&1 || echo "::warning::Some crates fail without default features"
+
+      - name: Check all-features builds
+        run: |
+          cargo hack check --all-features -p goose-cli -p goose -p goose-server 2>&1 || echo "::warning::Some crates fail with all features"
+
+  #─────────────────────────────────────────────────────────────
   # CODE PATH - STAGE 3: BUILD (3-10 minutes, parallel)
   #─────────────────────────────────────────────────────────────
   build-rust:
@@ -280,6 +326,7 @@ jobs:
     needs:
       - detect-changes
       - docs-check
+      - cargo-tools
       - test-rust-unit
       - test-rust-integration
       - test-typescript
@@ -298,12 +345,14 @@ jobs:
           echo ""
           echo "Job Results:"
           echo "  docs-check: ${{ needs.docs-check.result }}"
+          echo "  cargo-tools: ${{ needs.cargo-tools.result }} (non-blocking)"
           echo "  test-rust-unit: ${{ needs.test-rust-unit.result }}"
           echo "  test-rust-integration: ${{ needs.test-rust-integration.result }}"
           echo "  test-typescript: ${{ needs.test-typescript.result }}"
           echo ""
 
           # Determine overall status
+          # NOTE: cargo-tools uses continue-on-error so its failure does not block CI
           if [[ "${{ needs.docs-check.result }}" == "success" ]] || \
              [[ "${{ needs.test-rust-unit.result }}" == "success" && \
                 "${{ needs.test-rust-integration.result }}" == "success" && \

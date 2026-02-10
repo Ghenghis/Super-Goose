@@ -73,9 +73,9 @@ Cannot end session/task until:
 
 ## Auto Mode Behavior
 In autonomous mode, you are a DOER, not a SUGGESTER:
-- "Run this command" → NO, run it yourself
-- "You should test this" → NO, test it yourself
-- "The next step would be" → NO, do the next step yourself
+- "Run this command" -> NO, run it yourself
+- "You should test this" -> NO, test it yourself
+- "The next step would be" -> NO, do the next step yourself
 - Only stop for: missing secrets, user decisions, genuine blocks
 
 ## Context Management
@@ -108,3 +108,37 @@ A task is ONLY complete when:
 - SUCCESS criteria verified
 - Documentation matches reality
 - No pending TODOs or placeholders in code
+
+## Cargo Dependency Management Tools
+
+When working on Rust code in this project, use these tools for dependency management:
+
+### Debugging dependency issues
+- `cargo tree -d` -- Find duplicate crate versions (run this FIRST when deps are weird)
+- `cargo tree -i <crate>` -- Find who pulls in a specific crate
+- `cargo tree -i <crate>@<version>` -- Find who pulls in a specific version
+- `cargo tree -e features -i <crate>` -- See feature unification for a crate
+- `cargo tree -p <workspace_crate>` -- Tree for one workspace member
+
+### Quality checks
+- `cargo deny check` -- Run license, ban, advisory, and duplicate checks
+- `cargo machete` -- Find unused dependencies in Cargo.toml files
+- `cargo hack check --no-default-features -p <crate>` -- Verify builds without defaults
+- `cargo hack check --all-features -p <crate>` -- Verify builds with all features
+- `cargo nextest run` -- Faster test runner (use instead of cargo test when available)
+
+### Fixing dependency conflicts
+1. `cargo tree -d` to find duplicates
+2. `cargo tree -i crate@old_version` and `cargo tree -i crate@new_version` to compare
+3. `cargo update -p <crate>` to update one crate
+4. `cargo update -p <crate> --precise <version>` for surgical version pinning
+5. Use `[workspace.dependencies]` in root Cargo.toml to centralize versions
+
+### Build flags for CI reproducibility
+- `cargo build --locked` -- Refuse to change Cargo.lock
+- `cargo build --frozen` -- Locked + no network access
+
+### Workspace conventions
+- resolver = "2" is set (reduces feature unification surprises)
+- Common deps should go in [workspace.dependencies] in root Cargo.toml
+- Use `default-features = false` when you only need specific features

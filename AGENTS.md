@@ -77,6 +77,28 @@ just run-ui                  # start desktop
 cd ui/desktop && npm test    # test UI
 ```
 
+### Cargo Tools
+```bash
+# Dependency debugging (run FIRST when deps are weird)
+cargo tree -d                              # find duplicate crate versions
+cargo tree -i <crate>                      # who pulls in a crate
+cargo tree -i <crate>@<version>            # who pulls in a specific version
+cargo tree -e features -i <crate>          # feature unification for a crate
+
+# Quality checks
+cargo deny check                           # license, ban, advisory, duplicate checks
+cargo machete                              # find unused deps in Cargo.toml
+cargo nextest run                          # faster test runner
+
+# Fixing conflicts
+cargo update -p <crate>                    # update one crate
+cargo update -p <crate> --precise <ver>    # surgical version pin
+
+# CI flags
+cargo build --locked                       # refuse to change Cargo.lock
+cargo build --frozen                       # locked + no network
+```
+
 ## Structure
 ```
 crates/

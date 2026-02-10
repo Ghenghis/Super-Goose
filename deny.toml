@@ -4,3 +4,8 @@ yanked = "deny"
 # Emulate cargo-audit which only checks vulnerabilities and yanked crates, not unmaintained/unsound.
 unmaintained = "none"
 unsound = "none"
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"
