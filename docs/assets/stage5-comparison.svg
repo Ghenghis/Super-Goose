@@ -1,0 +1,333 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 600" width="1100" height="600">
+  <defs>
+    <filter id="glowRow" x="-2%" y="-10%" width="104%" height="120%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feFlood flood-color="#00BFFF" flood-opacity="0.15" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="shadowDrop" x="-5%" y="-5%" width="110%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="redHeader" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5c0000"/>
+      <stop offset="100%" stop-color="#8B0000"/>
+    </linearGradient>
+    <linearGradient id="blueHeader" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#006994"/>
+      <stop offset="100%" stop-color="#00BFFF"/>
+    </linearGradient>
+    <linearGradient id="vsBadge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#FF8C00"/>
+    </linearGradient>
+    <linearGradient id="arrowGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8B0000"/>
+      <stop offset="50%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#00BFFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1100" height="600" fill="url(#bgGrad)"/>
+  <!-- Subtle grid -->
+  <g opacity="0.03">
+    <line x1="0" y1="100" x2="1100" y2="100" stroke="#fff" stroke-width="1"/>
+    <line x1="0" y1="200" x2="1100" y2="200" stroke="#fff" stroke-width="1"/>
+    <line x1="0" y1="300" x2="1100" y2="300" stroke="#fff" stroke-width="1"/>
+    <line x1="0" y1="400" x2="1100" y2="400" stroke="#fff" stroke-width="1"/>
+    <line x1="0" y1="500" x2="1100" y2="500" stroke="#fff" stroke-width="1"/>
+    <line x1="200" y1="0" x2="200" y2="600" stroke="#fff" stroke-width="1"/>
+    <line x1="400" y1="0" x2="400" y2="600" stroke="#fff" stroke-width="1"/>
+    <line x1="700" y1="0" x2="700" y2="600" stroke="#fff" stroke-width="1"/>
+    <line x1="900" y1="0" x2="900" y2="600" stroke="#fff" stroke-width="1"/>
+  </g>
+
+  <!-- ==================== LEFT PANEL: Stage 4 ==================== -->
+  <g transform="translate(30, 20)">
+    <!-- Panel background -->
+    <rect width="460" height="560" rx="12" fill="#12161c" stroke="#2a1015" stroke-width="1.5" opacity="0.9"/>
+
+    <!-- Header bar -->
+    <rect width="460" height="52" rx="12" fill="url(#redHeader)" filter="url(#shadowDrop)"/>
+    <rect y="26" width="460" height="26" fill="url(#redHeader)"/>
+    <text x="230" y="34" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="1.5">STAGE 4: CURRENT STANDARD</text>
+
+    <!-- Row 1: Single Agent -->
+    <g transform="translate(15, 68)" opacity="0.6">
+      <rect width="430" height="72" rx="10" fill="#1a1520" stroke="#3a1520" stroke-width="1"/>
+      <circle cx="36" cy="36" r="16" fill="#5c1010" stroke="#8B0000" stroke-width="1.5"/>
+      <line x1="28" y1="28" x2="44" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="44" y1="28" x2="28" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Stick figure -->
+      <g transform="translate(72, 10)">
+        <circle cx="12" cy="8" r="6" fill="none" stroke="#665555" stroke-width="1.5"/>
+        <line x1="12" y1="14" x2="12" y2="34" stroke="#665555" stroke-width="1.5"/>
+        <line x1="12" y1="20" x2="2" y2="28" stroke="#665555" stroke-width="1.5"/>
+        <line x1="12" y1="20" x2="22" y2="28" stroke="#665555" stroke-width="1.5"/>
+        <line x1="12" y1="34" x2="4" y2="46" stroke="#665555" stroke-width="1.5"/>
+        <line x1="12" y1="34" x2="20" y2="46" stroke="#665555" stroke-width="1.5"/>
+      </g>
+      <text x="115" y="30" fill="#aa6666" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">Single Agent</text>
+      <text x="115" y="50" fill="#665555" font-family="Segoe UI, Arial, sans-serif" font-size="11">One LLM, one perspective, limited scope</text>
+    </g>
+
+    <!-- Row 2: Static Prompts -->
+    <g transform="translate(15, 148)" opacity="0.6">
+      <rect width="430" height="72" rx="10" fill="#1a1520" stroke="#3a1520" stroke-width="1"/>
+      <circle cx="36" cy="36" r="16" fill="#5c1010" stroke="#8B0000" stroke-width="1.5"/>
+      <line x1="28" y1="28" x2="44" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="44" y1="28" x2="28" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Lock icon -->
+      <g transform="translate(72, 12)">
+        <rect x="4" y="18" width="22" height="16" rx="3" fill="none" stroke="#665555" stroke-width="1.5"/>
+        <path d="M9,18 V12 A6,6 0 0,1 21,12 V18" fill="none" stroke="#665555" stroke-width="1.5"/>
+        <circle cx="15" cy="27" r="2" fill="#665555"/>
+      </g>
+      <text x="115" y="30" fill="#aa6666" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">Static Prompts</text>
+      <text x="115" y="50" fill="#665555" font-family="Segoe UI, Arial, sans-serif" font-size="11">Hardcoded instructions, no learning loop</text>
+    </g>
+
+    <!-- Row 3: No Memory -->
+    <g transform="translate(15, 228)" opacity="0.6">
+      <rect width="430" height="72" rx="10" fill="#1a1520" stroke="#3a1520" stroke-width="1"/>
+      <circle cx="36" cy="36" r="16" fill="#5c1010" stroke="#8B0000" stroke-width="1.5"/>
+      <line x1="28" y1="28" x2="44" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="44" y1="28" x2="28" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Empty brain -->
+      <g transform="translate(72, 10)">
+        <path d="M8,30 C2,28 0,22 2,16 C4,10 10,6 16,8 C18,4 24,2 28,6 C32,4 36,8 36,14 C40,16 40,24 36,28 C34,32 28,36 22,34 C18,38 10,36 8,30 Z" fill="none" stroke="#665555" stroke-width="1.5"/>
+        <line x1="18" y1="14" x2="18" y2="28" stroke="#665555" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+      </g>
+      <text x="115" y="30" fill="#aa6666" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">No Memory</text>
+      <text x="115" y="50" fill="#665555" font-family="Segoe UI, Arial, sans-serif" font-size="11">Context lost after every session</text>
+    </g>
+
+    <!-- Row 4: No Quality Gate -->
+    <g transform="translate(15, 308)" opacity="0.6">
+      <rect width="430" height="72" rx="10" fill="#1a1520" stroke="#3a1520" stroke-width="1"/>
+      <circle cx="36" cy="36" r="16" fill="#5c1010" stroke="#8B0000" stroke-width="1.5"/>
+      <line x1="28" y1="28" x2="44" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="44" y1="28" x2="28" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Open gate -->
+      <g transform="translate(72, 10)">
+        <rect x="4" y="8" width="28" height="32" rx="2" fill="none" stroke="#665555" stroke-width="1.5"/>
+        <line x1="18" y1="8" x2="18" y2="40" stroke="#665555" stroke-width="1" stroke-dasharray="4,3"/>
+        <rect x="4" y="8" width="14" height="32" rx="2" fill="none" stroke="#665555" stroke-width="1.5" transform="rotate(-25, 4, 24)" opacity="0.7"/>
+      </g>
+      <text x="115" y="30" fill="#aa6666" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">No Quality Gate</text>
+      <text x="115" y="50" fill="#665555" font-family="Segoe UI, Arial, sans-serif" font-size="11">Ship and hope, no validation cycle</text>
+    </g>
+
+    <!-- Row 5: Text Only -->
+    <g transform="translate(15, 388)" opacity="0.6">
+      <rect width="430" height="72" rx="10" fill="#1a1520" stroke="#3a1520" stroke-width="1"/>
+      <circle cx="36" cy="36" r="16" fill="#5c1010" stroke="#8B0000" stroke-width="1.5"/>
+      <line x1="28" y1="28" x2="44" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="44" y1="28" x2="28" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Keyboard -->
+      <g transform="translate(72, 14)">
+        <rect x="2" y="6" width="32" height="20" rx="3" fill="none" stroke="#665555" stroke-width="1.5"/>
+        <line x1="8" y1="13" x2="12" y2="13" stroke="#665555" stroke-width="1"/>
+        <line x1="15" y1="13" x2="19" y2="13" stroke="#665555" stroke-width="1"/>
+        <line x1="22" y1="13" x2="28" y2="13" stroke="#665555" stroke-width="1"/>
+        <line x1="10" y1="19" x2="26" y2="19" stroke="#665555" stroke-width="1"/>
+      </g>
+      <text x="115" y="30" fill="#aa6666" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">Text Only</text>
+      <text x="115" y="50" fill="#665555" font-family="Segoe UI, Arial, sans-serif" font-size="11">Keyboard input, no voice or multimodal</text>
+    </g>
+
+    <!-- Row 6: No Security Scan -->
+    <g transform="translate(15, 468)" opacity="0.6">
+      <rect width="430" height="72" rx="10" fill="#1a1520" stroke="#3a1520" stroke-width="1"/>
+      <circle cx="36" cy="36" r="16" fill="#5c1010" stroke="#8B0000" stroke-width="1.5"/>
+      <line x1="28" y1="28" x2="44" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="44" y1="28" x2="28" y2="44" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Unlocked shield -->
+      <g transform="translate(72, 8)">
+        <path d="M16,4 L4,10 V24 C4,34 16,40 16,40 C16,40 28,34 28,24 V10 Z" fill="none" stroke="#665555" stroke-width="1.5"/>
+        <line x1="10" y1="22" x2="22" y2="22" stroke="#665555" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.5"/>
+      </g>
+      <text x="115" y="30" fill="#aa6666" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">No Security Scan</text>
+      <text x="115" y="50" fill="#665555" font-family="Segoe UI, Arial, sans-serif" font-size="11">Vulnerabilities ship undetected</text>
+    </g>
+  </g>
+
+  <!-- ==================== CENTER DIVIDER ==================== -->
+  <g transform="translate(520, 0)">
+    <!-- Vertical dashed line -->
+    <line x1="30" y1="80" x2="30" y2="520" stroke="url(#arrowGrad)" stroke-width="2" stroke-dasharray="6,4" opacity="0.6"/>
+
+    <!-- VS Badge -->
+    <g transform="translate(30, 260)">
+      <circle r="30" fill="url(#vsBadge)" filter="url(#shadowDrop)" opacity="0.95"/>
+      <circle r="26" fill="none" stroke="#fff" stroke-width="1" opacity="0.3"/>
+      <text y="2" fill="#0d1117" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="800" text-anchor="middle" dominant-baseline="middle">VS</text>
+    </g>
+
+    <!-- Evolution arrow -->
+    <g transform="translate(-10, 320)">
+      <text x="40" y="0" fill="#FFD700" font-family="Segoe UI, Arial, sans-serif" font-size="10" font-weight="600" text-anchor="middle" letter-spacing="3" opacity="0.8">EVOLUTION</text>
+      <path d="M10,10 L50,10" stroke="#FFD700" stroke-width="1.5" opacity="0.6"/>
+      <polygon points="50,6 58,10 50,14" fill="#FFD700" opacity="0.6"/>
+    </g>
+  </g>
+
+  <!-- ==================== RIGHT PANEL: Stage 5 ==================== -->
+  <g transform="translate(610, 20)">
+    <!-- Panel background -->
+    <rect width="460" height="560" rx="12" fill="#0f1620" stroke="#0a3050" stroke-width="1.5" opacity="0.95"/>
+
+    <!-- Header bar -->
+    <rect width="460" height="52" rx="12" fill="url(#blueHeader)" filter="url(#shadowDrop)"/>
+    <rect y="26" width="460" height="26" fill="url(#blueHeader)"/>
+    <text x="230" y="34" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="1.5">STAGE 5: SUPER-GOOSE</text>
+
+    <!-- Row 1: 5-Agent Team -->
+    <g transform="translate(15, 68)" filter="url(#glowRow)">
+      <rect width="430" height="72" rx="10" fill="#101828" stroke="#1a3a5c" stroke-width="1"/>
+      <!-- Green check -->
+      <circle cx="36" cy="36" r="16" fill="#0a3020" stroke="#00CC66" stroke-width="1.5"/>
+      <polyline points="26,36 33,44 47,28" fill="none" stroke="#00FF88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- 5 connected figures -->
+      <g transform="translate(68, 8)" fill="none" stroke="#00BFFF" stroke-width="1.2">
+        <circle cx="8" cy="10" r="4"/><line x1="8" y1="14" x2="8" y2="28"/>
+        <circle cx="20" cy="6" r="4"/><line x1="20" y1="10" x2="20" y2="24"/>
+        <circle cx="32" cy="10" r="4"/><line x1="32" y1="14" x2="32" y2="28"/>
+        <circle cx="14" cy="16" r="3"/><line x1="14" y1="19" x2="14" y2="30"/>
+        <circle cx="26" cy="16" r="3"/><line x1="26" y1="19" x2="26" y2="30"/>
+        <line x1="8" y1="18" x2="14" y2="20" opacity="0.5"/>
+        <line x1="14" y1="20" x2="20" y2="16" opacity="0.5"/>
+        <line x1="20" y1="16" x2="26" y2="20" opacity="0.5"/>
+        <line x1="26" y1="20" x2="32" y2="18" opacity="0.5"/>
+        <line x1="8" y1="22" x2="32" y2="22" stroke-dasharray="2,2" opacity="0.3"/>
+      </g>
+      <text x="115" y="30" fill="#55CCFF" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">5-Agent Team</text>
+      <text x="115" y="50" fill="#6699AA" font-family="Segoe UI, Arial, sans-serif" font-size="11">Architect, Coder, Reviewer, Tester, Security</text>
+    </g>
+
+    <!-- Row 2: Self-Evolving Prompts -->
+    <g transform="translate(15, 148)" filter="url(#glowRow)">
+      <rect width="430" height="72" rx="10" fill="#101828" stroke="#2a1a4c" stroke-width="1"/>
+      <circle cx="36" cy="36" r="16" fill="#0a3020" stroke="#00CC66" stroke-width="1.5"/>
+      <polyline points="26,36 33,44 47,28" fill="none" stroke="#00FF88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- DNA helix -->
+      <g transform="translate(72, 6)">
+        <path d="M8,4 C14,10 22,10 28,4" fill="none" stroke="#9966FF" stroke-width="1.5"/>
+        <path d="M8,12 C14,6 22,6 28,12" fill="none" stroke="#9966FF" stroke-width="1.5"/>
+        <path d="M8,20 C14,26 22,26 28,20" fill="none" stroke="#9966FF" stroke-width="1.5"/>
+        <path d="M8,28 C14,22 22,22 28,28" fill="none" stroke="#9966FF" stroke-width="1.5"/>
+        <path d="M8,36 C14,42 22,42 28,36" fill="none" stroke="#9966FF" stroke-width="1.5"/>
+        <circle cx="8" cy="4" r="2" fill="#BB88FF"/>
+        <circle cx="28" cy="4" r="2" fill="#BB88FF"/>
+        <circle cx="18" cy="8" r="1.5" fill="#BB88FF" opacity="0.6"/>
+        <circle cx="18" cy="24" r="1.5" fill="#BB88FF" opacity="0.6"/>
+        <circle cx="8" cy="36" r="2" fill="#BB88FF"/>
+        <circle cx="28" cy="36" r="2" fill="#BB88FF"/>
+      </g>
+      <text x="115" y="30" fill="#BB88FF" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">Self-Evolving Prompts</text>
+      <text x="115" y="50" fill="#7766AA" font-family="Segoe UI, Arial, sans-serif" font-size="11">DSPy-optimized, auto-tuning prompt pipelines</text>
+    </g>
+
+    <!-- Row 3: Graph Memory -->
+    <g transform="translate(15, 228)" filter="url(#glowRow)">
+      <rect width="430" height="72" rx="10" fill="#101828" stroke="#1a3a5c" stroke-width="1"/>
+      <circle cx="36" cy="36" r="16" fill="#0a3020" stroke="#00CC66" stroke-width="1.5"/>
+      <polyline points="26,36 33,44 47,28" fill="none" stroke="#00FF88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Connected nodes -->
+      <g transform="translate(72, 8)">
+        <circle cx="16" cy="20" r="6" fill="#0a2040" stroke="#00BFFF" stroke-width="1.5"/>
+        <circle cx="4" cy="8" r="4" fill="#0a2040" stroke="#00BFFF" stroke-width="1.2"/>
+        <circle cx="30" cy="8" r="4" fill="#0a2040" stroke="#00BFFF" stroke-width="1.2"/>
+        <circle cx="6" cy="36" r="4" fill="#0a2040" stroke="#00BFFF" stroke-width="1.2"/>
+        <circle cx="28" cy="36" r="4" fill="#0a2040" stroke="#00BFFF" stroke-width="1.2"/>
+        <line x1="10" y1="16" x2="6" y2="11" stroke="#00BFFF" stroke-width="1" opacity="0.7"/>
+        <line x1="22" y1="16" x2="28" y2="11" stroke="#00BFFF" stroke-width="1" opacity="0.7"/>
+        <line x1="12" y1="24" x2="8" y2="33" stroke="#00BFFF" stroke-width="1" opacity="0.7"/>
+        <line x1="20" y1="24" x2="26" y2="33" stroke="#00BFFF" stroke-width="1" opacity="0.7"/>
+        <line x1="4" y1="12" x2="6" y2="32" stroke="#00BFFF" stroke-width="0.8" stroke-dasharray="2,2" opacity="0.4"/>
+        <line x1="30" y1="12" x2="28" y2="32" stroke="#00BFFF" stroke-width="0.8" stroke-dasharray="2,2" opacity="0.4"/>
+        <circle cx="16" cy="20" r="3" fill="#00BFFF" opacity="0.3"/>
+      </g>
+      <text x="115" y="30" fill="#55CCFF" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">Graph Memory (Neo4j + Qdrant)</text>
+      <text x="115" y="50" fill="#6699AA" font-family="Segoe UI, Arial, sans-serif" font-size="11">Persistent knowledge graph + vector recall</text>
+    </g>
+
+    <!-- Row 4: Coach/Player QA -->
+    <g transform="translate(15, 308)" filter="url(#glowRow)">
+      <rect width="430" height="72" rx="10" fill="#101828" stroke="#3a1030" stroke-width="1"/>
+      <circle cx="36" cy="36" r="16" fill="#0a3020" stroke="#00CC66" stroke-width="1.5"/>
+      <polyline points="26,36 33,44 47,28" fill="none" stroke="#00FF88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Shield with check + cycle arrow -->
+      <g transform="translate(72, 6)">
+        <path d="M16,2 L2,10 V26 C2,36 16,44 16,44 C16,44 30,36 30,26 V10 Z" fill="#1a0a20" stroke="#FF3366" stroke-width="1.5"/>
+        <polyline points="9,22 14,28 24,16" fill="none" stroke="#FF3366" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M34,10 A22,22 0 0,1 34,36" fill="none" stroke="#FF3366" stroke-width="1" opacity="0.5"/>
+        <polygon points="34,36 31,32 37,32" fill="#FF3366" opacity="0.5"/>
+      </g>
+      <text x="115" y="30" fill="#FF6688" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">Coach/Player 3-Cycle QA</text>
+      <text x="115" y="50" fill="#AA5566" font-family="Segoe UI, Arial, sans-serif" font-size="11">Plan, execute, reflect -- iterative refinement</text>
+    </g>
+
+    <!-- Row 5: Voice Interface -->
+    <g transform="translate(15, 388)" filter="url(#glowRow)">
+      <rect width="430" height="72" rx="10" fill="#101828" stroke="#3a2000" stroke-width="1"/>
+      <circle cx="36" cy="36" r="16" fill="#0a3020" stroke="#00CC66" stroke-width="1.5"/>
+      <polyline points="26,36 33,44 47,28" fill="none" stroke="#00FF88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Microphone + soundwaves -->
+      <g transform="translate(72, 6)">
+        <rect x="12" y="4" width="10" height="20" rx="5" fill="#1a1000" stroke="#FF6600" stroke-width="1.5"/>
+        <path d="M8,18 C8,28 14,32 17,32 C20,32 26,28 26,18" fill="none" stroke="#FF6600" stroke-width="1.2"/>
+        <line x1="17" y1="32" x2="17" y2="40" stroke="#FF6600" stroke-width="1.2"/>
+        <line x1="11" y1="40" x2="23" y2="40" stroke="#FF6600" stroke-width="1.2"/>
+        <path d="M30,12 C34,16 34,24 30,28" fill="none" stroke="#FF8833" stroke-width="1" opacity="0.7"/>
+        <path d="M34,8 C40,14 40,26 34,32" fill="none" stroke="#FF8833" stroke-width="1" opacity="0.5"/>
+        <path d="M38,4 C46,12 46,28 38,36" fill="none" stroke="#FF8833" stroke-width="1" opacity="0.3"/>
+      </g>
+      <text x="115" y="30" fill="#FF8833" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">Voice Interface (&lt;200ms)</text>
+      <text x="115" y="50" fill="#AA6633" font-family="Segoe UI, Arial, sans-serif" font-size="11">Real-time voice coding, sub-200ms latency</text>
+    </g>
+
+    <!-- Row 6: Security -->
+    <g transform="translate(15, 468)" filter="url(#glowRow)">
+      <rect width="430" height="72" rx="10" fill="#101828" stroke="#0a3020" stroke-width="1"/>
+      <circle cx="36" cy="36" r="16" fill="#0a3020" stroke="#00CC66" stroke-width="1.5"/>
+      <polyline points="26,36 33,44 47,28" fill="none" stroke="#00FF88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Locked shield -->
+      <g transform="translate(72, 6)">
+        <path d="M16,2 L2,10 V26 C2,36 16,44 16,44 C16,44 30,36 30,26 V10 Z" fill="#0a2010" stroke="#00CC66" stroke-width="1.5"/>
+        <rect x="10" y="22" width="12" height="10" rx="2" fill="none" stroke="#00FF88" stroke-width="1.2"/>
+        <path d="M13,22 V18 A3,3 0 0,1 19,18 V22" fill="none" stroke="#00FF88" stroke-width="1.2"/>
+        <circle cx="16" cy="27" r="1.5" fill="#00FF88"/>
+        <line x1="32" y1="14" x2="40" y2="14" stroke="#00CC66" stroke-width="1" opacity="0.4"/>
+        <line x1="32" y1="20" x2="38" y2="20" stroke="#00CC66" stroke-width="1" opacity="0.4"/>
+        <line x1="32" y1="26" x2="42" y2="26" stroke="#00CC66" stroke-width="1" opacity="0.4"/>
+        <line x1="32" y1="32" x2="36" y2="32" stroke="#00CC66" stroke-width="1" opacity="0.4"/>
+      </g>
+      <text x="115" y="30" fill="#44DD88" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="600">Semgrep + CrossHair Security</text>
+      <text x="115" y="50" fill="#338855" font-family="Segoe UI, Arial, sans-serif" font-size="11">SAST + symbolic execution, zero CVEs shipped</text>
+    </g>
+  </g>
+
+  <!-- Bottom tagline -->
+  <text x="550" y="594" fill="#4a5568" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle" letter-spacing="2" opacity="0.6">SUPER-GOOSE  --  FROM SINGLE AGENT TO AUTONOMOUS TEAM</text>
+
+  <!-- Animated glow pulse on right panel -->
+  <style>
+    @keyframes pulse {
+      0%, 100% { opacity: 0.08; }
+      50% { opacity: 0.2; }
+    }
+    .glow-border {
+      animation: pulse 3s ease-in-out infinite;
+    }
+  </style>
+  <rect x="610" y="20" width="460" height="560" rx="12" fill="none" stroke="#00BFFF" stroke-width="2" class="glow-border"/>
+</svg>
