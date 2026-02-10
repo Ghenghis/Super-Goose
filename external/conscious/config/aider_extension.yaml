@@ -1,0 +1,49 @@
+# Aider MCP Extension for Goose
+#
+# Exposes Aider's AI pair-programming capabilities as MCP tools.
+# Aider supports 13 code editing strategies, repository mapping,
+# auto-commit with LLM-generated messages, and lint-fix workflows.
+#
+# To add this extension to your Goose profile, include it in the
+# extensions list in your profiles.yaml:
+#
+#   extensions:
+#     aider:
+#       <<: *aider_extension
+#
+# Or inline:
+#
+#   extensions:
+#     aider:
+#       type: stdio
+#       name: aider
+#       cmd: python
+#       args:
+#         - "G:/goose/external/conscious/src/integrations/aider_mcp_server.py"
+#
+# Requirements:
+#   - Python 3.10+
+#   - Aider installed: pip install -e G:/goose/external/aider
+#   - Optional: pip install mcp[cli]>=1.2.0  (for FastMCP mode)
+#
+# Environment variables (optional):
+#   AIDER_MODEL     - Default LLM model for Aider to use
+#   AIDER_YES       - Auto-accept prompts (set by the bridge automatically)
+
+type: stdio
+name: aider
+cmd: python
+args:
+  - "G:/goose/external/conscious/src/integrations/aider_mcp_server.py"
+description: >-
+  Aider-powered code editing with 13 edit strategies including diff,
+  whole-file, architect, unified-diff, and patch modes. Also provides
+  repository mapping, smart auto-commit, and lint-fix capabilities.
+timeout: 360
+bundled: false
+available_tools:
+  - aider_edit
+  - aider_map_repo
+  - aider_commit
+  - aider_lint
+  - aider_strategies
