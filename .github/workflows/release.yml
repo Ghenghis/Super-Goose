@@ -3,6 +3,12 @@
 # WINDOW_SIGNING_ROLE secrets when ready for signed releases.
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag (e.g. v1.24.02). Leave empty to build without releasing.'
+        required: false
+        default: ''
+        type: string
 
 name: Release
 
@@ -107,10 +113,16 @@ jobs:
         with:
           merge-multiple: true
 
-      # Create/update the versioned release
+      - name: List downloaded artifacts
+        run: ls -la
+
+      # Create/update the versioned release (only when version is specified)
       - name: Release versioned
+        if: ${{ inputs.version != '' }}
         uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b  # v1.20.0
         with:
+          tag: ${{ inputs.version }}
+          name: ${{ inputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
           artifacts: |
             goose-*.tar.bz2
@@ -118,14 +130,15 @@ jobs:
             Goose*.zip
             *.deb
             *.rpm
-            *.flatpak
             download_cli.sh
           allowUpdates: true
           omitBody: true
           omitPrereleaseDuringUpdate: true
+          draft: true
 
-      # Create/update the stable release
+      # Create/update the stable release (only when version is specified)
       - name: Release stable
+        if: ${{ inputs.version != '' }}
         uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b  # v1.20.0
         with:
           tag: stable
@@ -137,8 +150,11 @@ jobs:
             Goose*.zip
             *.deb
             *.rpm
-            *.flatpak
             download_cli.sh
           allowUpdates: true
           omitBody: true
           omitPrereleaseDuringUpdate: true
+
+      - name: Build-only summary
+        if: ${{ inputs.version == '' }}
+        run: echo "Build-only run (no version specified). All artifacts uploaded successfully."
