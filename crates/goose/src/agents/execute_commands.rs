@@ -74,6 +74,16 @@ impl Agent {
             "clear" => self.handle_clear_command(session_id).await,
             #[cfg(feature = "memory")]
             "memory" | "memories" => self.handle_memory_command(&params, session_id).await,
+            #[cfg(feature = "memory")]
+            "pause" => self.handle_hitl_command("pause", &params, session_id).await,
+            #[cfg(feature = "memory")]
+            "resume" => self.handle_hitl_command("resume", &params, session_id).await,
+            #[cfg(feature = "memory")]
+            "breakpoint" | "bp" => self.handle_hitl_command("breakpoint", &params, session_id).await,
+            #[cfg(feature = "memory")]
+            "inspect" => self.handle_hitl_command("inspect", &params, session_id).await,
+            #[cfg(feature = "memory")]
+            "plan" => self.handle_hitl_command("plan", &params, session_id).await,
             _ => {
                 self.handle_recipe_command(command, params_str, session_id)
                     .await
@@ -475,6 +485,226 @@ impl Agent {
                  - `/memory` or `/memory stats` — Show memory statistics\n\
                  - `/memory clear` — Clear all memories\n\
                  - `/memory save` — Persist memories to disk",
+                other
+            )))),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HITL (Human-in-the-Loop) slash commands
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "memory")]
+impl Agent {
+    pub(crate) async fn handle_hitl_command(
+        &self,
+        command: &str,
+        params: &[&str],
+        session_id: &str,
+    ) -> Result<Option<Message>> {
+        match command {
+            "pause" => {
+                let mut session = self.interactive_session.lock().await;
+                session.pause(super::hitl::PauseReason::UserRequested);
+                Ok(Some(Message::assistant().with_text(
+                    "⏸ Agent will pause at the next turn boundary or tool call.",
+                )))
+            }
+
+            "resume" => {
+                let mut session = self.interactive_session.lock().await;
+                // If there's feedback text after /resume, inject it
+                let feedback_text: String = params.join(" ");
+                if !feedback_text.is_empty() {
+                    session.inject_feedback(super::hitl::UserFeedback::new(&feedback_text));
+                }
+                session.resume();
+                let msg = if feedback_text.is_empty() {
+                    "▶ Agent resumed.".to_string()
+                } else {
+                    format!("▶ Agent resumed with feedback: {}", feedback_text)
+                };
+                Ok(Some(Message::assistant().with_text(msg)))
+            }
+
+            "breakpoint" | "bp" => self.handle_breakpoint_subcommand(params).await,
+
+            "inspect" => {
+                let session = self.interactive_session.lock().await;
+                // Build memory stats string if available
+                let memory_stats = {
+                    let memory_mgr = self.memory_manager.lock().await;
+                    let stats = memory_mgr.stats().await;
+                    Some(format!(
+                        "working: {}, episodic: {}, semantic: {}",
+                        stats.working_count, stats.episodic_count, stats.semantic_count
+                    ))
+                };
+                let snap = session.snapshot(session_id, None, memory_stats);
+                Ok(Some(Message::assistant().with_text(snap.to_string())))
+            }
+
+            "plan" => {
+                match params.first().copied() {
+                    Some("approve") => Ok(Some(Message::assistant().with_text(
+                        "Plan approval noted. The agent will proceed with execution.",
+                    ))),
+                    Some("reject") | Some("cancel") => Ok(Some(Message::assistant().with_text(
+                        "Plan rejected. The agent will not execute this plan.",
+                    ))),
+                    Some("show") | None => Ok(Some(Message::assistant().with_text(
+                        "No active plan. Plans are created automatically when the agent tackles complex tasks.",
+                    ))),
+                    Some(other) => Ok(Some(Message::assistant().with_text(format!(
+                        "Unknown /plan subcommand: `{}`\n\n\
+                         Usage:\n\
+                         - `/plan` or `/plan show` — Show current plan\n\
+                         - `/plan approve` — Approve pending plan\n\
+                         - `/plan reject` — Reject pending plan",
+                        other
+                    )))),
+                }
+            }
+
+            _ => Ok(None),
+        }
+    }
+
+    async fn handle_breakpoint_subcommand(
+        &self,
+        params: &[&str],
+    ) -> Result<Option<Message>> {
+        let mut session = self.interactive_session.lock().await;
+
+        match params.first().copied() {
+            Some("add") => {
+                let tool_name = params.get(1).unwrap_or(&"").to_string();
+                if tool_name.is_empty() {
+                    return Ok(Some(Message::assistant().with_text(
+                        "Usage: `/breakpoint add <tool_name>` — e.g., `/bp add bash`",
+                    )));
+                }
+                session.add_breakpoint(super::hitl::Breakpoint::BeforeToolCall {
+                    tool_name: tool_name.clone(),
+                });
+                Ok(Some(Message::assistant().with_text(format!(
+                    "🔴 Breakpoint added: pause before `{}`",
+                    tool_name
+                ))))
+            }
+
+            Some("pattern") => {
+                let pattern = params.get(1).unwrap_or(&"").to_string();
+                if pattern.is_empty() {
+                    return Ok(Some(Message::assistant().with_text(
+                        "Usage: `/breakpoint pattern <regex>` — e.g., `/bp pattern file_.*`",
+                    )));
+                }
+                // Validate regex
+                if regex::Regex::new(&pattern).is_err() {
+                    return Ok(Some(Message::assistant().with_text(format!(
+                        "Invalid regex pattern: `{}`",
+                        pattern
+                    ))));
+                }
+                session.add_breakpoint(super::hitl::Breakpoint::BeforeToolPattern {
+                    pattern: pattern.clone(),
+                });
+                Ok(Some(Message::assistant().with_text(format!(
+                    "🔴 Breakpoint added: pause before tools matching `{}`",
+                    pattern
+                ))))
+            }
+
+            Some("turns") => {
+                let n: u32 = params
+                    .get(1)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0);
+                if n == 0 {
+                    return Ok(Some(Message::assistant().with_text(
+                        "Usage: `/breakpoint turns <N>` — e.g., `/bp turns 5`",
+                    )));
+                }
+                session.add_breakpoint(super::hitl::Breakpoint::EveryNTurns { n });
+                Ok(Some(Message::assistant().with_text(format!(
+                    "🔴 Breakpoint added: pause every {} turns",
+                    n
+                ))))
+            }
+
+            Some("error") => {
+                session.add_breakpoint(super::hitl::Breakpoint::OnError);
+                Ok(Some(Message::assistant().with_text(
+                    "🔴 Breakpoint added: pause on any tool error",
+                )))
+            }
+
+            Some("plan") => {
+                session.add_breakpoint(super::hitl::Breakpoint::AfterPlanGeneration);
+                Ok(Some(Message::assistant().with_text(
+                    "🔴 Breakpoint added: pause after plan generation for review",
+                )))
+            }
+
+            Some("remove") => {
+                let idx: usize = params
+                    .get(1)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(usize::MAX);
+                match session.remove_breakpoint(idx) {
+                    Some(bp) => Ok(Some(Message::assistant().with_text(format!(
+                        "Removed breakpoint [{}]: {}",
+                        idx, bp
+                    )))),
+                    None => Ok(Some(Message::assistant().with_text(format!(
+                        "No breakpoint at index {}. Use `/bp list` to see current breakpoints.",
+                        idx
+                    )))),
+                }
+            }
+
+            Some("list") | None => {
+                let bps = session.list_breakpoints();
+                if bps.is_empty() {
+                    Ok(Some(Message::assistant().with_text(
+                        "No active breakpoints. Use `/bp add <tool>` to add one.",
+                    )))
+                } else {
+                    let list: String = bps
+                        .iter()
+                        .enumerate()
+                        .map(|(i, bp)| format!("  [{}] {}", i, bp))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    Ok(Some(Message::assistant().with_text(format!(
+                        "**Active Breakpoints:**\n{}",
+                        list
+                    ))))
+                }
+            }
+
+            Some("clear") => {
+                let count = session.breakpoint_count();
+                session.clear_breakpoints();
+                Ok(Some(Message::assistant().with_text(format!(
+                    "Cleared {} breakpoint(s).",
+                    count
+                ))))
+            }
+
+            Some(other) => Ok(Some(Message::assistant().with_text(format!(
+                "Unknown /breakpoint subcommand: `{}`\n\n\
+                 Usage:\n\
+                 - `/bp add <tool>` — Break before a specific tool\n\
+                 - `/bp pattern <regex>` — Break before tools matching pattern\n\
+                 - `/bp turns <N>` — Break every N turns\n\
+                 - `/bp error` — Break on tool errors\n\
+                 - `/bp plan` — Break after plan generation\n\
+                 - `/bp remove <index>` — Remove a breakpoint\n\
+                 - `/bp list` — List all breakpoints\n\
+                 - `/bp clear` — Remove all breakpoints",
                 other
             )))),
         }

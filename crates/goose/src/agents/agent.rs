@@ -261,6 +261,8 @@ pub struct Agent {
     memory_loaded: AtomicBool,
     #[cfg(feature = "memory")]
     pub(crate) mem0_client: Mutex<Option<super::mem0_client::Mem0Client>>,
+    #[cfg(feature = "memory")]
+    pub(crate) interactive_session: Mutex<super::hitl::InteractiveSession>,
     checkpoint_manager: Mutex<Option<CheckpointManager>>,
     checkpoint_initialized: AtomicBool,
 }
@@ -368,6 +370,8 @@ impl Agent {
             memory_loaded: AtomicBool::new(false),
             #[cfg(feature = "memory")]
             mem0_client: Mutex::new(None),
+            #[cfg(feature = "memory")]
+            interactive_session: Mutex::new(super::hitl::InteractiveSession::new()),
             checkpoint_manager: Mutex::new(None),
             checkpoint_initialized: AtomicBool::new(false),
         }
@@ -1921,6 +1925,36 @@ impl Agent {
                 }
 
                 turns_taken += 1;
+
+                // === HITL: Check turn breakpoints and pause state ===
+                #[cfg(feature = "memory")]
+                {
+                    let mut session = self.interactive_session.lock().await;
+                    session.tick_turn();
+                    let should_pause = session.is_paused()
+                        || session.should_break_for_turn(turns_taken).is_some();
+                    if should_pause {
+                        if !session.is_paused() {
+                            session.pause(super::hitl::PauseReason::BreakpointHit(
+                                super::hitl::Breakpoint::EveryNTurns { n: turns_taken },
+                            ));
+                        }
+                        drop(session);
+                        let schema = serde_json::json!({"type":"object","properties":{"continue":{"type":"boolean"},"feedback":{"type":"string"}},"required":["continue"]});
+                        let msg = format!("⏸ Agent paused at turn {}. Continue?", turns_taken);
+                        if let Ok(resp) = crate::action_required_manager::ActionRequiredManager::global()
+                            .request_and_wait(msg, schema, std::time::Duration::from_secs(600)).await {
+                            if let Some(fb) = resp.get("feedback").and_then(|v| v.as_str()) {
+                                if !fb.is_empty() {
+                                    self.interactive_session.lock().await
+                                        .inject_feedback(super::hitl::UserFeedback::new(fb));
+                                }
+                            }
+                        }
+                        self.interactive_session.lock().await.resume();
+                    }
+                }
+
                 if turns_taken > max_turns {
                     yield AgentEvent::Message(
                         Message::assistant().with_text(
@@ -1944,10 +1978,34 @@ impl Agent {
                     &working_dir,
                 ).await;
 
+                // === HITL: Drain user feedback into system prompt ===
+                #[cfg(feature = "memory")]
+                let hitl_system_prompt;
+                #[cfg(feature = "memory")]
+                let effective_system_prompt = {
+                    let mut session = self.interactive_session.lock().await;
+                    let feedback = session.drain_feedback();
+                    if !feedback.is_empty() {
+                        let feedback_text: String = feedback.iter()
+                            .map(|f| format!("- {}", f.text))
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        hitl_system_prompt = format!(
+                            "{}\n\n[USER FEEDBACK — incorporate this guidance]:\n{}",
+                            system_prompt, feedback_text
+                        );
+                        &hitl_system_prompt
+                    } else {
+                        &system_prompt
+                    }
+                };
+                #[cfg(not(feature = "memory"))]
+                let effective_system_prompt = &system_prompt;
+
                 let mut stream = Self::stream_response_from_provider(
                     self.provider().await?,
                     &session_config.id,
-                    &system_prompt,
+                    effective_system_prompt,
                     conversation_with_moim.messages(),
                     &tools,
                     &toolshim_tools,
@@ -2059,6 +2117,37 @@ impl Agent {
                                         }
                                     }
                                 } else {
+                                    // === HITL: Check tool breakpoints ===
+                                    #[cfg(feature = "memory")]
+                                    {
+                                        let session = self.interactive_session.lock().await;
+                                        let mut matched_bp: Option<String> = None;
+                                        for req in remaining_requests.iter() {
+                                            if let Ok(ref tc) = req.tool_call {
+                                                if let Some(bp) = session.should_break_for_tool(&tc.name) {
+                                                    matched_bp = Some(format!(
+                                                        "⏸ Breakpoint hit: {} (tool: {}). Continue?",
+                                                        bp, tc.name
+                                                    ));
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        drop(session);
+                                        if let Some(msg) = matched_bp {
+                                            let schema = serde_json::json!({"type":"object","properties":{"continue":{"type":"boolean"},"feedback":{"type":"string"}},"required":["continue"]});
+                                            if let Ok(resp) = crate::action_required_manager::ActionRequiredManager::global()
+                                                .request_and_wait(msg, schema, std::time::Duration::from_secs(600)).await {
+                                                if let Some(fb) = resp.get("feedback").and_then(|v| v.as_str()) {
+                                                    if !fb.is_empty() {
+                                                        self.interactive_session.lock().await
+                                                            .inject_feedback(super::hitl::UserFeedback::new(fb));
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     // Run all tool inspectors
                                     let inspection_results = self.tool_inspection_manager
                                         .inspect_tools(

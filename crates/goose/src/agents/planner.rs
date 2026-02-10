@@ -955,6 +955,8 @@ pub struct PlanManager {
     planner: Box<dyn Planner>,
     /// Whether planning is enabled
     enabled: bool,
+    /// Whether plans require user approval before execution (HITL)
+    require_approval: bool,
 }
 
 impl PlanManager {
@@ -963,6 +965,7 @@ impl PlanManager {
             current_plan: None,
             planner: Box::new(SimplePatternPlanner::new()),
             enabled: false,
+            require_approval: false,
         }
     }
 
@@ -977,6 +980,16 @@ impl PlanManager {
 
     pub fn disable(&mut self) {
         self.enabled = false;
+    }
+
+    /// Set whether plans require user approval before execution (HITL).
+    pub fn set_require_approval(&mut self, required: bool) {
+        self.require_approval = required;
+    }
+
+    /// Whether plans require user approval before execution.
+    pub fn requires_approval(&self) -> bool {
+        self.require_approval
     }
 
     pub fn is_enabled(&self) -> bool {

@@ -12,6 +12,8 @@ pub mod dspy_loader;
 pub mod evolution;
 pub mod execute_commands;
 pub mod extension;
+#[cfg(feature = "memory")]
+pub mod hitl;
 pub mod extension_malware_check;
 pub mod extension_manager;
 pub mod extension_manager_extension;
