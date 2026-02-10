@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.4
-# goose CLI and Server Docker Image
+# Super-Goose — AI Agent Platform Docker Image
 # Multi-stage build for minimal final image size
+# Builds both goose CLI and goosed server binaries
 
 # Build stage
 FROM rust:1.82-bookworm AS builder
@@ -29,10 +30,10 @@ ENV CARGO_PROFILE_RELEASE_LTO=true
 ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
 ENV CARGO_PROFILE_RELEASE_OPT_LEVEL=z
 ENV CARGO_PROFILE_RELEASE_STRIP=true
-RUN cargo build --release --package goose-cli
+RUN cargo build --release --package goose-cli --package goose-server
 
 # Runtime stage - minimal Debian
-FROM debian:bookworm-slim@sha256:b1a741487078b369e78119849663d7f1a5341ef2768798f7b7406c4240f86aef
+FROM debian:bookworm-slim
 
 # Install only runtime dependencies
 RUN apt-get update && \
@@ -46,8 +47,9 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy binary from builder
+# Copy binaries from builder
 COPY --from=builder /build/target/release/goose /usr/local/bin/goose
+COPY --from=builder /build/target/release/goosed /usr/local/bin/goosed
 
 # Create non-root user
 RUN useradd -m -u 1000 -s /bin/bash goose && \
@@ -58,6 +60,9 @@ RUN useradd -m -u 1000 -s /bin/bash goose && \
 ENV PATH="/usr/local/bin:${PATH}"
 ENV HOME="/home/goose"
 
+# Expose goosed server port
+EXPOSE 3284
+
 # Switch to non-root user
 USER goose
 WORKDIR /home/goose
@@ -67,7 +72,8 @@ ENTRYPOINT ["/usr/local/bin/goose"]
 CMD ["--help"]
 
 # Labels for metadata
-LABEL org.opencontainers.image.title="goose"
-LABEL org.opencontainers.image.description="goose CLI"
-LABEL org.opencontainers.image.vendor="Block"
-LABEL org.opencontainers.image.source="https://github.com/block/goose"
+LABEL org.opencontainers.image.title="Super-Goose"
+LABEL org.opencontainers.image.description="Super-Goose — AI Agent Platform with 16 integrated tools"
+LABEL org.opencontainers.image.vendor="Ghenghis"
+LABEL org.opencontainers.image.source="https://github.com/Ghenghis/Super-Goose"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
