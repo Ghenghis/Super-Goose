@@ -3,7 +3,7 @@ use crate::cli::StreamableHttpOptions;
 use super::output;
 use super::CliSession;
 use console::style;
-use goose::agents::{Agent, Container};
+use goose::agents::{Agent, Container, ContainerConfig};
 use goose::config::get_enabled_extensions;
 use goose::config::resolve_extensions_for_new_session;
 use goose::config::{get_all_extensions, Config, ExtensionConfig};
@@ -117,6 +117,8 @@ pub struct SessionBuilderConfig {
     pub output_format: String,
     /// Docker container to run stdio extensions inside
     pub container: Option<Container>,
+    /// Auto-create a Docker sandbox container for isolated execution
+    pub sandbox: bool,
     /// Approval policy for shell commands (safe, paranoid, autopilot)
     pub approval_policy: Option<String>,
     /// Execution mode for the agent (freeform, structured)
@@ -148,6 +150,7 @@ impl Default for SessionBuilderConfig {
             quiet: false,
             output_format: "text".to_string(),
             container: None,
+            sandbox: false,
             approval_policy: None,
             execution_mode: None,
         }
@@ -349,12 +352,43 @@ pub async fn build_session(session_config: SessionBuilderConfig) -> CliSession {
     let config = Config::global();
     let agent: Agent = Agent::new();
 
+    // Container setup: either use a pre-existing container ID or auto-create a sandbox
     if session_config.container.is_some() {
         agent.set_container(session_config.container.clone()).await;
+    } else if session_config.sandbox {
+        match Container::create(&ContainerConfig::default()) {
+            Ok(container) => {
+                tracing::info!(
+                    container_id = %container.id(),
+                    "Sandbox container created successfully"
+                );
+                agent.set_container(Some(container)).await;
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to create sandbox container");
+                eprintln!(
+                    "{} Failed to create sandbox container: {}",
+                    style("error:").red().bold(),
+                    e
+                );
+                eprintln!(
+                    "{}",
+                    style("Ensure Docker is installed and running. Continuing without sandbox.")
+                        .dim()
+                );
+            }
+        }
     }
 
+    // When sandbox mode is active and no explicit approval policy was set, default to autopilot
+    let approval_policy = if session_config.sandbox && session_config.approval_policy.is_none() {
+        Some("autopilot".to_string())
+    } else {
+        session_config.approval_policy
+    };
+
     // Set approval policy if provided
-    if let Some(policy_str) = session_config.approval_policy {
+    if let Some(policy_str) = approval_policy {
         let preset = match policy_str.as_str() {
             "safe" => goose::approval::ApprovalPreset::Safe,
             "paranoid" => goose::approval::ApprovalPreset::Paranoid,
@@ -694,6 +728,7 @@ mod tests {
             quiet: false,
             output_format: "text".to_string(),
             container: None,
+            sandbox: false,
             approval_policy: None,
             execution_mode: None,
         };

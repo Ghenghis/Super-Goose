@@ -11,6 +11,7 @@ description.workspace = true
 default = ["memory"]
 memory = []
 swarm-experimental = []
+docker_tests = []
 cuda = ["candle-core/cuda", "candle-nn/cuda"]
 
 [lints]

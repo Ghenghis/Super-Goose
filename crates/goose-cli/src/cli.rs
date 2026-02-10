@@ -109,6 +109,13 @@ pub struct SessionOptions {
     pub container: Option<String>,
 
     #[arg(
+        long = "sandbox",
+        help = "Auto-create a Docker sandbox container for isolated execution",
+        long_help = "Automatically create a new Docker container for sandboxed execution.\nThe container uses python:3.12-slim with network isolation, 512MB memory limit,\nand is destroyed when the session ends.\nImplies --approval-policy=autopilot.\nMutually exclusive with --container."
+    )]
+    pub sandbox: bool,
+
+    #[arg(
         long = "approval-policy",
         value_name = "POLICY",
         help = "Shell command approval policy (safe, paranoid, autopilot)",
@@ -1292,6 +1299,7 @@ async fn handle_interactive_session(
         quiet: false,
         output_format: "text".to_string(),
         container: session_opts.container.map(Container::new),
+        sandbox: session_opts.sandbox,
         approval_policy: session_opts.approval_policy.clone(),
         execution_mode: session_opts.execution_mode.clone(),
     })
@@ -1499,6 +1507,7 @@ async fn handle_run_command(
         quiet: output_opts.quiet,
         output_format: output_opts.output_format,
         container: session_opts.container.map(Container::new),
+        sandbox: session_opts.sandbox,
         approval_policy: session_opts.approval_policy.clone(),
         execution_mode: session_opts.execution_mode.clone(),
     })
@@ -1609,6 +1618,7 @@ async fn handle_default_session() -> Result<()> {
         quiet: false,
         output_format: "text".to_string(),
         container: None,
+        sandbox: false,
         approval_policy: None,
         execution_mode: None,
     })

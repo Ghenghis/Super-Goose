@@ -1775,6 +1775,23 @@ impl Agent {
             }
         }
 
+        // === MEMORY STORE: Save user input as working memory for future recall ===
+        #[cfg(feature = "memory")]
+        {
+            if let Some(last_user_msg) = conversation.messages().iter().rev()
+                .find(|m| m.role == rmcp::model::Role::User)
+            {
+                let user_text: String = last_user_msg.content.iter()
+                    .filter_map(|c| match c {
+                        MessageContent::Text(t) => Some(t.text.as_str()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                self.memory_store_user_input(&session_config.id, &user_text).await;
+            }
+        }
+
         // === REASONING: Inject reasoning mode prompt (ReAct/CoT/ToT) ===
         {
             let reasoning_mgr = self.reasoning_manager.lock().await;
@@ -1924,6 +1941,18 @@ impl Agent {
 
                                 let num_tool_requests = frontend_requests.len() + remaining_requests.len();
                                 if num_tool_requests == 0 {
+                                    // === MEMORY STORE: Save assistant text response as working memory ===
+                                    #[cfg(feature = "memory")]
+                                    {
+                                        let assistant_text: String = response.content.iter()
+                                            .filter_map(|c| match c {
+                                                MessageContent::Text(t) => Some(t.text.as_str()),
+                                                _ => None,
+                                            })
+                                            .collect::<Vec<_>>()
+                                            .join(" ");
+                                        self.memory_store_assistant_response(&session_config.id, &assistant_text).await;
+                                    }
                                     messages_to_add.push(response.clone());
                                     continue;
                                 }
@@ -2486,29 +2515,44 @@ impl Agent {
                         }
                     }
 
-                    // === MEMORY STORE: Save session summary + persist to disk ===
+                    // === MEMORY STORE: Save session summary + extract facts + persist to disk ===
                     #[cfg(feature = "memory")]
                     {
-                        let memory_mgr = self.memory_manager.lock().await;
-                        if memory_mgr.config().enabled {
-                            let msg_count = conversation.messages().len();
-                            let summary = format!(
-                                "Session {} completed with {} messages in working directory {:?}",
-                                session_config.id, msg_count, working_dir
-                            );
-                            let entry = crate::memory::MemoryEntry::new(
-                                crate::memory::MemoryType::Episodic,
-                                summary,
-                            ).with_metadata(
-                                crate::memory::MemoryMetadata::with_source(crate::memory::MemorySource::System)
-                                    .session(session_config.id.clone())
-                            );
-                            if let Err(e) = memory_mgr.store(entry).await {
-                                warn!("Failed to store session memory (non-blocking): {}", e);
+                        // Step 1: Store session summary as episodic memory
+                        {
+                            let memory_mgr = self.memory_manager.lock().await;
+                            if memory_mgr.config().enabled {
+                                let msg_count = conversation.messages().len();
+                                let summary = format!(
+                                    "Session {} completed with {} messages in working directory {:?}",
+                                    session_config.id, msg_count, working_dir
+                                );
+                                let entry = crate::memory::MemoryEntry::new(
+                                    crate::memory::MemoryType::Episodic,
+                                    summary,
+                                ).with_metadata(
+                                    crate::memory::MemoryMetadata::with_source(crate::memory::MemorySource::System)
+                                        .session(session_config.id.clone())
+                                );
+                                if let Err(e) = memory_mgr.store(entry).await {
+                                    warn!("Failed to store session memory (non-blocking): {}", e);
+                                }
                             }
-                            // Persist to disk for cross-session recall (Claude Desktop parity)
-                            if let Err(e) = memory_mgr.save_to_disk().await {
-                                warn!("Failed to persist memories to disk (non-blocking): {}", e);
+                        } // Drop lock before calling helper methods
+
+                        // Step 2: Extract key facts from conversation into semantic memory
+                        self.memory_extract_and_store_facts(
+                            &session_config.id,
+                            conversation.messages(),
+                        ).await;
+
+                        // Step 3: Persist all memories to disk for cross-session recall
+                        {
+                            let memory_mgr = self.memory_manager.lock().await;
+                            if memory_mgr.config().enabled {
+                                if let Err(e) = memory_mgr.save_to_disk().await {
+                                    warn!("Failed to persist memories to disk (non-blocking): {}", e);
+                                }
                             }
                         }
                     }
@@ -2867,6 +2911,150 @@ impl Agent {
 
         tracing::info!("Recipe creation completed successfully");
         Ok(recipe)
+    }
+
+    // === Memory helper methods ===
+
+    /// Store a user message as working memory for the current session.
+    /// This allows the memory system to learn from each turn of conversation.
+    #[cfg(feature = "memory")]
+    async fn memory_store_user_input(&self, session_id: &str, user_text: &str) {
+        if user_text.is_empty() {
+            return;
+        }
+        // Truncate very long inputs to avoid bloating working memory
+        let content = if user_text.len() > 500 {
+            let truncated: String = user_text.chars().take(500).collect();
+            format!("[User] {}...", truncated)
+        } else {
+            format!("[User] {}", user_text)
+        };
+        let entry = crate::memory::MemoryEntry::new(
+            crate::memory::MemoryType::Working,
+            content,
+        )
+        .with_importance(0.6)
+        .with_metadata(
+            crate::memory::MemoryMetadata::with_source(crate::memory::MemorySource::UserInput)
+                .session(session_id.to_string()),
+        );
+        let memory_mgr = self.memory_manager.lock().await;
+        if memory_mgr.config().enabled {
+            if let Err(e) = memory_mgr.store(entry).await {
+                warn!("Failed to store user input to working memory (non-blocking): {}", e);
+            } else {
+                debug!("Stored user input in working memory for session {}", session_id);
+            }
+        }
+    }
+
+    /// Store an assistant response as working memory for the current session.
+    /// Captures the agent's outputs so they can be recalled in future turns.
+    #[cfg(feature = "memory")]
+    async fn memory_store_assistant_response(&self, session_id: &str, assistant_text: &str) {
+        if assistant_text.is_empty() {
+            return;
+        }
+        // Truncate very long responses to avoid bloating working memory
+        let content = if assistant_text.len() > 500 {
+            let truncated: String = assistant_text.chars().take(500).collect();
+            format!("[Assistant] {}...", truncated)
+        } else {
+            format!("[Assistant] {}", assistant_text)
+        };
+        let entry = crate::memory::MemoryEntry::new(
+            crate::memory::MemoryType::Working,
+            content,
+        )
+        .with_importance(0.5)
+        .with_metadata(
+            crate::memory::MemoryMetadata::with_source(crate::memory::MemorySource::AgentResponse)
+                .session(session_id.to_string()),
+        );
+        let memory_mgr = self.memory_manager.lock().await;
+        if memory_mgr.config().enabled {
+            if let Err(e) = memory_mgr.store(entry).await {
+                warn!("Failed to store assistant response to working memory (non-blocking): {}", e);
+            } else {
+                debug!("Stored assistant response in working memory for session {}", session_id);
+            }
+        }
+    }
+
+    /// Extract key facts from a conversation and store them as semantic memories.
+    /// Uses keyword heuristics to identify user preferences, decisions, and important facts.
+    #[cfg(feature = "memory")]
+    async fn memory_extract_and_store_facts(&self, session_id: &str, messages: &[Message]) {
+        let memory_mgr = self.memory_manager.lock().await;
+        if !memory_mgr.config().enabled {
+            return;
+        }
+
+        let mut stored_count = 0usize;
+        // Patterns that indicate a fact worth remembering
+        let fact_indicators: &[&str] = &[
+            "prefer", "always", "never", "important", "remember",
+            "my name", "i use", "i like", "i want", "i need",
+            "project", "working on", "decided", "convention",
+            "password", "secret",  // will be detected but NOT stored (privacy)
+        ];
+        let privacy_terms: &[&str] = &["password", "secret", "token", "key", "credential"];
+
+        for msg in messages {
+            if msg.role != rmcp::model::Role::User {
+                continue;
+            }
+            let text: String = msg.content.iter()
+                .filter_map(|c| match c {
+                    MessageContent::Text(t) => Some(t.text.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+
+            let text_lower = text.to_lowercase();
+
+            // Skip if it contains privacy-sensitive terms
+            if privacy_terms.iter().any(|term| text_lower.contains(term)) {
+                continue;
+            }
+
+            // Check if the message contains any fact indicators
+            let has_fact = fact_indicators.iter().any(|indicator| text_lower.contains(indicator));
+            if !has_fact {
+                continue;
+            }
+
+            // Truncate for storage
+            let fact_content = if text.len() > 300 {
+                let truncated: String = text.chars().take(300).collect();
+                format!("{}...", truncated)
+            } else {
+                text
+            };
+
+            let entry = crate::memory::MemoryEntry::new(
+                crate::memory::MemoryType::Semantic,
+                fact_content,
+            )
+            .with_importance(0.7)
+            .with_metadata(
+                crate::memory::MemoryMetadata::with_source(crate::memory::MemorySource::Inference)
+                    .session(session_id.to_string())
+                    .tag("auto_extracted")
+                    .tag("user_fact"),
+            );
+
+            if let Err(e) = memory_mgr.store(entry).await {
+                warn!("Failed to store extracted fact to semantic memory (non-blocking): {}", e);
+            } else {
+                stored_count += 1;
+            }
+        }
+
+        if stored_count > 0 {
+            info!("Extracted and stored {} facts as semantic memories for session {}", stored_count, session_id);
+        }
     }
 }
 

@@ -54,7 +54,7 @@ pub use agent::{
     Agent, AgentConfig, AgentEvent, CritiqueDecision, ExecutionMode, ExtensionLoadResult,
 };
 pub use capabilities::{AgentCapabilities, CapabilitiesConfig};
-pub use container::Container;
+pub use container::{Container, ContainerConfig, ContainerExecResult};
 pub use critic::{
     AggregatedCritique, Critic, CriticManager, CritiqueContext, CritiqueIssue, CritiqueResult,
 };
