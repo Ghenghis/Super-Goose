@@ -1,0 +1,105 @@
+# Super-Goose External Tools Registry
+# Each tool has a bridge module in src/integrations/ that wraps its functionality
+# for use by Goose agents via the Conscious bridge layer.
+
+[registry]
+version = "1.0"
+bridge_port = 8999        # Conscious API port
+goosed_port = 7878        # Goose server port
+
+[tools.aider]
+name = "Aider"
+description = "AI pair programming with 26+ code editing strategies"
+path = "G:/goose/external/aider"
+bridge_module = "integrations.aider_bridge"
+enabled = true
+capabilities = ["code_edit", "repo_map", "auto_commit", "auto_lint", "voice_input"]
+entry_point = "aider.main"
+python_requires = ">=3.9"
+install_cmd = "pip install -e G:/goose/external/aider"
+
+[tools.aider.endpoints]
+edit_file = { method = "POST", path = "/api/tools/aider/edit" }
+map_repo = { method = "POST", path = "/api/tools/aider/map" }
+auto_commit = { method = "POST", path = "/api/tools/aider/commit" }
+
+[tools.conscious]
+name = "Conscious"
+description = "Voice-first AI companion with emotion detection and personality"
+path = "G:/goose/external/conscious"
+bridge_module = "integrations.conscious_bridge"
+enabled = true
+capabilities = ["voice_io", "emotion_detect", "personality", "memory", "device_control"]
+entry_point = "conscious.server"
+python_requires = ">=3.10"
+
+[tools.conscious.endpoints]
+voice_start = { method = "POST", path = "/api/voice/start" }
+voice_status = { method = "GET", path = "/api/voice/status" }
+voice_audio = { method = "POST", path = "/api/voice/audio" }
+voice_stream = { method = "WS", path = "/api/voice/stream" }
+
+[tools.langgraph]
+name = "LangGraph"
+description = "Graph-based stateful agent workflow orchestration"
+path = "G:/goose/external/langgraph"
+bridge_module = "integrations.langgraph_bridge"
+enabled = true
+capabilities = ["workflow", "checkpoint", "human_in_loop", "time_travel", "parallel"]
+entry_point = "langgraph"
+python_requires = ">=3.10"
+install_cmd = "pip install -e G:/goose/external/langgraph/libs/langgraph"
+
+[tools.langgraph.endpoints]
+create_workflow = { method = "POST", path = "/api/tools/langgraph/workflow" }
+run_workflow = { method = "POST", path = "/api/tools/langgraph/run" }
+checkpoint = { method = "GET", path = "/api/tools/langgraph/checkpoint" }
+resume = { method = "POST", path = "/api/tools/langgraph/resume" }
+
+[tools.openhands]
+name = "OpenHands"
+description = "AI software engineer with Docker sandboxed execution"
+path = "G:/goose/external/OpenHands"
+bridge_module = "integrations.openhands_bridge"
+enabled = true
+capabilities = ["sandbox_exec", "docker", "browser", "multi_agent", "security_scan"]
+entry_point = "openhands"
+python_requires = ">=3.12"
+install_cmd = "pip install -e G:/goose/external/OpenHands"
+requires_docker = true
+
+[tools.openhands.endpoints]
+sandbox_exec = { method = "POST", path = "/api/tools/openhands/exec" }
+browse = { method = "POST", path = "/api/tools/openhands/browse" }
+status = { method = "GET", path = "/api/tools/openhands/status" }
+
+[tools.praisonai]
+name = "PraisonAI"
+description = "High-performance multi-agent framework with workflow engine"
+path = "G:/goose/external/PraisonAI"
+bridge_module = "integrations.praisonai_bridge"
+enabled = true
+capabilities = ["auto_agents", "workflow", "rag", "planning", "100_tools", "mcp"]
+entry_point = "praisonaiagents"
+python_requires = ">=3.10"
+install_cmd = "pip install -e G:/goose/external/PraisonAI/src/praisonai-agents"
+
+[tools.praisonai.endpoints]
+create_agents = { method = "POST", path = "/api/tools/praisonai/agents" }
+run_workflow = { method = "POST", path = "/api/tools/praisonai/workflow" }
+search_knowledge = { method = "POST", path = "/api/tools/praisonai/knowledge" }
+
+[tools.pydantic_ai]
+name = "Pydantic-AI"
+description = "Type-safe AI agent framework with structured output validation"
+path = "G:/goose/external/pydantic-ai"
+bridge_module = "integrations.pydantic_ai_bridge"
+enabled = true
+capabilities = ["typed_output", "validation", "dependency_injection", "durable_exec", "observability"]
+entry_point = "pydantic_ai"
+python_requires = ">=3.10"
+install_cmd = "pip install -e G:/goose/external/pydantic-ai/pydantic-ai-slim"
+
+[tools.pydantic_ai.endpoints]
+validate_output = { method = "POST", path = "/api/tools/pydantic-ai/validate" }
+run_typed_agent = { method = "POST", path = "/api/tools/pydantic-ai/run" }
