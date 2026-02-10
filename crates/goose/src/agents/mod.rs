@@ -40,6 +40,7 @@ mod subagent_task_config;
 pub mod subagent_tool;
 pub mod team;
 pub(crate) mod todo_extension;
+pub(crate) mod tom_extension;
 mod tool_execution;
 pub mod types;
 pub mod workflow_engine;

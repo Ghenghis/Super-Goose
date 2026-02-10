@@ -2,7 +2,7 @@ use anyhow::Result;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    if let Err(e) = goose_cli::logging::setup_logging(None, None) {
+    if let Err(e) = goose_cli::logging::setup_logging(None) {
         eprintln!("Warning: Failed to initialize logging: {}", e);
     }
 
