@@ -12,21 +12,20 @@ const inkeepIntegrationId = process.env.INKEEP_INTEGRATION_ID;
 const inkeepOrgId = process.env.INKEEP_ORG_ID;
 
 const config: Config = {
-  title: "goose",
+  title: "Super-Goose",
   tagline:
-    "your local AI agent, automating engineering tasks seamlessly",
+    "The first self-evolving, voice-enabled, production-grade AI agent platform — 16 integrated tools, 5 specialist agents, overnight self-improvement",
   favicon: "img/favicon.ico",
 
   // Set the production url of your site here
-  url: "https://block.github.io/",
+  url: "https://ghenghis.github.io/",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: process.env.TARGET_PATH || "/goose/",
+  baseUrl: process.env.TARGET_PATH || "/Super-Goose/",
 
   // GitHub pages deployment config.
-  // If you aren't using GitHub pages, you don't need these.
-  organizationName: "block", // Usually your GitHub org/user name.
-  projectName: "goose", // Usually your repo name.
+  organizationName: "Ghenghis", // GitHub org/user name.
+  projectName: "Super-Goose", // Repo name.
 
   onBrokenLinks: "throw",
   
@@ -52,7 +51,7 @@ const config: Config = {
         rel: "alternate",
         type: "text/plain",
         title: "LLM context",
-        href: "/goose/llms.txt",
+        href: "/Super-Goose/llms.txt",
       },
     },
   ],
@@ -354,9 +353,9 @@ const config: Config = {
       respectPrefersColorScheme: true
     },
     navbar: {
-      title: "",
+      title: "Super-Goose",
       logo: {
-        alt: "Block Logo",
+        alt: "Super-Goose Logo",
         src: "img/logo_light.png",
         srcDark: "img/logo_dark.png",
       },
@@ -420,8 +419,13 @@ const config: Config = {
           position: "right",
         },
         {
-          href: "https://github.com/block/goose",
+          href: "https://github.com/Ghenghis/Super-Goose",
           label: "GitHub",
+          position: "right",
+        },
+        {
+          href: "https://github.com/Ghenghis/Super-Goose/releases",
+          label: "Releases",
           position: "right",
         },
       ],
@@ -483,12 +487,12 @@ const config: Config = {
             },
             {
               label: "GitHub",
-              href: "https://github.com/block/goose",
+              href: "https://github.com/Ghenghis/Super-Goose",
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Block, Inc.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Ghenghis — Based on Goose by Block, Inc. — Apache 2.0 License`,
     },
     prism: {
       theme: prismThemes.github,
@@ -502,19 +506,19 @@ const config: Config = {
         primaryBrandColor: "#1E1E1E",
       },
       aiChatSettings: {
-        chatSubjectName: "goose",
+        chatSubjectName: "Super-Goose",
         botAvatarSrcUrl:
           "",
         getHelpCallToActions: [
           {
             name: "GitHub",
-            url: "https://github.com/block/goose",
+            url: "https://github.com/Ghenghis/Super-Goose",
             icon: {
               builtIn: "FaGithub",
             },
           },
         ],
-        quickQuestions: ["What is goose?"],
+        quickQuestions: ["What is Super-Goose?", "How do the 16 tools work?", "What is Stage 5?"],
       },
     },
     // announcementBar: {

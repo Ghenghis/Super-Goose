@@ -1,0 +1,306 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 600" width="1100" height="600">
+  <defs>
+    <!-- Background gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#161b22"/>
+      <stop offset="100%" stop-color="#0d1117"/>
+    </radialGradient>
+    <!-- Glow filters -->
+    <filter id="glowPurple" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feFlood flood-color="#9966FF" flood-opacity="0.4"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowBlue" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feFlood flood-color="#00BFFF" flood-opacity="0.35"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowGreen" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feFlood flood-color="#00CC66" flood-opacity="0.35"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowOrange" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feFlood flood-color="#FF9900" flood-opacity="0.35"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+    <!-- Arrow markers -->
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#00BFFF" opacity="0.8"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#9966FF" opacity="0.8"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#00CC66" opacity="0.8"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FF9900" opacity="0.8"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1100" height="600" fill="url(#bgGrad)" rx="8"/>
+  <!-- Subtle grid -->
+  <g opacity="0.04" stroke="#fff" stroke-width="0.5">
+    <line x1="0" y1="100" x2="1100" y2="100"/>
+    <line x1="0" y1="200" x2="1100" y2="200"/>
+    <line x1="0" y1="300" x2="1100" y2="300"/>
+    <line x1="0" y1="400" x2="1100" y2="400"/>
+    <line x1="0" y1="500" x2="1100" y2="500"/>
+    <line x1="200" y1="0" x2="200" y2="600"/>
+    <line x1="400" y1="0" x2="400" y2="600"/>
+    <line x1="550" y1="0" x2="550" y2="600"/>
+    <line x1="700" y1="0" x2="700" y2="600"/>
+    <line x1="900" y1="0" x2="900" y2="600"/>
+  </g>
+
+  <!-- ============================================ -->
+  <!-- DATA FLOW CONNECTIONS (drawn first, behind)  -->
+  <!-- ============================================ -->
+
+  <!-- Task Trajectories -> Center -->
+  <path d="M 220,140 C 300,160 380,190 430,220" stroke="#00BFFF" stroke-width="2" fill="none" opacity="0.6" stroke-dasharray="6,4" marker-end="url(#arrowBlue)"/>
+  <!-- Entity Graph -> Center -->
+  <path d="M 870,140 C 790,160 720,190 670,220" stroke="#00BFFF" stroke-width="2" fill="none" opacity="0.6" stroke-dasharray="6,4" marker-end="url(#arrowBlue)"/>
+  <!-- Center -> DSPy -->
+  <path d="M 460,330 C 400,370 320,390 280,410" stroke="#9966FF" stroke-width="2" fill="none" opacity="0.6" stroke-dasharray="6,4" marker-end="url(#arrowPurple)"/>
+  <!-- Center -> Inspect -->
+  <path d="M 640,330 C 700,370 780,390 820,410" stroke="#9966FF" stroke-width="2" fill="none" opacity="0.6" stroke-dasharray="6,4" marker-end="url(#arrowPurple)"/>
+  <!-- DSPy -> Nightly Cycle -->
+  <path d="M 240,520 C 320,545 420,555 480,555" stroke="#00CC66" stroke-width="2" fill="none" opacity="0.5" stroke-dasharray="6,4" marker-end="url(#arrowGreen)"/>
+  <!-- Inspect -> Nightly Cycle -->
+  <path d="M 860,520 C 780,545 680,555 620,555" stroke="#FF9900" stroke-width="2" fill="none" opacity="0.5" stroke-dasharray="6,4" marker-end="url(#arrowOrange)"/>
+
+  <!-- ============================================ -->
+  <!-- 1. CENTER: Mem0 Graph Memory                 -->
+  <!-- ============================================ -->
+  <g filter="url(#glowPurple)">
+    <rect x="400" y="200" width="300" height="140" rx="16" fill="#1a1030" stroke="#9966FF" stroke-width="2.5"/>
+  </g>
+  <!-- Inner accent line -->
+  <rect x="400" y="200" width="300" height="4" rx="2" fill="#9966FF" opacity="0.7"/>
+  <!-- Title -->
+  <text x="550" y="234" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700">Mem0 Graph Memory</text>
+  <!-- Divider -->
+  <line x1="430" y1="248" x2="670" y2="248" stroke="#9966FF" stroke-width="0.8" opacity="0.4"/>
+  <!-- Neo4j icon placeholder -->
+  <rect x="430" y="260" width="110" height="32" rx="6" fill="#1e2a38" stroke="#4488CC" stroke-width="1" opacity="0.9"/>
+  <text x="485" y="281" text-anchor="middle" fill="#66AADD" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="600">Neo4j</text>
+  <!-- Neo4j mini icon: three connected dots -->
+  <circle cx="446" cy="276" r="4" fill="none" stroke="#66AADD" stroke-width="1.2"/>
+  <circle cx="462" cy="269" r="3" fill="none" stroke="#66AADD" stroke-width="1.2"/>
+  <circle cx="462" cy="283" r="3" fill="none" stroke="#66AADD" stroke-width="1.2"/>
+  <line x1="450" y1="274" x2="459" y2="270" stroke="#66AADD" stroke-width="0.8"/>
+  <line x1="450" y1="278" x2="459" y2="282" stroke="#66AADD" stroke-width="0.8"/>
+  <!-- Qdrant icon placeholder -->
+  <rect x="560" y="260" width="110" height="32" rx="6" fill="#1e2a38" stroke="#CC6688" stroke-width="1" opacity="0.9"/>
+  <text x="615" y="281" text-anchor="middle" fill="#DD88AA" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="600">Qdrant</text>
+  <!-- Qdrant mini icon: vector points -->
+  <circle cx="576" cy="273" r="2.5" fill="#DD88AA"/>
+  <circle cx="584" cy="280" r="2.5" fill="#DD88AA"/>
+  <circle cx="576" cy="280" r="1.5" fill="#DD88AA" opacity="0.5"/>
+  <circle cx="584" cy="273" r="1.5" fill="#DD88AA" opacity="0.5"/>
+  <line x1="576" y1="273" x2="584" y2="280" stroke="#DD88AA" stroke-width="0.7" opacity="0.6"/>
+  <!-- Subtitle -->
+  <text x="550" y="316" text-anchor="middle" fill="#aaa" font-family="Segoe UI, Arial, sans-serif" font-size="11">Knowledge Graph + Vector Embeddings</text>
+  <!-- Pulsing ring around center -->
+  <rect x="394" y="194" width="312" height="152" rx="20" fill="none" stroke="#9966FF" stroke-width="1" opacity="0.25">
+    <animate attributeName="opacity" values="0.25;0.08;0.25" dur="3s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- ============================================ -->
+  <!-- 2. TOP-LEFT: Task Trajectories               -->
+  <!-- ============================================ -->
+  <g filter="url(#glowBlue)">
+    <rect x="30" y="40" width="230" height="115" rx="12" fill="#0d1a2a" stroke="#00BFFF" stroke-width="1.8"/>
+  </g>
+  <rect x="30" y="40" width="230" height="3" rx="1.5" fill="#00BFFF" opacity="0.6"/>
+  <text x="145" y="68" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">Task Trajectories</text>
+  <line x1="55" y1="78" x2="235" y2="78" stroke="#00BFFF" stroke-width="0.6" opacity="0.3"/>
+  <!-- Flow items -->
+  <g fill="#8CDDFF" font-family="Segoe UI, Arial, sans-serif" font-size="11">
+    <text x="60" y="96">Successful execution paths</text>
+    <text x="60" y="112">Multi-step task chains</text>
+    <text x="60" y="128">Error recovery patterns</text>
+    <text x="60" y="144">Context snapshots stored</text>
+  </g>
+  <!-- Small trajectory icon -->
+  <g transform="translate(215,88)" opacity="0.5">
+    <polyline points="0,20 8,10 16,15 24,2" stroke="#00BFFF" stroke-width="1.5" fill="none"/>
+    <circle cx="0" cy="20" r="2" fill="#00BFFF"/>
+    <circle cx="8" cy="10" r="2" fill="#00BFFF"/>
+    <circle cx="16" cy="15" r="2" fill="#00BFFF"/>
+    <circle cx="24" cy="2" r="2" fill="#00BFFF"/>
+  </g>
+
+  <!-- ============================================ -->
+  <!-- 3. TOP-RIGHT: Entity-Relationship Graph       -->
+  <!-- ============================================ -->
+  <g filter="url(#glowBlue)">
+    <rect x="840" y="40" width="230" height="115" rx="12" fill="#0d1a2a" stroke="#00BFFF" stroke-width="1.8"/>
+  </g>
+  <rect x="840" y="40" width="230" height="3" rx="1.5" fill="#00BFFF" opacity="0.6"/>
+  <text x="955" y="68" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">Entity-Relationship Graph</text>
+  <line x1="865" y1="78" x2="1045" y2="78" stroke="#00BFFF" stroke-width="0.6" opacity="0.3"/>
+  <!-- Interconnected nodes mini-diagram -->
+  <g transform="translate(865,85)">
+    <!-- Nodes -->
+    <circle cx="20" cy="15" r="8" fill="none" stroke="#00BFFF" stroke-width="1.2" opacity="0.7"/>
+    <circle cx="55" cy="8" r="6" fill="none" stroke="#9966FF" stroke-width="1.2" opacity="0.7"/>
+    <circle cx="50" cy="35" r="7" fill="none" stroke="#00CC66" stroke-width="1.2" opacity="0.7"/>
+    <circle cx="85" cy="22" r="5" fill="none" stroke="#FF9900" stroke-width="1.2" opacity="0.7"/>
+    <!-- Edges -->
+    <line x1="28" y1="13" x2="49" y2="10" stroke="#444" stroke-width="0.8"/>
+    <line x1="26" y1="21" x2="44" y2="30" stroke="#444" stroke-width="0.8"/>
+    <line x1="55" y1="14" x2="52" y2="28" stroke="#444" stroke-width="0.8"/>
+    <line x1="61" y1="10" x2="80" y2="20" stroke="#444" stroke-width="0.8"/>
+    <line x1="57" y1="34" x2="80" y2="25" stroke="#444" stroke-width="0.8"/>
+    <!-- Node labels -->
+    <text x="20" y="18" text-anchor="middle" fill="#fff" font-size="6" font-weight="600">C</text>
+    <text x="55" y="11" text-anchor="middle" fill="#fff" font-size="5" font-weight="600">P</text>
+    <text x="50" y="38" text-anchor="middle" fill="#fff" font-size="6" font-weight="600">S</text>
+    <text x="85" y="25" text-anchor="middle" fill="#fff" font-size="5" font-weight="600">R</text>
+  </g>
+  <g fill="#8CDDFF" font-family="Segoe UI, Arial, sans-serif" font-size="11" transform="translate(0,4)">
+    <text x="970" y="96">Concepts</text>
+    <text x="970" y="112">Code patterns</text>
+    <text x="970" y="128">Solutions</text>
+    <text x="970" y="144">Dependencies</text>
+  </g>
+
+  <!-- ============================================ -->
+  <!-- 4. BOTTOM-LEFT: DSPy Optimizer                -->
+  <!-- ============================================ -->
+  <g filter="url(#glowGreen)">
+    <rect x="30" y="400" width="240" height="130" rx="12" fill="#0d1f15" stroke="#00CC66" stroke-width="1.8"/>
+  </g>
+  <rect x="30" y="400" width="240" height="3" rx="1.5" fill="#00CC66" opacity="0.6"/>
+  <text x="150" y="428" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">DSPy Optimizer</text>
+  <line x1="55" y1="438" x2="245" y2="438" stroke="#00CC66" stroke-width="0.6" opacity="0.3"/>
+  <!-- Items with small icons -->
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="11">
+    <rect x="50" y="448" width="8" height="8" rx="2" fill="#00CC66" opacity="0.5"/>
+    <text x="66" y="457" fill="#88EEBB">MIPROv2 Bayesian optimization</text>
+    <rect x="50" y="468" width="8" height="8" rx="2" fill="#00CC66" opacity="0.5"/>
+    <text x="66" y="477" fill="#88EEBB">GEPA pattern analysis</text>
+    <rect x="50" y="488" width="8" height="8" rx="2" fill="#00CC66" opacity="0.5"/>
+    <text x="66" y="497" fill="#88EEBB">Prompt compilation</text>
+  </g>
+  <!-- Optimization icon -->
+  <g transform="translate(220,455)" opacity="0.5">
+    <path d="M 0,20 Q 8,0 16,10 Q 24,20 32,5" stroke="#00CC66" stroke-width="1.5" fill="none"/>
+    <polygon points="30,2 35,6 30,8" fill="#00CC66"/>
+  </g>
+
+  <!-- ============================================ -->
+  <!-- 5. BOTTOM-RIGHT: Inspect AI Evaluator         -->
+  <!-- ============================================ -->
+  <g filter="url(#glowOrange)">
+    <rect x="830" y="400" width="240" height="130" rx="12" fill="#1f1508" stroke="#FF9900" stroke-width="1.8"/>
+  </g>
+  <rect x="830" y="400" width="240" height="3" rx="1.5" fill="#FF9900" opacity="0.6"/>
+  <text x="950" y="428" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">Inspect AI Evaluator</text>
+  <line x1="855" y1="438" x2="1045" y2="438" stroke="#FF9900" stroke-width="0.6" opacity="0.3"/>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="11">
+    <rect x="850" y="448" width="8" height="8" rx="2" fill="#FF9900" opacity="0.5"/>
+    <text x="866" y="457" fill="#FFCC66">UK AISI framework</text>
+    <rect x="850" y="468" width="8" height="8" rx="2" fill="#FF9900" opacity="0.5"/>
+    <text x="866" y="477" fill="#FFCC66">Model-graded metrics</text>
+    <rect x="850" y="488" width="8" height="8" rx="2" fill="#FF9900" opacity="0.5"/>
+    <text x="866" y="497" fill="#FFCC66">Quality scores</text>
+  </g>
+  <!-- Evaluation gauge icon -->
+  <g transform="translate(1020,455)" opacity="0.5">
+    <path d="M 0,18 A 14,14 0 0,1 28,18" stroke="#FF9900" stroke-width="1.5" fill="none"/>
+    <line x1="14" y1="18" x2="22" y2="6" stroke="#FF9900" stroke-width="1.5"/>
+    <circle cx="14" cy="18" r="2" fill="#FF9900"/>
+  </g>
+
+  <!-- ============================================ -->
+  <!-- 6. BOTTOM-CENTER: Nightly Evolution Cycle     -->
+  <!-- ============================================ -->
+  <g filter="url(#softShadow)">
+    <rect x="370" y="530" width="360" height="55" rx="27" fill="#111822" stroke="#555" stroke-width="1.2"/>
+  </g>
+  <text x="550" y="553" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700">Nightly Evolution Cycle</text>
+  <!-- Circular flow labels -->
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="9.5" font-weight="600">
+    <text x="400" y="573" fill="#00BFFF">Load</text>
+    <text x="432" y="573" fill="#aaa">&gt;</text>
+    <text x="443" y="573" fill="#9966FF">Execute</text>
+    <text x="486" y="573" fill="#aaa">&gt;</text>
+    <text x="497" y="573" fill="#FF9900">Score</text>
+    <text x="528" y="573" fill="#aaa">&gt;</text>
+    <text x="539" y="573" fill="#00CC66">Optimize</text>
+    <text x="590" y="573" fill="#aaa">&gt;</text>
+    <text x="601" y="573" fill="#9966FF">Remember</text>
+    <text x="660" y="573" fill="#aaa">&gt;</text>
+    <text x="671" y="573" fill="#00CC66">Improve</text>
+  </g>
+  <!-- Circular arrows icon -->
+  <g transform="translate(714,550)">
+    <path d="M 8,0 A 8,8 0 1,1 0,8" stroke="#00CC66" stroke-width="1.5" fill="none" opacity="0.7"/>
+    <polygon points="0,5 0,11 4,8" fill="#00CC66" opacity="0.7"/>
+    <animateTransform attributeName="transform" type="rotate" from="0 8 8" to="360 8 8" dur="6s" repeatCount="indefinite" additive="sum"/>
+  </g>
+
+  <!-- ============================================ -->
+  <!-- 7. STATS CALLOUT                              -->
+  <!-- ============================================ -->
+  <g filter="url(#softShadow)">
+    <rect x="340" y="370" width="160" height="42" rx="8" fill="#1a1030" stroke="#9966FF" stroke-width="1.2" opacity="0.9"/>
+  </g>
+  <text x="420" y="388" text-anchor="middle" fill="#CCAAFF" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700">90%+ token savings</text>
+  <text x="420" y="404" text-anchor="middle" fill="#8866CC" font-family="Segoe UI, Arial, sans-serif" font-size="10">compressed prompt cache</text>
+
+  <g filter="url(#softShadow)">
+    <rect x="600" y="370" width="180" height="42" rx="8" fill="#0d1f15" stroke="#00CC66" stroke-width="1.2" opacity="0.9"/>
+  </g>
+  <text x="690" y="388" text-anchor="middle" fill="#88EEBB" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700">Week-over-week</text>
+  <text x="690" y="404" text-anchor="middle" fill="#55AA77" font-family="Segoe UI, Arial, sans-serif" font-size="10">continuous improvement</text>
+
+  <!-- ============================================ -->
+  <!-- LABELS for data flow arrows                   -->
+  <!-- ============================================ -->
+  <text x="310" y="168" text-anchor="middle" fill="#00BFFF" font-family="Segoe UI, Arial, sans-serif" font-size="9" opacity="0.7" transform="rotate(-12,310,168)">store paths</text>
+  <text x="790" y="168" text-anchor="middle" fill="#00BFFF" font-family="Segoe UI, Arial, sans-serif" font-size="9" opacity="0.7" transform="rotate(12,790,168)">map entities</text>
+  <text x="355" y="370" text-anchor="middle" fill="#9966FF" font-family="Segoe UI, Arial, sans-serif" font-size="9" opacity="0.7" transform="rotate(20,355,370)">feed patterns</text>
+  <text x="745" y="370" text-anchor="middle" fill="#9966FF" font-family="Segoe UI, Arial, sans-serif" font-size="9" opacity="0.7" transform="rotate(-20,745,370)">evaluate</text>
+
+  <!-- ============================================ -->
+  <!-- Title and subtitle                            -->
+  <!-- ============================================ -->
+  <text x="550" y="25" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="600" opacity="0.5">SUPER-GOOSE</text>
+  <text x="455" y="188" text-anchor="middle" fill="#ccc" font-family="Segoe UI, Arial, sans-serif" font-size="9" opacity="0.4">INGEST</text>
+  <text x="645" y="188" text-anchor="middle" fill="#ccc" font-family="Segoe UI, Arial, sans-serif" font-size="9" opacity="0.4">INGEST</text>
+
+  <!-- Animated pulse dots along data flow paths -->
+  <circle r="3" fill="#00BFFF" opacity="0.8">
+    <animateMotion dur="3s" repeatCount="indefinite" path="M 220,140 C 300,160 380,190 430,220"/>
+  </circle>
+  <circle r="3" fill="#00BFFF" opacity="0.8">
+    <animateMotion dur="3s" repeatCount="indefinite" path="M 870,140 C 790,160 720,190 670,220"/>
+  </circle>
+  <circle r="2.5" fill="#9966FF" opacity="0.7">
+    <animateMotion dur="3.5s" repeatCount="indefinite" path="M 460,330 C 400,370 320,390 280,410"/>
+  </circle>
+  <circle r="2.5" fill="#9966FF" opacity="0.7">
+    <animateMotion dur="3.5s" repeatCount="indefinite" path="M 640,330 C 700,370 780,390 820,410"/>
+  </circle>
+  <circle r="2.5" fill="#00CC66" opacity="0.7">
+    <animateMotion dur="4s" repeatCount="indefinite" path="M 240,520 C 320,545 420,555 480,555"/>
+  </circle>
+  <circle r="2.5" fill="#FF9900" opacity="0.7">
+    <animateMotion dur="4s" repeatCount="indefinite" path="M 860,520 C 780,545 680,555 620,555"/>
+  </circle>
+</svg>

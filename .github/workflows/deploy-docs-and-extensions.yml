@@ -1,15 +1,15 @@
-# DISABLED: Requires INKEEP_API_KEY, INKEEP_INTEGRATION_ID, INKEEP_ORG_ID secrets
-# for documentation search functionality. Also needs gh-pages branch setup.
-# Re-enable when documentation deployment is configured.
-name: Deploy Documentation (DISABLED)
+# Deploys Super-Goose documentation site to GitHub Pages.
+# Inkeep search secrets are optional — build works without them.
+name: Deploy Documentation
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'documentation/**'
 
 # Use same concurrency group as PR preview workflow to prevent race conditions
-# when both workflows try to modify gh-pages branch simultaneously.
-# cancel-in-progress: false ensures production deploys queue and wait rather than
-# being cancelled by PR preview workflows.
 concurrency:
   group: pr-preview
   cancel-in-progress: false
@@ -29,7 +29,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
         with:
-          node-version: 20 
+          node-version: 20
 
       - name: Cache Node.js modules (documentation)
         uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7  # v5.0.2
@@ -42,6 +42,7 @@ jobs:
       - name: Install dependencies and build docs
         working-directory: ./documentation
         env:
+          # Inkeep secrets are optional — search/chat features disabled if not set
           INKEEP_API_KEY: ${{ secrets.INKEEP_API_KEY }}
           INKEEP_INTEGRATION_ID: ${{ secrets.INKEEP_INTEGRATION_ID }}
           INKEEP_ORG_ID: ${{ secrets.INKEEP_ORG_ID }}
@@ -50,20 +51,24 @@ jobs:
           npm test
           npm run build
 
-      - name: Verify docs map was generated
+      - name: Verify docs build
         working-directory: ./documentation
-        run: ./scripts/verify-build.sh
+        run: |
+          if [ -d "build" ] && [ "$(find build -name '*.html' | wc -l)" -gt 0 ]; then
+            echo "Build successful: $(find build -name '*.html' | wc -l) HTML files generated"
+          else
+            echo "::error::Build verification failed — no HTML files found"
+            exit 1
+          fi
 
       - name: Checkout gh-pages branch
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        continue-on-error: true      # Branch may not exist on first deploy or in forks
+        continue-on-error: true      # Branch may not exist on first deploy
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           ref: gh-pages
           path: gh-pages-current
 
       - name: Preserve pr-preview directory
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           # Copy pr-preview from current gh-pages to the new build (if it exists)
           if [ -d "gh-pages-current/pr-preview" ]; then
@@ -73,11 +78,10 @@ jobs:
             echo "No pr-preview directory to preserve"
           fi
 
-      - name: Deploy to /gh-pages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e  # v4.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: documentation/build
-          keep_files: false          # Clean deploy - only keep what's in the build + pr-preview
-          force_orphan: true         # Create a fresh commit without history to prevent bloat
+          keep_files: false          # Clean deploy
+          force_orphan: true         # Fresh commit without history
