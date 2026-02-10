@@ -1,10 +1,10 @@
-# DISABLED: Requires code signing certs (OSX_CODESIGN_ROLE, WINDOWS_CODESIGN_CERTIFICATE),
-# AWS OIDC for notarization, and Block Inc's release infrastructure.
-# Re-enable when signing certificates and release infrastructure are configured.
+# Code signing is currently disabled (signing: false) until certificates are configured.
+# Set signing: true and configure OSX_CODESIGN_ROLE, WINDOWS_CODESIGN_CERTIFICATE,
+# WINDOW_SIGNING_ROLE secrets when ready for signed releases.
 on:
   workflow_dispatch:
 
-name: Release (DISABLED)
+name: Release
 
 # Permissions needed for AWS OIDC authentication in called workflows
 permissions:
@@ -57,7 +57,7 @@ jobs:
       id-token: write
       contents: read
     with:
-      signing: true
+      signing: false
     secrets:
       OSX_CODESIGN_ROLE: ${{ secrets.OSX_CODESIGN_ROLE }}
 
@@ -70,7 +70,7 @@ jobs:
       id-token: write
       contents: read
     with:
-      signing: true
+      signing: false
     secrets:
       OSX_CODESIGN_ROLE: ${{ secrets.OSX_CODESIGN_ROLE }}
 
@@ -86,7 +86,7 @@ jobs:
   bundle-desktop-windows:
     uses: ./.github/workflows/bundle-desktop-windows.yml
     with:
-      signing: true
+      signing: false
     secrets:
       WINDOWS_CODESIGN_CERTIFICATE: ${{ secrets.WINDOWS_CODESIGN_CERTIFICATE }}
       WINDOW_SIGNING_ROLE: ${{ secrets.WINDOW_SIGNING_ROLE }}

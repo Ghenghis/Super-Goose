@@ -1,6 +1,6 @@
-# DISABLED: Multi-platform release requires code signing for all platforms.
-# Uses expensive runners (windows-latest, macos-latest). Re-enable when needed.
-name: Multi-Platform Release (DISABLED)
+# Multi-platform release builds (unsigned). Add code signing when certificates are configured.
+# Uses windows-latest, macos-latest runners.
+name: Multi-Platform Release
 
 on:
   workflow_dispatch:
