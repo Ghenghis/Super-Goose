@@ -1,0 +1,135 @@
+# OpenTelemetry Collector configuration for Super-Goose Stage 6
+#
+# Receives traces/metrics/logs via OTLP (gRPC on 4317, HTTP on 4318)
+# and forwards them to Langfuse for observability.
+#
+# Langfuse supports OTLP trace ingestion natively when
+# LANGFUSE_OTEL_ENABLED=true is set on the Langfuse container.
+#
+# Usage:
+#   This file is mounted into the otel-collector container by
+#   docker-compose.stage6.yml at /etc/otelcol-contrib/config.yaml
+#
+# Reference:
+#   https://opentelemetry.io/docs/collector/configuration/
+#   https://langfuse.com/docs/integrations/opentelemetry
+
+# ---------------------------------------------------------------------------
+# Receivers - accept telemetry data from instrumented applications
+# ---------------------------------------------------------------------------
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+
+# ---------------------------------------------------------------------------
+# Processors - transform, filter, and batch telemetry data
+# ---------------------------------------------------------------------------
+processors:
+  # Batch spans to reduce export overhead
+  batch:
+    send_batch_size: 512
+    send_batch_max_size: 1024
+    timeout: 5s
+
+  # Add resource attributes identifying this as Super-Goose telemetry
+  resource:
+    attributes:
+      - key: service.namespace
+        value: super-goose
+        action: upsert
+      - key: deployment.environment
+        value: local
+        action: upsert
+
+  # Memory limiter to prevent OOM under high load
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 200
+    spike_limit_mib: 50
+
+# ---------------------------------------------------------------------------
+# Exporters - send processed telemetry to backends
+# ---------------------------------------------------------------------------
+exporters:
+  # Forward traces to Langfuse via its OTLP-compatible endpoint
+  # Langfuse accepts OTLP traces on its /api/public/otel/v1/traces endpoint
+  otlphttp:
+    endpoint: "http://langfuse:3000/api/public/otel"
+    headers:
+      # Langfuse uses basic auth for OTLP ingestion:
+      #   Authorization: Basic base64(public_key:secret_key)
+      # When running locally without keys, Langfuse accepts traces without auth.
+      # Set LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY in your environment
+      # to enable authenticated ingestion in production.
+      Authorization: "Basic ${LANGFUSE_PUBLIC_KEY}:${LANGFUSE_SECRET_KEY}"
+      x-langfuse-source: "super-goose-otel-collector"
+
+  # Debug exporter for local development (logs spans to collector stdout)
+  debug:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+# ---------------------------------------------------------------------------
+# Extensions - health checks and diagnostics
+# ---------------------------------------------------------------------------
+extensions:
+  health_check:
+    endpoint: "0.0.0.0:13133"
+
+  # Performance profiling endpoint (disabled by default)
+  pprof:
+    endpoint: "0.0.0.0:1777"
+
+# ---------------------------------------------------------------------------
+# Service - wire everything together
+# ---------------------------------------------------------------------------
+service:
+  extensions:
+    - health_check
+    - pprof
+
+  pipelines:
+    # Trace pipeline: receive OTLP -> process -> export to Langfuse
+    traces:
+      receivers:
+        - otlp
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+      exporters:
+        - otlphttp
+        - debug
+
+    # Metrics pipeline: receive OTLP -> process -> log (no metrics backend yet)
+    metrics:
+      receivers:
+        - otlp
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+      exporters:
+        - debug
+
+    # Logs pipeline: receive OTLP -> process -> log (no log backend yet)
+    logs:
+      receivers:
+        - otlp
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+      exporters:
+        - debug
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: "0.0.0.0:8888"

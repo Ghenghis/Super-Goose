@@ -1,0 +1,39 @@
+# Stage 6-7 Python dependencies for Super-Goose external tools
+# Install: pip install -r requirements-stage6.txt
+
+# DSPy - Prompt optimization and signature compilation
+dspy>=3.1.0
+
+# Inspect AI - Evaluation harness
+inspect-ai>=0.3.100
+
+# Mem0 - Graph memory with Neo4j + Qdrant
+mem0ai>=1.0.0
+
+# Langfuse - Observability and tracing
+langfuse>=2.0.0
+
+# CrossHair - SMT-based contract verification
+crosshair-tool>=0.0.100
+
+# Semgrep - Static analysis policy enforcement
+semgrep>=1.60.0
+
+# PR-Agent - AI-powered PR review (Qodo)
+pr-agent>=0.3.0
+
+# Pydantic AI - Typed agent outputs
+pydantic-ai>=0.1.0
+
+# LangGraph - Stateful workflow orchestration
+langgraph>=0.2.0
+
+# ast-grep - Structural code search
+# (installed via cargo/npm, not pip)
+
+# Shared async dependencies
+aiohttp>=3.9.0
+httpx>=0.27.0
+
+# Resource coordinator dependencies
+asyncio-mqtt>=0.16.0

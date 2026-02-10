@@ -33,11 +33,14 @@ import json
 import logging
 import os
 import shutil
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
+
+from integrations.resource_coordinator import get_coordinator
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +141,7 @@ _docker_available: bool = False
 _openhands_available: bool = False
 _active_container: Optional[str] = None  # container name
 _initialized: bool = False
+_init_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -289,48 +293,49 @@ async def init() -> dict[str, Any]:
     """
     global _docker_path, _docker_available, _openhands_available, _initialized
 
-    if _initialized:
+    with _init_lock:
+        if _initialized:
+            return {
+                "initialized": True,
+                "docker_available": _docker_available,
+                "docker_version": None,
+                "openhands_path": str(OPENHANDS_ROOT),
+                "openhands_available": _openhands_available,
+                "openhands_version": _read_openhands_version(),
+                "agents": list(AGENT_TYPES.keys()),
+            }
+
+        docker_ok, docker_bin, docker_info = await _detect_docker()
+        _docker_available = docker_ok
+        _docker_path = docker_bin
+
+        _openhands_available = OPENHANDS_ROOT.is_dir() and (OPENHANDS_ROOT / "openhands").is_dir()
+
+        _initialized = True
+
+        docker_version = docker_info if docker_ok else None
+        if not docker_ok:
+            logger.warning("OpenHands bridge: Docker not available - %s", docker_info)
+        if not _openhands_available:
+            logger.warning(
+                "OpenHands bridge: OpenHands not found at %s", OPENHANDS_ROOT
+            )
+
+        logger.info(
+            "OpenHands bridge initialised: docker=%s, openhands=%s",
+            _docker_available,
+            _openhands_available,
+        )
+
         return {
             "initialized": True,
             "docker_available": _docker_available,
-            "docker_version": None,
+            "docker_version": docker_version,
             "openhands_path": str(OPENHANDS_ROOT),
             "openhands_available": _openhands_available,
             "openhands_version": _read_openhands_version(),
             "agents": list(AGENT_TYPES.keys()),
         }
-
-    docker_ok, docker_bin, docker_info = await _detect_docker()
-    _docker_available = docker_ok
-    _docker_path = docker_bin
-
-    _openhands_available = OPENHANDS_ROOT.is_dir() and (OPENHANDS_ROOT / "openhands").is_dir()
-
-    _initialized = True
-
-    docker_version = docker_info if docker_ok else None
-    if not docker_ok:
-        logger.warning("OpenHands bridge: Docker not available - %s", docker_info)
-    if not _openhands_available:
-        logger.warning(
-            "OpenHands bridge: OpenHands not found at %s", OPENHANDS_ROOT
-        )
-
-    logger.info(
-        "OpenHands bridge initialised: docker=%s, openhands=%s",
-        _docker_available,
-        _openhands_available,
-    )
-
-    return {
-        "initialized": True,
-        "docker_available": _docker_available,
-        "docker_version": docker_version,
-        "openhands_path": str(OPENHANDS_ROOT),
-        "openhands_available": _openhands_available,
-        "openhands_version": _read_openhands_version(),
-        "agents": list(AGENT_TYPES.keys()),
-    }
 
 
 def status() -> ToolStatus:
@@ -1080,13 +1085,25 @@ async def execute(operation: str, params: dict[str, Any]) -> dict[str, Any]:
             ),
         }
 
-    try:
+    async def _do_operation():
         return await dispatch[operation](**params)
-    except TypeError as exc:
-        return {"success": False, "error": f"Invalid parameters for {operation}: {exc}"}
-    except Exception as exc:
-        logger.exception("Error executing openhands.%s", operation)
-        return {"success": False, "error": str(exc)}
+
+    coordinator = get_coordinator()
+    try:
+        async with coordinator.acquire("openhands", "execute"):
+            return await _do_operation()
+    except Exception as coord_err:
+        logger.warning(
+            "ResourceCoordinator unavailable, running without coordination: %s",
+            coord_err,
+        )
+        try:
+            return await _do_operation()
+        except TypeError as exc:
+            return {"success": False, "error": f"Invalid parameters for {operation}: {exc}"}
+        except Exception as exc:
+            logger.exception("Error executing openhands.%s", operation)
+            return {"success": False, "error": str(exc)}
 
 
 # ---------------------------------------------------------------------------

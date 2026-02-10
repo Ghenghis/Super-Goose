@@ -5,6 +5,7 @@ use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 
+use super::dspy_loader;
 use crate::agents::extension::ExtensionInfo;
 use crate::hints::load_hints::{load_hint_files, AGENTS_MD_FILENAME, GOOSE_HINTS_FILENAME};
 use crate::{
@@ -168,6 +169,13 @@ impl<'a> SystemPromptBuilder<'a, PromptManager> {
         .unwrap_or_else(|_| {
             "You are a general-purpose AI agent called goose, created by Block".to_string()
         });
+
+        // Prepend DSPy-compiled prompt prefix if available
+        let base_prompt = if let Some(dspy_prefix) = dspy_loader::load_dspy_prompt_prefix() {
+            format!("{}\n\n{}", dspy_prefix, base_prompt)
+        } else {
+            base_prompt
+        };
 
         let mut system_prompt_extras = self.manager.system_prompt_extras.clone();
 

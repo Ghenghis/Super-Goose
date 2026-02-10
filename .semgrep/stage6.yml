@@ -1,0 +1,63 @@
+# Super-Goose Stage 6 Security Policy
+# Run: semgrep scan --config .semgrep/stage6.yml
+rules:
+  - id: no-hardcoded-secrets
+    patterns:
+      - pattern: $KEY = "..."
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: "(password|secret|api_key|token|private_key)"
+    message: "Hardcoded secret detected in variable assignment"
+    languages: [python, javascript, typescript]
+    severity: ERROR
+
+  - id: no-eval
+    pattern: eval($X)
+    message: "eval() is forbidden in agent code - use ast.literal_eval() for safe parsing"
+    languages: [python]
+    severity: ERROR
+
+  - id: no-subprocess-shell
+    pattern: subprocess.run(..., shell=True, ...)
+    message: "subprocess with shell=True is forbidden - use shell=False with list args"
+    languages: [python]
+    severity: ERROR
+
+  - id: no-shell-injection
+    pattern: subprocess.call($CMD, shell=True)
+    message: "Shell injection risk via subprocess.call - use shell=False with list args"
+    languages: [python]
+    severity: ERROR
+
+  - id: no-broad-file-delete
+    pattern: shutil.rmtree($PATH)
+    message: "Broad recursive file deletion requires explicit approval"
+    languages: [python]
+    severity: WARNING
+
+  - id: no-pickle-load
+    pattern: pickle.load($X)
+    message: "pickle.load() can execute arbitrary code - use json or msgpack instead"
+    languages: [python]
+    severity: ERROR
+
+  - id: no-unsafe-deserialization
+    pattern: pickle.loads($X)
+    message: "pickle.loads() can execute arbitrary code - use json or msgpack instead"
+    languages: [python]
+    severity: ERROR
+
+  - id: no-exec
+    pattern: exec($X)
+    message: "exec() is forbidden in agent code"
+    languages: [python]
+    severity: ERROR
+
+  - id: no-broad-exception
+    pattern: |
+      except Exception:
+          ...
+          pass
+    message: "Silently swallowing all exceptions hides bugs and failures"
+    languages: [python]
+    severity: WARNING

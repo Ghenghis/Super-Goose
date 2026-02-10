@@ -1,0 +1,76 @@
+# PR-Agent Review
+#
+# Automated AI-powered code review using CodiumAI/pr-agent.
+# Manually triggered via workflow_dispatch to avoid cascading bot comment loops.
+#
+# Supported commands:
+#   review   - Run AI code review
+#   improve  - Get improvement suggestions
+#   describe - Auto-generate PR description
+#   test     - Generate test suggestions
+#
+# Prerequisites:
+#   - OPENAI_API_KEY or ANTHROPIC_API_KEY secret configured in repository settings
+#
+# Cost estimate:
+#   ~$0.10-0.50 per PR review depending on diff size and model used.
+#   With GPT-4o at ~$2.50/1M input tokens, a typical 500-line PR costs ~$0.15.
+
+name: PR-Agent Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: string
+      command:
+        description: 'PR-Agent command (review, improve, describe, test)'
+        required: false
+        type: string
+        default: 'review'
+# DISABLED from automatic pull_request/issue_comment triggers
+# Re-enable when GITHUB_TOKEN and LLM API keys are configured
+# Previous triggers caused cascading bot comment loops
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: pr-agent-${{ inputs.pr_number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  # -------------------------------------------------------------------
+  # Job 1: Run PR-Agent review on specified PR
+  # -------------------------------------------------------------------
+  pr-agent-review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+    if: github.repository == 'Ghenghis/Super-Goose'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: PR-Agent Review
+        uses: CodiumAI/pr-agent@main
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          command: ${{ inputs.command }}
+          args: >-
+            --pr_url=https://github.com/${{ github.repository }}/pull/${{ inputs.pr_number }}
+            --pr_reviewer.require_focused_review=true
+            --pr_reviewer.require_score_review=true
+            --pr_reviewer.require_tests_review=true
+            --pr_reviewer.require_security_review=true
+            --pr_reviewer.num_code_suggestions=3

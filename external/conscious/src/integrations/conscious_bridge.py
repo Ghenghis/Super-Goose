@@ -44,6 +44,7 @@ import asyncio
 import base64
 import logging
 import os
+import threading
 from typing import Any, Optional
 
 try:
@@ -52,6 +53,7 @@ except ImportError:
     aiohttp = None  # type: ignore[assignment]
 
 from integrations.registry import ToolStatus
+from integrations.resource_coordinator import get_coordinator
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +78,7 @@ LONG_TIMEOUT_S: float = float(os.environ.get("CONSCIOUS_BRIDGE_LONG_TIMEOUT", "1
 
 _session: Optional["aiohttp.ClientSession"] = None
 _initialized: bool = False
+_init_lock = threading.Lock()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -95,23 +98,24 @@ async def init() -> None:
     """
     global _session, _initialized
 
-    if aiohttp is None:
-        raise ImportError(
-            "aiohttp is required for the Conscious bridge. "
-            "Install it with: pip install aiohttp"
-        )
+    with _init_lock:
+        if aiohttp is None:
+            raise ImportError(
+                "aiohttp is required for the Conscious bridge. "
+                "Install it with: pip install aiohttp"
+            )
 
-    if _session is None or _session.closed:
-        _session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT_S),
-        )
-        logger.info(
-            "Conscious bridge initialised (api_url=%s, timeout=%ss)",
-            CONSCIOUS_API_URL,
-            DEFAULT_TIMEOUT_S,
-        )
+        if _session is None or _session.closed:
+            _session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT_S),
+            )
+            logger.info(
+                "Conscious bridge initialised (api_url=%s, timeout=%ss)",
+                CONSCIOUS_API_URL,
+                DEFAULT_TIMEOUT_S,
+            )
 
-    _initialized = True
+        _initialized = True
 
 
 async def shutdown() -> None:
@@ -228,11 +232,23 @@ async def execute(operation: str, params: dict[str, Any] | None = None) -> dict[
             ),
         }
 
-    try:
+    async def _do_operation():
         return await func(**(params or {}))
-    except Exception as exc:
-        logger.error("Conscious bridge execute(%s) failed: %s", operation, exc, exc_info=True)
-        return {"success": False, "error": str(exc)}
+
+    coordinator = get_coordinator()
+    try:
+        async with coordinator.acquire("conscious", "process"):
+            return await _do_operation()
+    except Exception as coord_err:
+        logger.warning(
+            "ResourceCoordinator unavailable, running without coordination: %s",
+            coord_err,
+        )
+        try:
+            return await _do_operation()
+        except Exception as exc:
+            logger.error("Conscious bridge execute(%s) failed: %s", operation, exc, exc_info=True)
+            return {"success": False, "error": str(exc)}
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -317,6 +317,26 @@ jobs:
         working-directory: ui/desktop
 
   #─────────────────────────────────────────────────────────────
+  # STAGE 4b: SEMGREP POLICY (non-blocking, parallel with tests)
+  #─────────────────────────────────────────────────────────────
+  semgrep-policy:
+    name: Semgrep Stage 6 Policy
+    runs-on: ubuntu-latest
+    if: github.repository == 'Ghenghis/Super-Goose'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Semgrep
+        run: pip install semgrep
+      - name: Run Stage 6 policy
+        run: |
+          if [ -f .semgrep/stage6.yml ]; then
+            semgrep scan --config .semgrep/stage6.yml --error
+          else
+            echo "No .semgrep/stage6.yml found, skipping"
+          fi
+
+  #─────────────────────────────────────────────────────────────
   # STAGE 5: FINAL STATUS (Always runs)
   #─────────────────────────────────────────────────────────────
   ci-status:
@@ -327,6 +347,7 @@ jobs:
       - detect-changes
       - docs-check
       - cargo-tools
+      - semgrep-policy
       - test-rust-unit
       - test-rust-integration
       - test-typescript
@@ -346,6 +367,7 @@ jobs:
           echo "Job Results:"
           echo "  docs-check: ${{ needs.docs-check.result }}"
           echo "  cargo-tools: ${{ needs.cargo-tools.result }} (non-blocking)"
+          echo "  semgrep-policy: ${{ needs.semgrep-policy.result }} (non-blocking)"
           echo "  test-rust-unit: ${{ needs.test-rust-unit.result }}"
           echo "  test-rust-integration: ${{ needs.test-rust-integration.result }}"
           echo "  test-typescript: ${{ needs.test-typescript.result }}"

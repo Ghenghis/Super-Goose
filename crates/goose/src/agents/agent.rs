@@ -994,7 +994,14 @@ impl Agent {
     }
 
     /// Dispatch a single tool call to the appropriate client
-    #[instrument(skip(self, tool_call, request_id), fields(input, output))]
+    #[instrument(
+        skip(self, tool_call, request_id, cancellation_token, session),
+        fields(
+            tool.name = %tool_call.name,
+            otel.kind = "client",
+            gen_ai.operation.name = "tool_call",
+        )
+    )]
     pub async fn dispatch_tool_call(
         &self,
         tool_call: CallToolRequestParams,
@@ -1002,6 +1009,7 @@ impl Agent {
         cancellation_token: Option<CancellationToken>,
         session: &Session,
     ) -> (String, Result<ToolCallResult, ErrorData>) {
+        let _tool_start = std::time::Instant::now();
         // Prevent subagents from creating other subagents
         if session.session_type == SessionType::SubAgent && tool_call.name == SUBAGENT_TOOL_NAME {
             return (
@@ -1124,6 +1132,11 @@ impl Agent {
         };
 
         debug!("WAITING_TOOL_END: {}", tool_call.name);
+        debug!(
+            tool.name = %tool_call.name,
+            tool.duration_ms = _tool_start.elapsed().as_millis() as u64,
+            "Tool dispatch completed"
+        );
 
         (
             request_id,

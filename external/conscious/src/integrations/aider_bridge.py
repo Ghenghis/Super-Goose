@@ -34,12 +34,14 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import Any, Optional
 
 # Import ToolStatus from the registry to maintain a consistent interface
 # across all bridge modules.
 from integrations.registry import ToolStatus
+from integrations.resource_coordinator import get_coordinator
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +89,7 @@ LINT_TIMEOUT = 120      # 2 minutes -- linting + auto-fix
 # ---------------------------------------------------------------------------
 
 _initialized: bool = False
+_init_lock = threading.Lock()
 _aider_executable: Optional[str] = None
 _aider_version: Optional[str] = None
 
@@ -112,76 +115,77 @@ def init() -> dict[str, Any]:
     """
     global _initialized, _aider_executable, _aider_version
 
-    if _initialized:
+    with _init_lock:
+        if _initialized:
+            return {
+                "success": _aider_executable is not None,
+                "executable": _aider_executable,
+                "version": _aider_version,
+                "error": None if _aider_executable else "Aider executable not found",
+            }
+
+        # 1. Try to find aider on PATH
+        exe = shutil.which("aider")
+
+        # 2. Fallback: check the local installation's scripts directory
+        if exe is None:
+            local_candidates = [
+                AIDER_ROOT / ".venv" / "Scripts" / "aider.exe",   # Windows venv
+                AIDER_ROOT / ".venv" / "bin" / "aider",           # Unix venv
+                AIDER_ROOT / "venv" / "Scripts" / "aider.exe",
+                AIDER_ROOT / "venv" / "bin" / "aider",
+            ]
+            for candidate in local_candidates:
+                if candidate.exists():
+                    exe = str(candidate)
+                    break
+
+        # 3. Fallback: invoke via python -m aider
+        if exe is None and AIDER_ROOT.exists():
+            # Verify the package is importable from the local tree
+            try:
+                result = subprocess.run(
+                    [sys.executable, "-c", "import aider; print(aider.__version__)"],
+                    capture_output=True, text=True, timeout=15,
+                    cwd=str(AIDER_ROOT),
+                    env={**os.environ, "PYTHONPATH": str(AIDER_ROOT)},
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    # Use python -m invocation
+                    exe = f"{sys.executable} -m aider"
+                    _aider_version = result.stdout.strip()
+            except (subprocess.TimeoutExpired, OSError):
+                pass
+
+        # 4. Retrieve version if we found a direct executable
+        if exe and _aider_version is None:
+            try:
+                result = subprocess.run(
+                    _split_cmd(exe) + ["--version"],
+                    capture_output=True, text=True, timeout=15,
+                )
+                if result.returncode == 0:
+                    _aider_version = result.stdout.strip()
+            except (subprocess.TimeoutExpired, OSError):
+                pass
+
+        _aider_executable = exe if exe else None
+        _initialized = True
+
+        if _aider_executable:
+            logger.info(f"Aider bridge initialized: {_aider_executable} (v{_aider_version})")
+        else:
+            logger.warning(
+                "Aider bridge: executable not found. "
+                f"Install with: pip install -e {AIDER_ROOT}"
+            )
+
         return {
             "success": _aider_executable is not None,
             "executable": _aider_executable,
             "version": _aider_version,
             "error": None if _aider_executable else "Aider executable not found",
         }
-
-    # 1. Try to find aider on PATH
-    exe = shutil.which("aider")
-
-    # 2. Fallback: check the local installation's scripts directory
-    if exe is None:
-        local_candidates = [
-            AIDER_ROOT / ".venv" / "Scripts" / "aider.exe",   # Windows venv
-            AIDER_ROOT / ".venv" / "bin" / "aider",           # Unix venv
-            AIDER_ROOT / "venv" / "Scripts" / "aider.exe",
-            AIDER_ROOT / "venv" / "bin" / "aider",
-        ]
-        for candidate in local_candidates:
-            if candidate.exists():
-                exe = str(candidate)
-                break
-
-    # 3. Fallback: invoke via python -m aider
-    if exe is None and AIDER_ROOT.exists():
-        # Verify the package is importable from the local tree
-        try:
-            result = subprocess.run(
-                [sys.executable, "-c", "import aider; print(aider.__version__)"],
-                capture_output=True, text=True, timeout=15,
-                cwd=str(AIDER_ROOT),
-                env={**os.environ, "PYTHONPATH": str(AIDER_ROOT)},
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                # Use python -m invocation
-                exe = f"{sys.executable} -m aider"
-                _aider_version = result.stdout.strip()
-        except (subprocess.TimeoutExpired, OSError):
-            pass
-
-    # 4. Retrieve version if we found a direct executable
-    if exe and _aider_version is None:
-        try:
-            result = subprocess.run(
-                _split_cmd(exe) + ["--version"],
-                capture_output=True, text=True, timeout=15,
-            )
-            if result.returncode == 0:
-                _aider_version = result.stdout.strip()
-        except (subprocess.TimeoutExpired, OSError):
-            pass
-
-    _aider_executable = exe if exe else None
-    _initialized = True
-
-    if _aider_executable:
-        logger.info(f"Aider bridge initialized: {_aider_executable} (v{_aider_version})")
-    else:
-        logger.warning(
-            "Aider bridge: executable not found. "
-            f"Install with: pip install -e {AIDER_ROOT}"
-        )
-
-    return {
-        "success": _aider_executable is not None,
-        "executable": _aider_executable,
-        "version": _aider_version,
-        "error": None if _aider_executable else "Aider executable not found",
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -584,15 +588,27 @@ async def execute(operation: str, params: dict[str, Any]) -> dict[str, Any]:
     if operation == "init":
         return init()
 
-    # Async operations
-    func = dispatch[operation]
-    try:
+    # Async operations with ResourceCoordinator
+    async def _do_operation():
+        func = dispatch[operation]
         return await func(**params)
-    except TypeError as e:
-        return {
-            "success": False,
-            "error": f"Invalid parameters for '{operation}': {e}",
-        }
+
+    coordinator = get_coordinator()
+    try:
+        async with coordinator.acquire("aider", "edit"):
+            return await _do_operation()
+    except Exception as coord_err:
+        logger.warning(
+            "ResourceCoordinator unavailable, running without coordination: %s",
+            coord_err,
+        )
+        try:
+            return await _do_operation()
+        except TypeError as e:
+            return {
+                "success": False,
+                "error": f"Invalid parameters for '{operation}': {e}",
+            }
 
 
 # ---------------------------------------------------------------------------

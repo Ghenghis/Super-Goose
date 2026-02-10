@@ -81,6 +81,7 @@ class ToolRegistry:
     def __init__(self):
         self.tools: dict[str, ToolConfig] = {}
         self._bridges: dict[str, Any] = {}
+        self._unavailable: dict[str, str] = {}
         self._config_path: Optional[Path] = None
 
     def load_config(self, config_path: str | Path) -> None:
@@ -156,6 +157,10 @@ class ToolRegistry:
         # Try loading the bridge module
         try:
             bridge = self._get_bridge(name)
+            if bridge is None:
+                error_msg = self._unavailable.get(name, "Bridge failed to load")
+                return ToolStatus(name=name, available=False, healthy=False,
+                                  error=error_msg)
             if hasattr(bridge, "status"):
                 return bridge.status()
             return ToolStatus(name=name, available=True, healthy=True)
@@ -164,7 +169,9 @@ class ToolRegistry:
                               error=str(e))
 
     def _get_bridge(self, name: str) -> Any:
-        """Lazy-load a bridge module."""
+        """Lazy-load a bridge module. Returns None if bridge fails to load."""
+        if name in self._unavailable:
+            return None
         if name not in self._bridges:
             tool = self.tools.get(name)
             if not tool:
@@ -174,12 +181,14 @@ class ToolRegistry:
                 module = importlib.import_module(tool.bridge_module)
                 self._bridges[name] = module
             except ImportError as e:
-                raise ImportError(
-                    f"Could not load bridge for '{name}': {e}. "
-                    f"Try: {tool.install_cmd}"
-                ) from e
+                logger.warning(
+                    f"Bridge for '{name}' failed to load: {e}. "
+                    f"Tool will be unavailable. Install: {tool.install_cmd}"
+                )
+                self._unavailable[name] = str(e)
+                return None
 
-        return self._bridges[name]
+        return self._bridges.get(name)
 
     async def execute(self, tool_name: str, operation: str,
                       params: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -193,6 +202,10 @@ class ToolRegistry:
 
         try:
             bridge = self._get_bridge(tool_name)
+            if bridge is None:
+                error_msg = self._unavailable.get(tool_name, "Bridge not available")
+                return {"error": f"Tool '{tool_name}' bridge not available: {error_msg}",
+                        "success": False}
             if hasattr(bridge, "execute"):
                 return await bridge.execute(operation, params or {})
             elif hasattr(bridge, operation):
@@ -217,13 +230,32 @@ class ToolRegistry:
     def summary(self) -> str:
         """Return a human-readable summary of all tools."""
         lines = ["Super-Goose External Tools Registry", "=" * 40]
+        available_count = 0
+        unavailable_count = 0
         for name, tool in self.tools.items():
             status = self.check_status(name)
-            icon = "✅" if status.healthy else "⚠️" if status.available else "❌"
+            if name in self._unavailable:
+                icon = "[UNAVAIL]"
+                unavailable_count += 1
+            elif status.healthy:
+                icon = "[OK]"
+                available_count += 1
+            elif status.available:
+                icon = "[WARN]"
+                available_count += 1
+            else:
+                icon = "[FAIL]"
+                unavailable_count += 1
             lines.append(f"  {icon} {tool.name}")
             lines.append(f"     {tool.description}")
             lines.append(f"     Capabilities: {', '.join(tool.capabilities)}")
-            if status.error:
+            if name in self._unavailable:
+                lines.append(f"     Bridge error: {self._unavailable[name]}")
+                lines.append(f"     Install: {tool.install_cmd}")
+            elif status.error:
                 lines.append(f"     Error: {status.error}")
             lines.append("")
+        lines.append(f"Total: {len(self.tools)} tools | "
+                      f"{available_count} available | "
+                      f"{unavailable_count} unavailable")
         return "\n".join(lines)

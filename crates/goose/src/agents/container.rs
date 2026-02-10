@@ -27,6 +27,41 @@ use std::time::Duration;
 use tracing::{debug, info, warn};
 
 // ---------------------------------------------------------------------------
+// ContainerBackend
+// ---------------------------------------------------------------------------
+
+/// Selects the isolation backend used for sandboxed execution.
+///
+/// * `Docker` -- the default, uses Docker containers via the Docker CLI.
+/// * `Microsandbox` -- MicroVM isolation via microsandbox (KVM-based).
+/// * `Arrakis` -- extends Microsandbox with snapshot/replay via Arrakis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContainerBackend {
+    /// Standard Docker containers (default).
+    Docker,
+    /// Hardware-isolated MicroVMs via microsandbox + KVM.
+    Microsandbox,
+    /// MicroVMs with snapshot/replay/fork via Arrakis.
+    Arrakis,
+}
+
+impl Default for ContainerBackend {
+    fn default() -> Self {
+        ContainerBackend::Docker
+    }
+}
+
+impl std::fmt::Display for ContainerBackend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ContainerBackend::Docker => write!(f, "docker"),
+            ContainerBackend::Microsandbox => write!(f, "microsandbox"),
+            ContainerBackend::Arrakis => write!(f, "arrakis"),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // ContainerConfig
 // ---------------------------------------------------------------------------
 
@@ -49,6 +84,8 @@ pub struct ContainerConfig {
     pub env_vars: Vec<(String, String)>,
     /// Default timeout in seconds for container operations.
     pub timeout_secs: u64,
+    /// Isolation backend (default: Docker).
+    pub backend: ContainerBackend,
 }
 
 impl Default for ContainerConfig {
@@ -62,6 +99,7 @@ impl Default for ContainerConfig {
             volumes: Vec::new(),
             env_vars: Vec::new(),
             timeout_secs: 30,
+            backend: ContainerBackend::default(),
         }
     }
 }
@@ -139,13 +177,63 @@ impl Container {
         }
     }
 
-    /// Create a **new** Docker container from the given configuration.
+    /// Create a **new** container from the given configuration.
     ///
-    /// The container is started in detached mode with `tail -f /dev/null` as
-    /// the entrypoint so it stays alive until explicitly destroyed (or this
-    /// handle is dropped).
+    /// The behaviour depends on [`ContainerConfig::backend`]:
+    ///
+    /// * **Docker** -- the container is started in detached mode with
+    ///   `tail -f /dev/null` as the entrypoint so it stays alive until
+    ///   explicitly destroyed (or this handle is dropped).
+    /// * **Microsandbox** -- *not yet implemented* (will delegate to the
+    ///   microsandbox Python bridge via the Conscious integration layer).
+    /// * **Arrakis** -- *not yet implemented* (will delegate to the
+    ///   Arrakis REST API via the Conscious integration layer).
     pub fn create(config: &ContainerConfig) -> Result<Self> {
-        info!(image = %config.image, workdir = %config.workdir, "Creating Docker container");
+        match config.backend {
+            ContainerBackend::Docker => Self::create_docker(config),
+            ContainerBackend::Microsandbox => {
+                // TODO: Implement Microsandbox backend.
+                //
+                // This will call the microsandbox Python bridge through the
+                // Conscious integration layer:
+                //   1. POST to microsandbox MCP server to create a MicroVM
+                //   2. Return a Container handle wrapping the sandbox_id
+                //   3. exec() will route through the bridge's execute_code()
+                //
+                // For now, fall back to Docker with a warning.
+                warn!(
+                    "Microsandbox backend not yet implemented, falling back to Docker"
+                );
+                Self::create_docker(config)
+            }
+            ContainerBackend::Arrakis => {
+                // TODO: Implement Arrakis backend.
+                //
+                // This will call the Arrakis REST API through the Conscious
+                // integration layer:
+                //   1. Create a microsandbox MicroVM (via microsandbox bridge)
+                //   2. Register it with Arrakis for snapshot management
+                //   3. Return a Container handle wrapping the sandbox_id
+                //   4. exec() will route through the microsandbox bridge
+                //   5. Additional snapshot/restore/fork ops via Arrakis bridge
+                //
+                // For now, fall back to Docker with a warning.
+                warn!(
+                    "Arrakis backend not yet implemented, falling back to Docker"
+                );
+                Self::create_docker(config)
+            }
+        }
+    }
+
+    /// Internal: create a container using the Docker CLI.
+    fn create_docker(config: &ContainerConfig) -> Result<Self> {
+        info!(
+            image = %config.image,
+            workdir = %config.workdir,
+            backend = %config.backend,
+            "Creating Docker container"
+        );
 
         // First verify Docker is available
         let version_output = Command::new("docker")
@@ -581,6 +669,26 @@ mod tests {
         assert!(cfg.volumes.is_empty());
         assert!(cfg.env_vars.is_empty());
         assert_eq!(cfg.timeout_secs, 30);
+        assert_eq!(cfg.backend, ContainerBackend::Docker);
+    }
+
+    #[test]
+    fn test_container_backend_default() {
+        assert_eq!(ContainerBackend::default(), ContainerBackend::Docker);
+    }
+
+    #[test]
+    fn test_container_backend_display() {
+        assert_eq!(format!("{}", ContainerBackend::Docker), "docker");
+        assert_eq!(format!("{}", ContainerBackend::Microsandbox), "microsandbox");
+        assert_eq!(format!("{}", ContainerBackend::Arrakis), "arrakis");
+    }
+
+    #[test]
+    fn test_container_backend_equality() {
+        assert_eq!(ContainerBackend::Docker, ContainerBackend::Docker);
+        assert_ne!(ContainerBackend::Docker, ContainerBackend::Microsandbox);
+        assert_ne!(ContainerBackend::Microsandbox, ContainerBackend::Arrakis);
     }
 
     #[test]

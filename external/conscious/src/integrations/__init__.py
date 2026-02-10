@@ -21,6 +21,7 @@ CONFIG_DIR = INTEGRATIONS_DIR.parent.parent / "config"
 EXTERNAL_DIR = INTEGRATIONS_DIR.parent.parent.parent  # G:\goose\external\
 
 __all__ = [
+    # Stage 5.5 — Wired
     "aider_bridge",
     "conscious_bridge",
     "langgraph_bridge",
@@ -28,4 +29,18 @@ __all__ = [
     "praisonai_bridge",
     "pydantic_ai_bridge",
     "registry",
+    # Stage 6 — Resource Coordination
+    "resource_coordinator",
+    # Stage 6-7 — New Bridges
+    "dspy_bridge",
+    "inspect_bridge",
+    "mem0_bridge",
+    "overnight_gym",
+    "microsandbox_bridge",
+    "arrakis_bridge",
+    "langfuse_bridge",
+    "astgrep_bridge",
+    "semgrep_bridge",
+    "crosshair_bridge",
+    "pr_agent_bridge",
 ]

@@ -33,9 +33,12 @@ Or directly::
 from __future__ import annotations
 
 import logging
+import threading
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, Sequence
+
+from integrations.resource_coordinator import get_coordinator
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +115,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 _initialized: bool = False
+_init_lock = threading.Lock()
 _checkpointer: Any = None  # BaseCheckpointSaver instance
 
 # Registry of workflow definitions: name -> WorkflowDef
@@ -172,54 +176,55 @@ async def init(
             "message": _IMPORT_ERROR,
         }
 
-    if _initialized:
-        return {"success": True, "message": "Already initialized"}
+    with _init_lock:
+        if _initialized:
+            return {"success": True, "message": "Already initialized"}
 
-    # --- configure checkpointer ---
-    if checkpointer == "memory":
-        _checkpointer = InMemorySaver()
-    elif checkpointer == "sqlite":
-        if not _SQLITE_AVAILABLE:
+        # --- configure checkpointer ---
+        if checkpointer == "memory":
+            _checkpointer = InMemorySaver()
+        elif checkpointer == "sqlite":
+            if not _SQLITE_AVAILABLE:
+                return {
+                    "success": False,
+                    "message": (
+                        "SQLite checkpointer requested but langgraph-checkpoint-sqlite "
+                        "is not installed.  Install with: "
+                        "pip install langgraph-checkpoint-sqlite"
+                    ),
+                }
+            if not sqlite_path:
+                sqlite_path = ":memory:"
+            _checkpointer = AsyncSqliteSaver.from_conn_string(sqlite_path)
+        elif checkpointer == "postgres":
+            if not _POSTGRES_AVAILABLE:
+                return {
+                    "success": False,
+                    "message": (
+                        "Postgres checkpointer requested but "
+                        "langgraph-checkpoint-postgres is not installed.  "
+                        "Install with: pip install langgraph-checkpoint-postgres"
+                    ),
+                }
+            if not postgres_dsn:
+                return {
+                    "success": False,
+                    "message": "postgres_dsn is required for postgres checkpointer",
+                }
+            _checkpointer = AsyncPostgresSaver.from_conn_string(postgres_dsn)
+        else:
             return {
                 "success": False,
-                "message": (
-                    "SQLite checkpointer requested but langgraph-checkpoint-sqlite "
-                    "is not installed.  Install with: "
-                    "pip install langgraph-checkpoint-sqlite"
-                ),
+                "message": f"Unknown checkpointer backend: {checkpointer!r}. "
+                "Choose 'memory', 'sqlite', or 'postgres'.",
             }
-        if not sqlite_path:
-            sqlite_path = ":memory:"
-        _checkpointer = AsyncSqliteSaver.from_conn_string(sqlite_path)
-    elif checkpointer == "postgres":
-        if not _POSTGRES_AVAILABLE:
-            return {
-                "success": False,
-                "message": (
-                    "Postgres checkpointer requested but "
-                    "langgraph-checkpoint-postgres is not installed.  "
-                    "Install with: pip install langgraph-checkpoint-postgres"
-                ),
-            }
-        if not postgres_dsn:
-            return {
-                "success": False,
-                "message": "postgres_dsn is required for postgres checkpointer",
-            }
-        _checkpointer = AsyncPostgresSaver.from_conn_string(postgres_dsn)
-    else:
+
+        _initialized = True
+        logger.info("LangGraph bridge initialized with %s checkpointer", checkpointer)
         return {
-            "success": False,
-            "message": f"Unknown checkpointer backend: {checkpointer!r}. "
-            "Choose 'memory', 'sqlite', or 'postgres'.",
+            "success": True,
+            "message": f"LangGraph bridge initialized ({checkpointer} checkpointer)",
         }
-
-    _initialized = True
-    logger.info("LangGraph bridge initialized with %s checkpointer", checkpointer)
-    return {
-        "success": True,
-        "message": f"LangGraph bridge initialized ({checkpointer} checkpointer)",
-    }
 
 
 def status() -> ToolStatus:
@@ -901,18 +906,29 @@ async def execute(operation: str, params: dict[str, Any]) -> dict[str, Any]:
             f"Available: {', '.join(sorted(ops.keys()))}",
         }
 
-    try:
-        import asyncio
-        import inspect
+    async def _do_operation():
+        import inspect as _inspect_mod
 
         result = fn(**params)
-        if inspect.isawaitable(result):
+        if _inspect_mod.isawaitable(result):
             result = await result
 
         # Normalise: if the function returns a non-dict, wrap it.
         if not isinstance(result, dict):
             return {"success": True, "result": result}
         return result
-    except Exception as exc:
-        logger.error("execute(%s) failed: %s", operation, exc)
-        return {"success": False, "error": str(exc)}
+
+    coordinator = get_coordinator()
+    try:
+        async with coordinator.acquire("langgraph", "orchestrate"):
+            return await _do_operation()
+    except Exception as coord_err:
+        logger.warning(
+            "ResourceCoordinator unavailable, running without coordination: %s",
+            coord_err,
+        )
+        try:
+            return await _do_operation()
+        except Exception as exc:
+            logger.error("execute(%s) failed: %s", operation, exc)
+            return {"success": False, "error": str(exc)}

@@ -103,3 +103,171 @@ install_cmd = "pip install -e G:/goose/external/pydantic-ai/pydantic-ai-slim"
 [tools.pydantic_ai.endpoints]
 validate_output = { method = "POST", path = "/api/tools/pydantic-ai/validate" }
 run_typed_agent = { method = "POST", path = "/api/tools/pydantic-ai/run" }
+
+# ---------------------------------------------------------------------------
+# Stage 6-7: Self-Improvement & Safety Pipeline
+# ---------------------------------------------------------------------------
+
+[tools.dspy]
+name = "DSPy"
+description = "Prompt optimization compiler with GEPA evolutionary optimizer"
+path = "G:/goose/external/dspy"
+bridge_module = "integrations.dspy_bridge"
+enabled = true
+capabilities = ["prompt_optimize", "signature_compile", "few_shot", "chain_of_thought", "gepa"]
+entry_point = "dspy"
+python_requires = ">=3.10"
+install_cmd = "pip install dspy"
+
+[tools.dspy.endpoints]
+optimize = { method = "POST", path = "/api/tools/dspy/optimize" }
+compile = { method = "POST", path = "/api/tools/dspy/compile" }
+export_compiled = { method = "POST", path = "/api/tools/dspy/export" }
+
+[tools.inspect_ai]
+name = "Inspect AI"
+description = "Evaluation harness for scoring agent task attempts against benchmarks"
+path = "G:/goose/external/inspect-ai"
+bridge_module = "integrations.inspect_bridge"
+enabled = true
+capabilities = ["benchmark_eval", "scoring", "dataset_load", "swe_bench", "humaneval", "run_eval", "score"]
+entry_point = "inspect_ai"
+python_requires = ">=3.10"
+install_cmd = "pip install inspect-ai"
+
+[tools.inspect_ai.endpoints]
+score = { method = "POST", path = "/api/tools/inspect-ai/score" }
+load_dataset = { method = "POST", path = "/api/tools/inspect-ai/dataset" }
+run_eval = { method = "POST", path = "/api/tools/inspect-ai/eval" }
+
+[tools.mem0]
+name = "Mem0"
+description = "Graph memory with Neo4j entity-relationship storage and Qdrant vector search"
+path = "G:/goose/external/mem0"
+bridge_module = "integrations.mem0_bridge"
+enabled = true
+capabilities = ["graph_memory", "entity_store", "trajectory_store", "vector_search", "relationship_query"]
+entry_point = "mem0"
+python_requires = ">=3.10"
+install_cmd = "pip install mem0ai"
+
+[tools.mem0.endpoints]
+store_trajectory = { method = "POST", path = "/api/tools/mem0/trajectory" }
+query_memory = { method = "POST", path = "/api/tools/mem0/query" }
+add_entity = { method = "POST", path = "/api/tools/mem0/entity" }
+search = { method = "POST", path = "/api/tools/mem0/search" }
+
+[tools.microsandbox]
+name = "Microsandbox"
+description = "MicroVM sandbox for secure agent code execution via MCP-native interface"
+path = "G:/goose/external/microsandbox"
+bridge_module = "integrations.microsandbox_bridge"
+enabled = true
+capabilities = ["sandbox_exec", "microvm", "snapshot", "mcp_native", "resource_limit"]
+entry_point = "microsandbox"
+python_requires = ">=3.10"
+install_cmd = "pip install microsandbox"
+
+[tools.microsandbox.endpoints]
+create_sandbox = { method = "POST", path = "/api/tools/microsandbox/create" }
+run_command = { method = "POST", path = "/api/tools/microsandbox/run" }
+destroy_sandbox = { method = "POST", path = "/api/tools/microsandbox/destroy" }
+snapshot = { method = "POST", path = "/api/tools/microsandbox/snapshot" }
+
+[tools.arrakis]
+name = "Arrakis"
+description = "Snapshot and restore MicroVM state for deterministic replay and rollback"
+path = "G:/goose/external/arrakis"
+bridge_module = "integrations.arrakis_bridge"
+enabled = true
+capabilities = ["vm_snapshot", "vm_restore", "deterministic_replay", "state_fork"]
+entry_point = "arrakis"
+python_requires = ">=3.10"
+install_cmd = "go build ./cmd/..."
+
+[tools.arrakis.endpoints]
+snapshot = { method = "POST", path = "/api/tools/arrakis/snapshot" }
+restore = { method = "POST", path = "/api/tools/arrakis/restore" }
+list_snapshots = { method = "GET", path = "/api/tools/arrakis/list" }
+fork = { method = "POST", path = "/api/tools/arrakis/fork" }
+
+[tools.ast_grep]
+name = "ast-grep"
+description = "Structural code search and editing using AST pattern matching"
+path = "G:/goose/external/ast-grep"
+bridge_module = "integrations.ast_grep_bridge"
+enabled = true
+capabilities = ["structural_search", "ast_edit", "code_pattern", "refactor", "multi_language"]
+entry_point = "ast_grep"
+install_cmd = "cargo install ast-grep"
+
+[tools.ast_grep.endpoints]
+search = { method = "POST", path = "/api/tools/ast-grep/search" }
+replace = { method = "POST", path = "/api/tools/ast-grep/replace" }
+scan = { method = "POST", path = "/api/tools/ast-grep/scan" }
+
+[tools.semgrep]
+name = "Semgrep"
+description = "Policy-as-code guardrails for static analysis and security scanning"
+path = "G:/goose/external/semgrep"
+bridge_module = "integrations.semgrep_bridge"
+enabled = true
+capabilities = ["static_analysis", "security_scan", "policy_check", "custom_rules", "autofix"]
+entry_point = "semgrep"
+python_requires = ">=3.10"
+install_cmd = "pip install semgrep"
+
+[tools.semgrep.endpoints]
+scan = { method = "POST", path = "/api/tools/semgrep/scan" }
+check_policy = { method = "POST", path = "/api/tools/semgrep/policy" }
+autofix = { method = "POST", path = "/api/tools/semgrep/autofix" }
+
+[tools.crosshair]
+name = "CrossHair"
+description = "Python formal verification using symbolic execution and contracts"
+path = "G:/goose/external/crosshair"
+bridge_module = "integrations.crosshair_bridge"
+enabled = true
+capabilities = ["formal_verify", "symbolic_exec", "contract_check", "property_test", "counterexample"]
+entry_point = "crosshair"
+python_requires = ">=3.10"
+install_cmd = "pip install crosshair-tool"
+
+[tools.crosshair.endpoints]
+verify = { method = "POST", path = "/api/tools/crosshair/verify" }
+check_contracts = { method = "POST", path = "/api/tools/crosshair/contracts" }
+find_counterexample = { method = "POST", path = "/api/tools/crosshair/counterexample" }
+check_directory = { method = "POST", path = "/api/tools/crosshair/directory" }
+selftest = { method = "POST", path = "/api/tools/crosshair/selftest" }
+
+[tools.langfuse]
+name = "Langfuse"
+description = "Observability platform for LLM traces, spans, and cost tracking"
+path = "G:/goose/external/langfuse"
+bridge_module = "integrations.langfuse_bridge"
+enabled = true
+capabilities = ["tracing", "span_logging", "cost_tracking", "prompt_versioning", "evaluation"]
+entry_point = "langfuse"
+python_requires = ">=3.10"
+install_cmd = "pip install langfuse"
+
+[tools.langfuse.endpoints]
+log_trace = { method = "POST", path = "/api/tools/langfuse/trace" }
+log_span = { method = "POST", path = "/api/tools/langfuse/span" }
+get_metrics = { method = "GET", path = "/api/tools/langfuse/metrics" }
+
+[tools.pr_agent]
+name = "PR-Agent"
+description = "CI/PR automation with AI-powered code review and description generation"
+path = "G:/goose/external/pr-agent"
+bridge_module = "integrations.pr_agent_bridge"
+enabled = true
+capabilities = ["pr_review", "pr_describe", "pr_improve", "ci_feedback", "changelog"]
+entry_point = "pr_agent"
+python_requires = ">=3.10"
+install_cmd = "pip install pr-agent"
+
+[tools.pr_agent.endpoints]
+review = { method = "POST", path = "/api/tools/pr-agent/review" }
+describe = { method = "POST", path = "/api/tools/pr-agent/describe" }
+improve = { method = "POST", path = "/api/tools/pr-agent/improve" }

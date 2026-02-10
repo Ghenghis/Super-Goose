@@ -42,6 +42,7 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -69,6 +70,7 @@ WORKFLOW_PRIMITIVES = ("route", "parallel", "loop", "repeat")
 # ---------------------------------------------------------------------------
 
 _initialized: bool = False
+_init_lock = threading.Lock()
 _import_available: bool = False
 _import_error: Optional[str] = None
 _cached_version: Optional[str] = None
@@ -118,40 +120,41 @@ def init() -> ToolStatus:
     """
     global _initialized, _import_available, _import_error, _cached_version
 
-    if _initialized:
-        return status()
+    with _init_lock:
+        if _initialized:
+            return status()
 
-    # Attempt 1: direct import (installed or already on sys.path)
-    try:
-        import praisonaiagents  # noqa: F401
-        _import_available = True
-        _cached_version = getattr(praisonaiagents, "__version__", _VERSION)
-        logger.info("PraisonAI bridge: direct import succeeded (v%s)", _cached_version)
-    except ImportError:
-        # Attempt 2: add local checkout to sys.path
-        agents_src = str(PRAISONAI_AGENTS_PATH)
-        if agents_src not in sys.path:
-            sys.path.insert(0, agents_src)
-            logger.debug("PraisonAI bridge: added %s to sys.path", agents_src)
-
+        # Attempt 1: direct import (installed or already on sys.path)
         try:
             import praisonaiagents  # noqa: F401
             _import_available = True
             _cached_version = getattr(praisonaiagents, "__version__", _VERSION)
-            logger.info(
-                "PraisonAI bridge: import succeeded via local path (v%s)",
-                _cached_version,
-            )
-        except ImportError as exc:
-            _import_available = False
-            _import_error = str(exc)
-            logger.warning(
-                "PraisonAI bridge: import failed (%s), will use subprocess fallback",
-                _import_error,
-            )
+            logger.info("PraisonAI bridge: direct import succeeded (v%s)", _cached_version)
+        except ImportError:
+            # Attempt 2: add local checkout to sys.path
+            agents_src = str(PRAISONAI_AGENTS_PATH)
+            if agents_src not in sys.path:
+                sys.path.insert(0, agents_src)
+                logger.debug("PraisonAI bridge: added %s to sys.path", agents_src)
 
-    _initialized = True
-    return status()
+            try:
+                import praisonaiagents  # noqa: F401
+                _import_available = True
+                _cached_version = getattr(praisonaiagents, "__version__", _VERSION)
+                logger.info(
+                    "PraisonAI bridge: import succeeded via local path (v%s)",
+                    _cached_version,
+                )
+            except ImportError as exc:
+                _import_available = False
+                _import_error = str(exc)
+                logger.warning(
+                    "PraisonAI bridge: import failed (%s), will use subprocess fallback",
+                    _import_error,
+                )
+
+        _initialized = True
+        return status()
 
 
 def status() -> ToolStatus:

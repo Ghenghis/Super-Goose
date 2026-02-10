@@ -1,0 +1,241 @@
+# Supply Chain Security
+#
+# Comprehensive supply-chain security pipeline that:
+#   1. Generates SBOMs (Software Bill of Materials) with Syft/Anchore
+#   2. Scans for vulnerabilities with Trivy
+#   3. Signs release artifacts with cosign (Sigstore keyless)
+#   4. Uploads SARIF results to GitHub Code Scanning
+#
+# Triggers:
+#   - Manual dispatch only: configurable with skip flags
+#   - Automatic push/tag triggers disabled until signing keys configured
+#
+# Prerequisites:
+#   - GITHUB_TOKEN with packages:write for cosign signing
+#   - No additional secrets needed (cosign uses keyless/OIDC via Sigstore)
+
+name: Supply Chain Security
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Container image tag to sign and scan"
+        required: false
+        default: "latest"
+      skip_sign:
+        description: "Skip cosign signing step"
+        required: false
+        type: boolean
+        default: false
+      skip_sbom:
+        description: "Skip SBOM generation step"
+        required: false
+        type: boolean
+        default: false
+      skip_scan:
+        description: "Skip Trivy vulnerability scan step"
+        required: false
+        type: boolean
+        default: false
+# DISABLED from automatic push triggers
+# Re-enable when cosign signing keys and GHCR access are configured
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write        # Required for cosign keyless signing via Sigstore OIDC
+  security-events: write # Required for uploading Trivy SARIF results
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Job 1: Generate SBOM with Syft (Anchore)
+  # Runs on every trigger unless explicitly skipped via dispatch
+  # -----------------------------------------------------------------------
+  sbom-generate:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    if: >-
+      github.repository == 'Ghenghis/Super-Goose'
+      && !inputs.skip_sbom
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Generate SBOM from source repository
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cyclonedx.json
+
+      - name: Generate SBOM from container image
+        uses: anchore/sbom-action@v0
+        continue-on-error: true
+        with:
+          image: ${{ env.IMAGE_NAME }}:${{ inputs.image_tag || 'latest' }}
+          format: spdx-json
+          output-file: sbom-container.spdx.json
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-reports
+          path: |
+            sbom.spdx.json
+            sbom.cyclonedx.json
+            sbom-container.spdx.json
+          retention-days: 90
+
+  # -----------------------------------------------------------------------
+  # Job 2: Vulnerability scanning with Trivy (Aqua Security)
+  # Runs on every trigger unless explicitly skipped via dispatch
+  # -----------------------------------------------------------------------
+  trivy-scan:
+    name: Vulnerability scan
+    runs-on: ubuntu-latest
+    if: >-
+      github.repository == 'Ghenghis/Super-Goose'
+      && !inputs.skip_scan
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Scan the source repository for vulnerabilities and misconfigurations
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      # Scan container image
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ inputs.image_tag || 'latest' }}
+          format: sarif
+          output: trivy-image.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Upload Trivy filesystem SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-filesystem
+
+      - name: Upload Trivy image SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+
+      - name: Upload scan artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-reports
+          path: |
+            trivy-fs.sarif
+            trivy-image.sarif
+          retention-days: 30
+
+  # -----------------------------------------------------------------------
+  # Job 3: Sign release artifacts with cosign (Sigstore keyless)
+  # Only runs on release tags or manual dispatch
+  # -----------------------------------------------------------------------
+  cosign-sign:
+    name: Sign release artifacts
+    runs-on: ubuntu-latest
+    needs: [sbom-generate, trivy-scan]
+    if: >-
+      github.repository == 'Ghenghis/Super-Goose'
+      && !inputs.skip_sign
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download SBOM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom-reports
+          path: ./sbom-reports
+
+      - name: Sign container image (keyless)
+        continue-on-error: true
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag || 'latest' }}
+        run: |
+          IMAGE="${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+          echo "Signing image: ${IMAGE}"
+
+          # Keyless signing via Sigstore Fulcio + Rekor
+          cosign sign --yes "${IMAGE}"
+
+          echo "Image signed successfully."
+
+      - name: Attach SBOM to container image
+        continue-on-error: true
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag || 'latest' }}
+        run: |
+          IMAGE="${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+
+          if [ -f ./sbom-reports/sbom.spdx.json ]; then
+            echo "Attaching SBOM to: ${IMAGE}"
+            cosign attach sbom --sbom ./sbom-reports/sbom.spdx.json "${IMAGE}"
+          fi
+
+      - name: Verify signature
+        continue-on-error: true
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag || 'latest' }}
+        run: |
+          IMAGE="${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+          echo "Verifying signature for: ${IMAGE}"
+
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "${IMAGE}" || echo "::warning::Signature verification returned non-zero (image may not be signed yet)"

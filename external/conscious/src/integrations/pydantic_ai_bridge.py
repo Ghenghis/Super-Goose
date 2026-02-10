@@ -21,8 +21,11 @@ from __future__ import annotations
 
 import logging
 import sys
+import threading
 from pathlib import Path
 from typing import Any, Optional
+
+from integrations.resource_coordinator import get_coordinator
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,7 @@ _pydantic_ai: Any = None          # pydantic_ai top-level module
 _pydantic: Any = None             # pydantic module
 _genai_prices: Any = None         # genai_prices module (optional)
 _initialized: bool = False
+_init_lock = threading.Lock()
 _init_error: Optional[str] = None
 _version: Optional[str] = None
 
@@ -138,45 +142,46 @@ def init() -> None:
     global _pydantic_ai, _pydantic, _genai_prices
     global _initialized, _init_error, _version
 
-    if _initialized:
-        return
+    with _init_lock:
+        if _initialized:
+            return
 
-    # Ensure the vendored source is importable
-    slim_str = str(_PYDANTIC_AI_SLIM)
-    if slim_str not in sys.path:
-        sys.path.insert(0, slim_str)
+        # Ensure the vendored source is importable
+        slim_str = str(_PYDANTIC_AI_SLIM)
+        if slim_str not in sys.path:
+            sys.path.insert(0, slim_str)
 
-    try:
-        import pydantic_ai as pai  # noqa: WPS433
-        _pydantic_ai = pai
-        _version = getattr(pai, "__version__", None)
-    except ImportError as exc:
-        _init_error = (
-            f"Failed to import pydantic_ai: {exc}. "
-            f"Install with: pip install -e {_PYDANTIC_AI_SLIM}"
-        )
+        try:
+            import pydantic_ai as pai  # noqa: WPS433
+            _pydantic_ai = pai
+            _version = getattr(pai, "__version__", None)
+        except ImportError as exc:
+            _init_error = (
+                f"Failed to import pydantic_ai: {exc}. "
+                f"Install with: pip install -e {_PYDANTIC_AI_SLIM}"
+            )
+            _initialized = True
+            logger.error(_init_error)
+            return
+
+        try:
+            import pydantic  # noqa: WPS433
+            _pydantic = pydantic
+        except ImportError as exc:
+            _init_error = f"Failed to import pydantic: {exc}"
+            _initialized = True
+            logger.error(_init_error)
+            return
+
+        # genai-prices is optional -- used only by estimate_cost()
+        try:
+            import genai_prices  # noqa: WPS433
+            _genai_prices = genai_prices
+        except ImportError:
+            logger.debug("genai-prices not available; estimate_cost will use fallback table")
+
         _initialized = True
-        logger.error(_init_error)
-        return
-
-    try:
-        import pydantic  # noqa: WPS433
-        _pydantic = pydantic
-    except ImportError as exc:
-        _init_error = f"Failed to import pydantic: {exc}"
-        _initialized = True
-        logger.error(_init_error)
-        return
-
-    # genai-prices is optional -- used only by estimate_cost()
-    try:
-        import genai_prices  # noqa: WPS433
-        _genai_prices = genai_prices
-    except ImportError:
-        logger.debug("genai-prices not available; estimate_cost will use fallback table")
-
-    _initialized = True
-    logger.info("pydantic_ai_bridge initialised (version=%s)", _version)
+        logger.info("pydantic_ai_bridge initialised (version=%s)", _version)
 
 
 def _ensure_init() -> None:
@@ -656,12 +661,23 @@ async def execute(operation: str, params: dict[str, Any]) -> dict[str, Any]:
     if operation == "list_output_modes":
         return {"success": True, "data": func()}
 
+    async def _do_operation():
+        return await func(**params)
+
+    coordinator = get_coordinator()
     try:
-        result = await func(**params)
-        return result
-    except Exception as exc:
-        logger.exception("execute(%s) failed", operation)
-        return {"error": str(exc), "success": False}
+        async with coordinator.acquire("pydantic_ai", "validate"):
+            return await _do_operation()
+    except Exception as coord_err:
+        logger.warning(
+            "ResourceCoordinator unavailable, running without coordination: %s",
+            coord_err,
+        )
+        try:
+            return await _do_operation()
+        except Exception as exc:
+            logger.exception("execute(%s) failed", operation)
+            return {"error": str(exc), "success": False}
 
 
 # ===================================================================
