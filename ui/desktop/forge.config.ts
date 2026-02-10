@@ -65,8 +65,8 @@ module.exports = {
     {
       name: '@electron-forge/maker-deb',
       config: {
-        name: 'Super-Goose',
-        bin: 'Super-Goose',
+        name: 'goose',
+        bin: 'Goose',
         maintainer: 'Ghenghis',
         homepage: 'https://Ghenghis.github.io/Super-Goose/',
         categories: ['Development'],
@@ -80,8 +80,8 @@ module.exports = {
     {
       name: '@electron-forge/maker-rpm',
       config: {
-        name: 'Super-Goose',
-        bin: 'Super-Goose',
+        name: 'goose',
+        bin: 'Goose',
         maintainer: 'Ghenghis',
         homepage: 'https://Ghenghis.github.io/Super-Goose/',
         categories: ['Development'],
@@ -102,7 +102,7 @@ module.exports = {
           homepage: 'https://Ghenghis.github.io/Super-Goose/',
           runtimeVersion: '25.08',
           baseVersion: '25.08',
-          bin: 'Super-Goose',
+          bin: 'Goose',
           modules: [
             {
               name: 'libbz2-shim',
