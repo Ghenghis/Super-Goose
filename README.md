@@ -8,6 +8,8 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/Ghenghis/Super-Goose/ci.yml?branch=main&style=for-the-badge&label=CI&color=00CC66)](https://github.com/Ghenghis/Super-Goose/actions)
 [![Release](https://img.shields.io/github/actions/workflow/status/Ghenghis/Super-Goose/release.yml?style=for-the-badge&label=Release&color=00BFFF)](https://github.com/Ghenghis/Super-Goose/actions/workflows/release.yml)
 [![Discord](https://img.shields.io/discord/1287729918100246654?logo=discord&logoColor=white&label=Discord&color=7B68EE&style=for-the-badge)](https://discord.gg/goose-oss)
+[![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/Ghenghis/Super-Goose/pkgs/container/super-goose)
+[![Pages](https://img.shields.io/badge/Docs-GitHub_Pages-00CC66?style=for-the-badge&logo=github&logoColor=white)](https://ghenghis.github.io/Super-Goose/)
 
 </div>
 
@@ -330,11 +332,32 @@ Pre-built binaries are available from the [Releases](https://github.com/Ghenghis
 
 | Platform | CLI | Desktop |
 |:--|:--|:--|
+| **Docker** | `ghcr.io/ghenghis/super-goose:v1.24.02` | — |
 | **Windows** | `goose-x86_64-pc-windows-msvc.zip` | `Goose-win32-x64.zip` |
 | **macOS ARM** | `goose-aarch64-apple-darwin.tar.bz2` | `Goose.dmg` |
 | **macOS Intel** | `goose-x86_64-apple-darwin.tar.bz2` | `Goose-intel.dmg` |
 | **Linux x86** | `goose-x86_64-unknown-linux-gnu.tar.bz2` | `.deb` / `.rpm` |
 | **Linux ARM** | `goose-aarch64-unknown-linux-gnu.tar.bz2` | — |
+
+### Docker
+
+Pull the official Super-Goose Docker image from [GitHub Container Registry](https://github.com/Ghenghis/Super-Goose/pkgs/container/super-goose):
+
+```bash
+# Latest
+docker pull ghcr.io/ghenghis/super-goose:latest
+
+# Specific version
+docker pull ghcr.io/ghenghis/super-goose:v1.24.02
+
+# Run the CLI
+docker run --rm -it ghcr.io/ghenghis/super-goose:latest goose
+
+# Run the server (goosed) on port 3284
+docker run -d -p 3284:3284 ghcr.io/ghenghis/super-goose:latest goosed
+```
+
+The Docker image includes both `goose` (CLI) and `goosed` (API server) binaries built from Rust on a minimal Debian runtime. Published for `linux/amd64` on every release.
 
 ---
 
@@ -370,6 +393,6 @@ Super-Goose is a fork of [Block's Goose](https://github.com/block/goose) with 16
 
 **Built with Rust + Python + Go**
 
-[Releases](https://github.com/Ghenghis/Super-Goose/releases) &bull; [Discord](https://discord.gg/goose-oss) &bull; [Issues](https://github.com/Ghenghis/Super-Goose/issues) &bull; [Conscious](https://github.com/Ghenghis/Conscious)
+[Releases](https://github.com/Ghenghis/Super-Goose/releases) &bull; [Docker](https://github.com/Ghenghis/Super-Goose/pkgs/container/super-goose) &bull; [Docs](https://ghenghis.github.io/Super-Goose/) &bull; [Discord](https://discord.gg/goose-oss) &bull; [Issues](https://github.com/Ghenghis/Super-Goose/issues)
 
 </div>

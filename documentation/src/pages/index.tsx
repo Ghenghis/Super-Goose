@@ -35,6 +35,9 @@ function HeroSection() {
           <img src="https://img.shields.io/badge/Agents-5_Specialists-9966FF.svg?style=for-the-badge" alt="5 Agents" />
           <img src="https://img.shields.io/badge/Voice-Moshi_7B-FF3366.svg?style=for-the-badge" alt="Voice" />
           <img src="https://img.shields.io/badge/Stage-5_Self--Evolving-00CC66.svg?style=for-the-badge" alt="Stage 5" />
+          <a href="https://github.com/Ghenghis/Super-Goose/pkgs/container/super-goose">
+            <img src="https://img.shields.io/badge/Docker-ghcr.io-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
+          </a>
         </div>
       </div>
     </header>
@@ -426,13 +429,14 @@ function DownloadsSection() {
       <div className={styles.sectionInner}>
         <h2 className={styles.sectionTitle}>Downloads</h2>
         <p className={styles.sectionSubtitle}>
-          Pre-built binaries for all platforms — CLI and Desktop apps.
+          Pre-built binaries for all platforms — CLI, Desktop, and Docker.
         </p>
         <div className={styles.downloadTable}>
           <div className={styles.downloadHeader}>
             <span>Platform</span><span>CLI</span><span>Desktop</span>
           </div>
           {[
+            { platform: "Docker", cli: "ghcr.io/ghenghis/super-goose:v1.24.02", desktop: "—" },
             { platform: "Windows", cli: "goose-x86_64-pc-windows-msvc.zip", desktop: "Goose-win32-x64.zip" },
             { platform: "macOS ARM", cli: "goose-aarch64-apple-darwin.tar.bz2", desktop: "Goose.dmg" },
             { platform: "macOS Intel", cli: "goose-x86_64-apple-darwin.tar.bz2", desktop: "Goose-intel.dmg" },
@@ -446,10 +450,54 @@ function DownloadsSection() {
             </div>
           ))}
         </div>
-        <div style={{ textAlign: "center", marginTop: "2rem" }}>
+        <div style={{ textAlign: "center", marginTop: "2rem", display: "flex", justifyContent: "center", gap: "1rem", flexWrap: "wrap" }}>
           <Link className="button button--primary button--lg" to="https://github.com/Ghenghis/Super-Goose/releases">
-            Go to Releases Page
+            Releases Page
           </Link>
+          <Link className="button button--secondary button--lg" to="https://github.com/Ghenghis/Super-Goose/pkgs/container/super-goose">
+            Docker Package
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────  Docker  ───────────────────────── */
+function DockerSection() {
+  return (
+    <section className={styles.sectionAlt}>
+      <div className={styles.sectionInner}>
+        <h2 className={styles.sectionTitle}>Docker</h2>
+        <p className={styles.sectionSubtitle}>
+          Pull from GitHub Container Registry — includes both CLI and server binaries.
+        </p>
+        <div className={styles.dockerGrid}>
+          <div className={styles.dockerCard}>
+            <h4>Pull Image</h4>
+            <code className={styles.dockerCode}>docker pull ghcr.io/ghenghis/super-goose:latest</code>
+            <p>Or a specific version:</p>
+            <code className={styles.dockerCode}>docker pull ghcr.io/ghenghis/super-goose:v1.24.02</code>
+          </div>
+          <div className={styles.dockerCard}>
+            <h4>Run CLI</h4>
+            <code className={styles.dockerCode}>docker run --rm -it ghcr.io/ghenghis/super-goose:latest goose</code>
+            <p>Interactive mode with the Goose CLI agent.</p>
+          </div>
+          <div className={styles.dockerCard}>
+            <h4>Run Server</h4>
+            <code className={styles.dockerCode}>docker run -d -p 3284:3284 ghcr.io/ghenghis/super-goose:latest goosed</code>
+            <p>API server on port 3284 for remote clients.</p>
+          </div>
+          <div className={styles.dockerCard}>
+            <h4>Image Details</h4>
+            <div className={styles.dockerDetails}>
+              <span>Base: Debian Slim</span>
+              <span>Arch: linux/amd64</span>
+              <span>Binaries: goose + goosed</span>
+              <span>Registry: GHCR</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -521,6 +569,7 @@ export default function Home(): ReactNode {
       <VoiceSection />
       <EnterpriseSection />
       <DownloadsSection />
+      <DockerSection />
       <InfraSection />
     </Layout>
   );

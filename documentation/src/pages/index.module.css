@@ -651,6 +651,82 @@
   }
 }
 
+/* ─────────────────────────  Docker Section  ───────────────────────── */
+
+.dockerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.dockerCard {
+  background: var(--background-app);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dockerCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.dockerCard h4 {
+  margin: 0 0 0.75rem 0;
+  color: #2496ED;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.dockerCard p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0 0;
+}
+
+.dockerCode {
+  display: block;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.8rem;
+  color: #e6edf3;
+  overflow-x: auto;
+  word-break: break-all;
+  margin: 0.5rem 0;
+}
+
+.dockerDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.dockerDetails span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dockerDetails span:last-child {
+  border-bottom: none;
+}
+
+@media screen and (max-width: 768px) {
+  .dockerGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media screen and (max-width: 480px) {
   .statsGrid {
     grid-template-columns: repeat(2, 1fr);
