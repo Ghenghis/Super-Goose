@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       build_mobile:
-        description: 'Build mobile apps (iOS + Android)'
+        description: 'Build mobile apps (iOS + Android) — disabled until ui/mobile exists'
         required: false
-        default: 'true'
+        default: 'false'
         type: boolean
 
 env:

@@ -26,7 +26,7 @@ jobs:
     name: Build Desktop (Linux)
     permissions:
       contents: read
-    runs-on: ubuntu-x86-16core-64gb
+    runs-on: ubuntu-latest
     timeout-minutes: 90
 
     steps:
