@@ -309,19 +309,19 @@ GitHub Actions pipelines. Smart change detection. All platforms.
 
 ## Project Scale
 
-Super-Goose is a major extension of [Block's Goose](https://github.com/block/goose), adding **226K+ lines of meaningful code and documentation** across 1,400+ new files:
+Super-Goose is a major extension of [Block's Goose](https://github.com/block/goose), adding **230K+ lines of meaningful code and documentation** across 1,400+ new files:
 
 | Metric | Value |
 |:--|--:|
-| **Rust Code** | 161K+ lines across 7 workspace crates |
-| **Test Functions** | ~2,000 (`#[test]` + `#[tokio::test]`) |
-| **Memory Tests** | 127 (all passing) |
-| **Commits Ahead** | 171 beyond upstream Block/goose |
-| **New Files** | 1,400+ added to the fork |
+| **Rust Code** | 165K+ lines across 7 workspace crates |
+| **Test Functions** | ~2,100 (`#[test]` + `#[tokio::test]`) |
+| **Memory + Agent Tests** | 208 (all passing) |
+| **Commits Ahead** | 177 beyond upstream Block/goose |
+| **New Files** | 1,410+ added to the fork |
 | **CI/CD Workflows** | 43 GitHub Actions pipelines |
 | **Docker Image** | `ghcr.io/ghenghis/super-goose` (linux/amd64) |
 
-### Phase 6: Memory System (Active)
+### Phase 6: Memory System
 
 The memory system provides **cross-session context retention** with 4 memory tiers:
 
@@ -337,6 +337,90 @@ The memory system provides **cross-session context retention** with 4 memory tie
 - **Consolidation** — Automatic Working→Episodic→Semantic promotion
 - **Persistence** — Cross-session recall via `~/.config/goose/memory/memories.json`
 - **`/memory` Command** — Stats, clear, save subcommands
+
+### Phase 6.3: Human-in-the-Loop (HITL)
+
+Interactive session control with breakpoints and plan approval:
+
+| Feature | Description |
+|:--|:--|
+| **Breakpoints** | Tool-level, pattern-based (regex), periodic (every N turns), on-error |
+| **Plan Approval** | Gate execution until user reviews and approves the plan |
+| **Feedback Injection** | Inject user guidance mid-execution via `/resume [feedback]` |
+| **State Inspection** | `/inspect` shows turn count, breakpoints, plan status, memory stats |
+| **Slash Commands** | `/pause`, `/resume`, `/breakpoint`, `/inspect`, `/plan` |
+
+### Phase 6.4: Agent Benchmarks (goose-bench)
+
+Built-in benchmark framework for measuring and tracking agent quality:
+
+| Feature | Description |
+|:--|:--|
+| **BenchmarkSuite** | 6 builtin tasks (code generation, refactoring, bug fix, test writing, documentation, multi-step) |
+| **5 Evaluator Criteria** | Contains, Matches (regex), ToolCalled, FileExists, Custom functions |
+| **Regression Detection** | Automatic comparison against baselines with configurable thresholds |
+| **Reporting** | BenchmarkReport with pass/fail rates, task-level breakdowns, performance deltas |
+
+### Phase 7: Task Graph Engine & Skill Registry
+
+LangGraph-inspired DAG execution and composable skill system:
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Task Graph (graph.rs)**
+- DAG with typed nodes: ToolCall, Prompt, Conditional, SubGraph, ParallelFork, Join
+- Cycle detection via DFS, topological sort via Kahn's algorithm
+- GraphExecutor with retry support and node state tracking
+- Mermaid diagram export for visualization
+- 18 unit tests
+
+</td>
+<td width="50%" valign="top">
+
+**Skill Registry (skill_registry.rs)**
+- SkillMetadata with 10 categories and typed parameters
+- Search/discovery API with multi-criteria filtering
+- Recursive dependency resolution with circular dep detection
+- SkillPipeline for chaining skills with I/O validation
+- 4 builtins: code-review, test-generator, docs-generator, security-audit
+- 20 unit tests
+
+</td>
+</tr>
+</table>
+
+### Phase 8: Extended Thinking & Agentic Swarms
+
+Chain-of-thought deliberation and multi-agent swarm orchestration:
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Extended Thinking (extended_thinking.rs)**
+- ThinkingSession with structured chain-of-thought reasoning
+- 10 step types: Decomposition, Hypothesis, Evaluation, Verification, Synthesis, Reflection, etc.
+- 7 thinking patterns: Linear, TreeOfThought, ReAct, Reflexive, StepBack, LeastToMost, SelfDebate
+- Configurable budget (steps, time, tokens, depth)
+- Confidence tracking with auto-termination
+- 12 unit tests
+
+</td>
+<td width="50%" valign="top">
+
+**Agentic Swarms (swarm.rs)**
+- Multi-agent Swarm with 10 typed roles (Coder, Tester, Reviewer, Architect, etc.)
+- 6 routing strategies: RoundRobin, LeastBusy, SkillBased, PerformanceBased, Hybrid, Random
+- BatchProcessor for parallel task execution
+- Inter-agent messaging with typed messages
+- EMA-based performance tracking per agent
+- 16 unit tests
+
+</td>
+</tr>
+</table>
 
 ---
 
@@ -365,7 +449,7 @@ Pre-built binaries are available from the [Releases](https://github.com/Ghenghis
 
 | Platform | CLI | Desktop |
 |:--|:--|:--|
-| **Docker** | `ghcr.io/ghenghis/super-goose:v1.24.02` | — |
+| **Docker** | `ghcr.io/ghenghis/super-goose:v1.24.04` | — |
 | **Windows** | `goose-x86_64-pc-windows-msvc.zip` | `Goose-win32-x64.zip` |
 | **macOS ARM** | `goose-aarch64-apple-darwin.tar.bz2` | `Goose.dmg` |
 | **macOS Intel** | `goose-x86_64-apple-darwin.tar.bz2` | `Goose-intel.dmg` |
@@ -381,7 +465,7 @@ Pull the official Super-Goose Docker image from [GitHub Container Registry](http
 docker pull ghcr.io/ghenghis/super-goose:latest
 
 # Specific version
-docker pull ghcr.io/ghenghis/super-goose:v1.24.02
+docker pull ghcr.io/ghenghis/super-goose:v1.24.04
 
 # Run the CLI
 docker run --rm -it ghcr.io/ghenghis/super-goose:latest goose

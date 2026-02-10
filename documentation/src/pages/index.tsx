@@ -26,7 +26,7 @@ function HeroSection() {
             View on GitHub
           </Link>
           <Link className={styles.secondaryBtn} to="https://github.com/Ghenghis/Super-Goose/releases">
-            Download v1.24.02
+            Download v1.24.04
           </Link>
         </div>
         <div className={styles.badgeRow}>
@@ -47,13 +47,13 @@ function HeroSection() {
 /* ─────────────────────────  Stats Bar  ───────────────────────── */
 function StatsBar() {
   const stats = [
-    { value: "161K+", label: "Lines of Rust" },
-    { value: "~2,000", label: "Test Functions" },
-    { value: "171", label: "Commits Ahead" },
+    { value: "165K+", label: "Lines of Rust" },
+    { value: "~2,100", label: "Test Functions" },
+    { value: "177", label: "Commits Ahead" },
     { value: "16", label: "Integrated Tools" },
     { value: "5", label: "Specialist Agents" },
-    { value: "127", label: "Memory Tests" },
-    { value: "43", label: "CI/CD Workflows" },
+    { value: "208", label: "Agent Tests" },
+    { value: "8", label: "Agent Phases" },
     { value: "7", label: "Workspace Crates" },
   ];
   return (
@@ -422,6 +422,135 @@ function EnterpriseSection() {
   );
 }
 
+/* ─────────────────────────  HITL & Benchmarks Section  ───────────────────────── */
+function HITLSection() {
+  return (
+    <section className={styles.sectionAlt}>
+      <div className={styles.sectionInner}>
+        <h2 className={styles.sectionTitle}>Phase 6.3 & 6.4: HITL + Benchmarks</h2>
+        <p className={styles.sectionSubtitle}>
+          Interactive session control with breakpoints, and a built-in benchmark framework for tracking agent quality.
+        </p>
+        <div className={styles.coachPlayerGrid}>
+          <div className={styles.coachPlayerCard}>
+            <h3>Human-in-the-Loop</h3>
+            <span className={styles.cpTemp}>Interactive Breakpoints</span>
+            <p>Tool-level and pattern-based breakpoints, periodic check-ins, plan approval gates. <strong>/pause</strong>, <strong>/resume</strong>, <strong>/breakpoint</strong>, <strong>/inspect</strong> slash commands. Feedback injection mid-execution.</p>
+          </div>
+          <div className={styles.coachPlayerVs}>
+            <span>&amp;</span>
+          </div>
+          <div className={styles.coachPlayerCard}>
+            <h3>Agent Benchmarks</h3>
+            <span className={styles.cpTemp}>goose-bench Framework</span>
+            <p>6 builtin benchmark tasks, 5 evaluator criteria (Contains, Matches, ToolCalled, FileExists, Custom). <strong>Regression detection</strong> with configurable thresholds and performance deltas.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────  Phase 7 Section  ───────────────────────── */
+function Phase7Section() {
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionInner}>
+        <h2 className={styles.sectionTitle}>Phase 7: Task Graph & Skill Registry</h2>
+        <p className={styles.sectionSubtitle}>
+          LangGraph-inspired DAG execution engine and composable skill system with dependency resolution.
+        </p>
+        <div className={styles.dockerGrid}>
+          <div className={styles.dockerCard}>
+            <h4>Task Graph Engine</h4>
+            <p>DAG with typed nodes — ToolCall, Prompt, Conditional, SubGraph, ParallelFork, Join. Cycle detection (DFS), topological sort (Kahn's), Mermaid export.</p>
+          </div>
+          <div className={styles.dockerCard}>
+            <h4>Graph Executor</h4>
+            <p>Node state tracking with Ready, Running, Completed, Failed states. Retry support with configurable max attempts. Automatic dependency resolution.</p>
+          </div>
+          <div className={styles.dockerCard}>
+            <h4>Skill Registry</h4>
+            <p>10 skill categories, typed parameters, search/discovery API. 4 builtins: code-review, test-generator, docs-generator, security-audit.</p>
+          </div>
+          <div className={styles.dockerCard}>
+            <h4>Skill Pipelines</h4>
+            <p>Chain skills with input/output mapping and validation. Recursive dependency resolution with circular dependency detection.</p>
+          </div>
+        </div>
+        <div className={styles.gymResult}>
+          <strong>38 unit tests</strong> — 18 graph + 20 skill registry — all passing.
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────  Phase 8 Section  ───────────────────────── */
+function Phase8Section() {
+  const thinkingPatterns = [
+    { name: "Linear", desc: "Decompose → Plan → Execute" },
+    { name: "TreeOfThought", desc: "Explore multiple branches, pick best" },
+    { name: "ReAct", desc: "Reason → Act → Observe → Repeat" },
+    { name: "Reflexive", desc: "Plan → Execute → Reflect → Revise" },
+    { name: "StepBack", desc: "Abstract the problem first, then solve" },
+    { name: "LeastToMost", desc: "Solve simpler sub-problems first" },
+    { name: "SelfDebate", desc: "Generate arguments for/against, decide" },
+  ];
+
+  const routingStrategies = [
+    { name: "RoundRobin", desc: "Cycle through agents equally" },
+    { name: "LeastBusy", desc: "Route to agent with fewest active tasks" },
+    { name: "SkillBased", desc: "Match task requirements to agent skills" },
+    { name: "PerformanceBased", desc: "Route to highest-performing agent" },
+    { name: "Hybrid", desc: "Weighted: 40% skill + 30% performance + 30% load" },
+    { name: "Random", desc: "Random selection for load distribution" },
+  ];
+
+  return (
+    <section className={styles.sectionAlt}>
+      <div className={styles.sectionInner}>
+        <h2 className={styles.sectionTitle}>Phase 8: Extended Thinking & Agentic Swarms</h2>
+        <p className={styles.sectionSubtitle}>
+          Chain-of-thought deliberation with 7 thinking patterns, and multi-agent swarm orchestration with 6 routing strategies.
+        </p>
+        <div className={styles.coachPlayerGrid}>
+          <div className={styles.coachPlayerCard}>
+            <h3>Extended Thinking</h3>
+            <span className={styles.cpTemp}>7 Thinking Patterns</span>
+            <div style={{ marginTop: "0.5rem" }}>
+              {thinkingPatterns.map((p, i) => (
+                <div key={i} style={{ marginBottom: "0.25rem", fontSize: "0.85rem" }}>
+                  <strong>{p.name}</strong> — {p.desc}
+                </div>
+              ))}
+            </div>
+            <p style={{ marginTop: "0.75rem", fontSize: "0.85rem" }}>Configurable budget: max steps, duration, tokens, depth. Confidence tracking with auto-termination. 12 unit tests.</p>
+          </div>
+          <div className={styles.coachPlayerVs}>
+            <span>+</span>
+          </div>
+          <div className={styles.coachPlayerCard}>
+            <h3>Agentic Swarms</h3>
+            <span className={styles.cpTemp}>6 Routing Strategies</span>
+            <div style={{ marginTop: "0.5rem" }}>
+              {routingStrategies.map((r, i) => (
+                <div key={i} style={{ marginBottom: "0.25rem", fontSize: "0.85rem" }}>
+                  <strong>{r.name}</strong> — {r.desc}
+                </div>
+              ))}
+            </div>
+            <p style={{ marginTop: "0.75rem", fontSize: "0.85rem" }}>10 agent roles, BatchProcessor, inter-agent messaging, EMA performance tracking. 16 unit tests.</p>
+          </div>
+        </div>
+        <div className={styles.gymResult}>
+          <strong>28 unit tests</strong> — 12 extended thinking + 16 swarm — all passing.
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ─────────────────────────  Downloads  ───────────────────────── */
 function DownloadsSection() {
   return (
@@ -436,7 +565,7 @@ function DownloadsSection() {
             <span>Platform</span><span>CLI</span><span>Desktop</span>
           </div>
           {[
-            { platform: "Docker", cli: "ghcr.io/ghenghis/super-goose:v1.24.02", desktop: "—" },
+            { platform: "Docker", cli: "ghcr.io/ghenghis/super-goose:v1.24.04", desktop: "—" },
             { platform: "Windows", cli: "goose-x86_64-pc-windows-msvc.zip", desktop: "Goose-win32-x64.zip" },
             { platform: "macOS ARM", cli: "goose-aarch64-apple-darwin.tar.bz2", desktop: "Goose.dmg" },
             { platform: "macOS Intel", cli: "goose-x86_64-apple-darwin.tar.bz2", desktop: "Goose-intel.dmg" },
@@ -477,7 +606,7 @@ function DockerSection() {
             <h4>Pull Image</h4>
             <code className={styles.dockerCode}>docker pull ghcr.io/ghenghis/super-goose:latest</code>
             <p>Or a specific version:</p>
-            <code className={styles.dockerCode}>docker pull ghcr.io/ghenghis/super-goose:v1.24.02</code>
+            <code className={styles.dockerCode}>docker pull ghcr.io/ghenghis/super-goose:v1.24.04</code>
           </div>
           <div className={styles.dockerCard}>
             <h4>Run CLI</h4>
@@ -523,7 +652,7 @@ function MemorySection() {
       <div className={styles.sectionInner}>
         <h2 className={styles.sectionTitle}>Phase 6: Memory System</h2>
         <p className={styles.sectionSubtitle}>
-          Cross-session context retention with 4 memory tiers, real vector embeddings, and graph memory.
+          Cross-session context retention with 4 memory tiers, real vector embeddings, and graph memory — 127 memory tests passing.
         </p>
         <table className={styles.compactTable}>
           <thead>
@@ -617,6 +746,9 @@ export default function Home(): ReactNode {
       <VoiceSection />
       <EnterpriseSection />
       <MemorySection />
+      <HITLSection />
+      <Phase7Section />
+      <Phase8Section />
       <DownloadsSection />
       <DockerSection />
       <InfraSection />
