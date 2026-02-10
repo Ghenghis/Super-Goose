@@ -16,6 +16,14 @@ pub mod extension;
 pub mod hitl;
 #[cfg(feature = "memory")]
 pub mod benchmark;
+#[cfg(feature = "memory")]
+pub mod graph;
+#[cfg(feature = "memory")]
+pub mod skill_registry;
+#[cfg(feature = "memory")]
+pub mod extended_thinking;
+#[cfg(feature = "memory")]
+pub mod swarm;
 pub mod extension_malware_check;
 pub mod extension_manager;
 pub mod extension_manager_extension;
