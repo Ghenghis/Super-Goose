@@ -47,14 +47,14 @@ function HeroSection() {
 /* ─────────────────────────  Stats Bar  ───────────────────────── */
 function StatsBar() {
   const stats = [
-    { value: "<200ms", label: "Sandbox Boot" },
-    { value: "<200ms", label: "Voice Latency" },
-    { value: "90%+", label: "Token Savings" },
+    { value: "161K+", label: "Lines of Rust" },
+    { value: "~2,000", label: "Test Functions" },
+    { value: "171", label: "Commits Ahead" },
     { value: "16", label: "Integrated Tools" },
     { value: "5", label: "Specialist Agents" },
-    { value: "3", label: "QA Review Cycles" },
-    { value: "13", label: "Voice Personalities" },
-    { value: "85-90%", label: "Emotion Accuracy" },
+    { value: "127", label: "Memory Tests" },
+    { value: "43", label: "CI/CD Workflows" },
+    { value: "7", label: "Workspace Crates" },
   ];
   return (
     <section className={styles.statsBar}>
@@ -504,6 +504,54 @@ function DockerSection() {
   );
 }
 
+/* ─────────────────────────  Memory System  ───────────────────────── */
+function MemorySection() {
+  const tiers = [
+    { name: "Working", purpose: "Short-term LRU cache for current conversation", decay: "0.70", color: "#00BFFF" },
+    { name: "Episodic", purpose: "Session history and conversation context", decay: "0.90", color: "#9966FF" },
+    { name: "Semantic", purpose: "Long-term facts and knowledge (vector search)", decay: "0.99", color: "#00CC66" },
+    { name: "Procedural", purpose: "Learned patterns and procedures", decay: "0.98", color: "#FF9900" },
+  ];
+  const features = [
+    { title: "Real Embeddings", desc: "Candle sentence-transformer (all-MiniLM-L6-v2, 384-dim) with hash fallback" },
+    { title: "Mem0 Dual-Write", desc: "Local memory + Neo4j/Qdrant graph memory when available" },
+    { title: "Auto Consolidation", desc: "Working \u2192 Episodic \u2192 Semantic promotion by importance & access" },
+    { title: "/memory Command", desc: "Stats, clear, and save subcommands \u2014 127 tests passing" },
+  ];
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionInner}>
+        <h2 className={styles.sectionTitle}>Phase 6: Memory System</h2>
+        <p className={styles.sectionSubtitle}>
+          Cross-session context retention with 4 memory tiers, real vector embeddings, and graph memory.
+        </p>
+        <table className={styles.compactTable}>
+          <thead>
+            <tr><th>Tier</th><th>Purpose</th><th>Decay</th></tr>
+          </thead>
+          <tbody>
+            {tiers.map((t, i) => (
+              <tr key={i}>
+                <td><strong style={{color: t.color}}>{t.name}</strong></td>
+                <td>{t.purpose}</td>
+                <td style={{textAlign: "right"}}>{t.decay}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className={styles.dockerGrid}>
+          {features.map((f, i) => (
+            <div key={i} className={styles.dockerCard}>
+              <h4>{f.title}</h4>
+              <p>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ─────────────────────────  Infrastructure  ───────────────────────── */
 function InfraSection() {
   const services = [
@@ -568,6 +616,7 @@ export default function Home(): ReactNode {
       <CoachPlayerSection />
       <VoiceSection />
       <EnterpriseSection />
+      <MemorySection />
       <DownloadsSection />
       <DockerSection />
       <InfraSection />

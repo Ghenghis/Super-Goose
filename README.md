@@ -307,6 +307,39 @@ GitHub Actions pipelines. Smart change detection. All platforms.
 
 ---
 
+## Project Scale
+
+Super-Goose is a major extension of [Block's Goose](https://github.com/block/goose), adding **226K+ lines of meaningful code and documentation** across 1,400+ new files:
+
+| Metric | Value |
+|:--|--:|
+| **Rust Code** | 161K+ lines across 7 workspace crates |
+| **Test Functions** | ~2,000 (`#[test]` + `#[tokio::test]`) |
+| **Memory Tests** | 127 (all passing) |
+| **Commits Ahead** | 171 beyond upstream Block/goose |
+| **New Files** | 1,400+ added to the fork |
+| **CI/CD Workflows** | 43 GitHub Actions pipelines |
+| **Docker Image** | `ghcr.io/ghenghis/super-goose` (linux/amd64) |
+
+### Phase 6: Memory System (Active)
+
+The memory system provides **cross-session context retention** with 4 memory tiers:
+
+| Tier | Purpose | Decay |
+|:--|:--|--:|
+| **Working** | Short-term LRU cache for current conversation | 0.70 |
+| **Episodic** | Session history and conversation context | 0.90 |
+| **Semantic** | Long-term facts and knowledge | 0.99 |
+| **Procedural** | Learned patterns and procedures | 0.98 |
+
+- **Real Embeddings** — Candle sentence-transformer (all-MiniLM-L6-v2, 384-dim) with hash fallback
+- **Mem0 Dual-Write** — Local memory + graph memory (Neo4j/Qdrant) when available
+- **Consolidation** — Automatic Working→Episodic→Semantic promotion
+- **Persistence** — Cross-session recall via `~/.config/goose/memory/memories.json`
+- **`/memory` Command** — Stats, clear, save subcommands
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -379,7 +412,7 @@ Super-Goose's backend services run on Docker Compose:
 
 ## Contributing
 
-Super-Goose is a fork of [Block's Goose](https://github.com/block/goose) with 16 integrated tools. Contributions are welcome — see the [Issues](https://github.com/Ghenghis/Super-Goose/issues) page.
+Super-Goose is a fork of [Block's Goose](https://github.com/block/goose) with 16 integrated tools and a 4-tier memory system. Contributions are welcome — see the [Issues](https://github.com/Ghenghis/Super-Goose/issues) page.
 
 ---
 
