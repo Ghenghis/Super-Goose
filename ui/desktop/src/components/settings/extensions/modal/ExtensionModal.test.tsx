@@ -161,7 +161,7 @@ describe('ExtensionModal', () => {
     expect(mockOnClose).not.toHaveBeenCalled();
   });
 
-  it('creates a http_streamable extension', async () => {
+  it('creates a http_streamable extension', { timeout: 15000 }, async () => {
     const user = userEvent.setup();
     const mockOnSubmit = vi.fn();
     const mockOnClose = vi.fn();

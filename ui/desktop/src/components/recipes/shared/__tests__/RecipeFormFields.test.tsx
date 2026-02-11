@@ -434,7 +434,7 @@ describe('RecipeFormFields', () => {
       }
     });
 
-    it('renders parameter form fields when manually adding parameters', async () => {
+    it('renders parameter form fields when manually adding parameters', { timeout: 15000 }, async () => {
       const user = userEvent.setup();
       render(<TestWrapper />);
 

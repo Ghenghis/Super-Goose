@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Goose
+Comment=AI Coding Agent Desktop App
+Exec=Goose %U
+Icon=goose
+Type=Application
+Categories=Development;
+MimeType=x-scheme-handler/goose;
+StartupWMClass=Goose

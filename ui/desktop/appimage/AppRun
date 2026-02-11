@@ -1,0 +1,11 @@
+#!/bin/bash
+# AppRun — Standard AppImage entry point for Goose Desktop
+HERE="$(dirname "$(readlink -f "$0")")"
+export PATH="${HERE}/usr/bin:${PATH}"
+export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="${HERE}/usr/share:${XDG_DATA_DIRS}"
+
+# Electron needs these for GPU/sandbox
+export ELECTRON_DISABLE_SANDBOX=1
+
+exec "${HERE}/usr/bin/Goose" "$@"

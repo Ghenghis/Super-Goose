@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BookmarkManager from '../BookmarkManager';
 
@@ -139,16 +139,18 @@ describe('BookmarkManager', () => {
 
   describe('Empty State', () => {
     it('shows empty state when all bookmarks are deleted', async () => {
-      const user = userEvent.setup();
       render(<BookmarkManager />);
 
-      // Delete all 10 bookmarks
+      // Delete all 10 bookmarks using fireEvent (synchronous, much faster than
+      // userEvent which simulates full pointer interaction per click)
       for (let i = 0; i < 10; i++) {
         const deleteButtons = screen.getAllByTitle('Delete bookmark');
-        await user.click(deleteButtons[0]);
+        fireEvent.click(deleteButtons[0]);
       }
 
-      expect(screen.getByText('No bookmarks yet')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('No bookmarks yet')).toBeInTheDocument();
+      });
       expect(
         screen.getByText('Use /bookmark in a chat to save important points')
       ).toBeInTheDocument();

@@ -97,3 +97,11 @@ ui/desktop/coverage/
 
 # NUL device file (Windows artifact)
 nul
+
+# Serena MCP server config
+.serena/
+
+# Test artifacts
+test_output.txt
+test_stderr.txt
+test_stdout.txt
