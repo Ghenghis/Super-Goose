@@ -2,14 +2,23 @@ import { AppEvents } from '../../constants/events';
 import React, { useEffect, useState } from 'react';
 import {
   AppWindow,
+  Bookmark,
+  Bot,
+  Brain,
   ChefHat,
   ChevronRight,
   Clock,
+  Code,
+  DollarSign,
   FileText,
   History,
   Home,
   MessageSquarePlus,
   Puzzle,
+  Search,
+  Terminal,
+  Users,
+  Wrench,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -33,6 +42,14 @@ import { useSidebarSessionStatus } from '../../hooks/useSidebarSessionStatus';
 import { getInitialWorkingDir } from '../../utils/workingDir';
 import { useConfig } from '../ConfigContext';
 import { InlineEditText } from '../common/InlineEditText';
+import { useAgentPanel, PanelMode } from './AgentPanelContext';
+import AgentStatusPanel from './AgentStatusPanel';
+import TaskBoardPanel from './TaskBoardPanel';
+import SkillsPluginsPanel from './SkillsPluginsPanel';
+import ConnectorStatusPanel from './ConnectorStatusPanel';
+import FileActivityPanel from './FileActivityPanel';
+import ToolCallLog from './ToolCallLog';
+import AgentMessagesPanel from './AgentMessagesPanel';
 
 interface SidebarProps {
   onSelectSession: (sessionId: string) => void;
@@ -88,10 +105,53 @@ const menuItems: NavigationEntry[] = [
   { type: 'separator' },
   {
     type: 'item',
+    path: '/search',
+    label: 'Search',
+    icon: Search,
+    tooltip: 'Search across sessions',
+  },
+  {
+    type: 'item',
+    path: '/bookmarks',
+    label: 'Bookmarks',
+    icon: Bookmark,
+    tooltip: 'Manage bookmarks',
+  },
+  {
+    type: 'item',
+    path: '/tools',
+    label: 'Tools',
+    icon: Wrench,
+    tooltip: 'Manage extensions and tools',
+  },
+  {
+    type: 'item',
+    path: '/cli',
+    label: 'CLI',
+    icon: Terminal,
+    tooltip: 'CLI integration and embedded terminal',
+  },
+  {
+    type: 'item',
+    path: '/reflexion',
+    label: 'Reflexion',
+    icon: Brain,
+    tooltip: 'View reflexion insights',
+  },
+  {
+    type: 'item',
+    path: '/budget',
+    label: 'Budget',
+    icon: DollarSign,
+    tooltip: 'Cost tracking and budgets',
+  },
+  { type: 'separator' },
+  {
+    type: 'item',
     path: '/settings',
     label: 'Settings',
     icon: Gear,
-    tooltip: 'Configure Goose settings',
+    tooltip: 'Configure Super-Goose settings',
   },
 ];
 
@@ -396,7 +456,7 @@ const AppSidebar: React.FC<SidebarProps> = ({ currentPath }) => {
       (item) => item.type === 'item' && item.path === currentPath
     ) as NavigationItem | undefined;
 
-    const titleBits = ['Goose'];
+    const titleBits = ['Super-Goose'];
 
     if (
       currentPath === '/pair' &&
@@ -591,10 +651,112 @@ const AppSidebar: React.FC<SidebarProps> = ({ currentPath }) => {
 
           <SidebarSeparator />
 
+          {/* Agent Panel Section */}
+          <AgentPanelSection />
+
+          <SidebarSeparator />
+
           {visibleMenuItems.map((entry, index) => renderMenuItem(entry, index))}
         </SidebarMenu>
       </SidebarContent>
     </>
+  );
+};
+
+// --- Mode Toggle ---
+
+const MODE_OPTIONS: { value: PanelMode; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'code', label: 'Code', icon: Code },
+  { value: 'cowork', label: 'Cowork', icon: Users },
+  { value: 'both', label: 'Both', icon: Bot },
+];
+
+const ModeToggle: React.FC = () => {
+  const { state, setMode } = useAgentPanel();
+
+  return (
+    <div className="flex items-center gap-0.5 px-3 py-1">
+      {MODE_OPTIONS.map((opt) => {
+        const IconComp = opt.icon;
+        const isActive = state.mode === opt.value;
+        return (
+          <button
+            key={opt.value}
+            onClick={() => setMode(opt.value)}
+            className={`flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded text-[10px] font-medium transition-colors ${
+              isActive
+                ? 'bg-background-medium text-text-default'
+                : 'text-text-muted hover:bg-background-medium/50 hover:text-text-default'
+            }`}
+            title={`${opt.label} mode`}
+          >
+            <IconComp className="w-3 h-3" />
+            <span>{opt.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+// --- Agent Panel Section (wraps all agent sub-panels) ---
+
+const AgentPanelSection: React.FC = () => {
+  const { state } = useAgentPanel();
+  const [isExpanded, setIsExpanded] = React.useState(true);
+
+  const showCodePanels = state.mode === 'code' || state.mode === 'both';
+  const showCoworkPanels = state.mode === 'cowork' || state.mode === 'both';
+
+  // Count of active items for the header badge
+  const agentCount = state.agents.length;
+
+  return (
+    <SidebarGroup className="px-0">
+      <SidebarGroupContent>
+        <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center gap-2 w-full px-5 py-1.5 text-xs font-medium text-text-default hover:bg-background-medium/50 transition-colors">
+              <Bot className="w-3.5 h-3.5" />
+              <span>Agent Panel</span>
+              <span className="ml-auto text-[10px] text-text-muted">
+                {agentCount} agent{agentCount !== 1 ? 's' : ''}
+              </span>
+              <ChevronRight
+                className={`w-3.5 h-3.5 text-text-muted transition-transform duration-200 ${
+                  isExpanded ? 'rotate-90' : ''
+                }`}
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="overflow-hidden transition-all data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0">
+            {/* Mode toggle */}
+            <ModeToggle />
+
+            {/* Agent status - always visible */}
+            <AgentStatusPanel />
+
+            {/* Task board - Code mode and Both */}
+            {showCodePanels && <TaskBoardPanel />}
+
+            {/* Skills & Plugins - always visible */}
+            <SkillsPluginsPanel />
+
+            {/* Connectors - always visible */}
+            <ConnectorStatusPanel />
+
+            {/* File activity - always visible */}
+            <FileActivityPanel />
+
+            {/* Tool call log - always visible, collapsed by default */}
+            <ToolCallLog />
+
+            {/* Agent messages - Cowork mode and Both */}
+            {showCoworkPanels && <AgentMessagesPanel />}
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 };
 

@@ -8,6 +8,9 @@ import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } fr
 import ChatSessionsContainer from '../ChatSessionsContainer';
 import { useChatContext } from '../../contexts/ChatContext';
 import { UserInput } from '../../types/message';
+import { TimeWarpProvider, TimeWarpBar } from '../timewarp';
+import { AgentPanelProvider } from '../GooseSidebar/AgentPanelContext';
+import { CLIProvider } from '../cli/CLIContext';
 
 interface AppLayoutContentProps {
   activeSessions: Array<{
@@ -115,13 +118,16 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
           currentPath={location.pathname}
         />
       </Sidebar>
-      <SidebarInset>
-        <Outlet />
-        {/* Always render ChatSessionsContainer to keep SSE connections alive.
-            When navigating away from /pair */}
-        <div className={isOnPairRoute ? 'contents' : 'hidden'}>
-          <ChatSessionsContainer setChat={setChat} activeSessions={activeSessions} />
+      <SidebarInset className="flex flex-col min-h-0">
+        <div className="flex-1 min-h-0 overflow-auto">
+          <Outlet />
+          {/* Always render ChatSessionsContainer to keep SSE connections alive.
+              When navigating away from /pair */}
+          <div className={isOnPairRoute ? 'contents' : 'hidden'}>
+            <ChatSessionsContainer setChat={setChat} activeSessions={activeSessions} />
+          </div>
         </div>
+        <TimeWarpBar />
       </SidebarInset>
     </div>
   );
@@ -136,8 +142,14 @@ interface AppLayoutProps {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ activeSessions }) => {
   return (
-    <SidebarProvider>
-      <AppLayoutContent activeSessions={activeSessions} />
-    </SidebarProvider>
+    <TimeWarpProvider>
+      <AgentPanelProvider>
+        <CLIProvider>
+          <SidebarProvider>
+            <AppLayoutContent activeSessions={activeSessions} />
+          </SidebarProvider>
+        </CLIProvider>
+      </AgentPanelProvider>
+    </TimeWarpProvider>
   );
 };

@@ -128,9 +128,15 @@ jobs:
             goose-*.tar.bz2
             goose-*.zip
             Goose*.zip
+            Goose*.exe
+            Goose*.msi
+            Goose*.dmg
+            Goose*.AppImage
             *.deb
             *.rpm
             download_cli.sh
+            RELEASES
+            Goose-CLI-Setup.exe
           allowUpdates: true
           omitBody: true
           omitPrereleaseDuringUpdate: true
@@ -148,9 +154,15 @@ jobs:
             goose-*.tar.bz2
             goose-*.zip
             Goose*.zip
+            Goose*.exe
+            Goose*.msi
+            Goose*.dmg
+            Goose*.AppImage
             *.deb
             *.rpm
             download_cli.sh
+            RELEASES
+            Goose-CLI-Setup.exe
           allowUpdates: true
           omitBody: true
           omitPrereleaseDuringUpdate: true

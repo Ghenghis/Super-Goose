@@ -33,6 +33,7 @@ use crate::commands::permissions::{
     handle_permissions_list, handle_permissions_reset, handle_permissions_set,
 };
 use crate::commands::cost::handle_cost_status;
+use crate::commands::features::handle_features_command;
 use crate::commands::session::{handle_session_list, handle_session_remove, handle_session_search};
 use crate::commands::tunnel::{
     handle_tunnel_start, handle_tunnel_status, handle_tunnel_stop,
@@ -1154,6 +1155,10 @@ enum Command {
     /// Show cost tracking status and budget information
     #[command(about = "Show cost tracking status and budget information")]
     Cost {},
+
+    /// List all Super-Goose features and their status
+    #[command(about = "List all Super-Goose features and their status")]
+    Features {},
 }
 
 /// Subcommands for managing tool permissions
@@ -1331,6 +1336,7 @@ fn get_command_name(command: &Option<Command>) -> &'static str {
         Some(Command::Orchestrator { .. }) => "orchestrator",
         Some(Command::Tunnel { .. }) => "tunnel",
         Some(Command::Cost {}) => "cost",
+        Some(Command::Features {}) => "features",
         None => "default_session",
     }
 }
@@ -1955,6 +1961,7 @@ pub async fn cli() -> anyhow::Result<()> {
         Some(Command::Orchestrator { command }) => handle_orchestrator_command(command).await,
         Some(Command::Tunnel { command }) => handle_tunnel_command(command).await,
         Some(Command::Cost {}) => handle_cost_status().await,
+        Some(Command::Features {}) => handle_features_command().await,
         None => handle_default_session().await,
     }
 }

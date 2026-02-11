@@ -1,1 +1,1 @@
-export const QUICKSTART_GUIDE_URL = 'https://block.github.io/goose/docs/quickstart';
+export const QUICKSTART_GUIDE_URL = 'https://ghenghis.github.io/Super-Goose/docs/quickstart';

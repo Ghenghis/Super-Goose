@@ -331,7 +331,7 @@ app.on('open-url', async (_event, url) => {
 app.on('will-finish-launching', () => {
   if (process.platform === 'darwin') {
     app.setAboutPanelOptions({
-      applicationName: 'Goose',
+      applicationName: 'Super-Goose',
       applicationVersion: app.getVersion(),
     });
   }
@@ -386,7 +386,7 @@ async function handleFileOpen(filePath: string) {
 
     // Show user-friendly error notification
     new Notification({
-      title: 'Goose',
+      title: 'Super-Goose',
       body: `Could not open directory: ${path.basename(filePath)}`,
     }).show();
   }
@@ -586,7 +586,7 @@ const createChat = async (
     } else {
       dialog.showMessageBoxSync({
         type: 'error',
-        title: 'Goose Failed to Start',
+        title: 'Super-Goose Failed to Start',
         message: 'The backend server failed to start.',
         detail: errorLog.join('\n'),
         buttons: ['OK'],
@@ -1896,7 +1896,7 @@ async function appMain() {
     if (shortcuts.focusWindow) {
       fileMenu.submenu.append(
         new MenuItem({
-          label: 'Focus Goose Window',
+          label: 'Focus Super-Goose Window',
           accelerator: shortcuts.focusWindow,
           click() {
             focusWindow();
@@ -1988,7 +1988,7 @@ async function appMain() {
 
       // Create the About Goose menu item with a submenu
       const aboutGooseMenuItem = new MenuItem({
-        label: 'About Goose',
+        label: 'About Super-Goose',
         submenu: Menu.buildFromTemplate([]), // Start with an empty submenu for About
       });
 
@@ -2353,7 +2353,7 @@ app.whenReady().then(async () => {
   try {
     await appMain();
   } catch (error) {
-    dialog.showErrorBox('Goose Error', `Failed to create main window: ${error}`);
+    dialog.showErrorBox('Super-Goose Error', `Failed to create main window: ${error}`);
     app.quit();
   }
 });

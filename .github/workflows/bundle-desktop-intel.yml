@@ -233,6 +233,13 @@ jobs:
           name: Goose-darwin-x64
           path: ui/desktop/out/Goose-darwin-x64/Goose_intel_mac.zip
 
+      - name: Upload DMG artifact (Intel)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        with:
+          name: Goose-darwin-x64-dmg
+          path: ui/desktop/out/make/*.dmg
+          if-no-files-found: warn
+
       - name: Quick launch test (macOS)
         if: ${{ inputs.quick_test }}
         run: |

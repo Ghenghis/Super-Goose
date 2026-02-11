@@ -47,6 +47,17 @@ import AppsView from './components/apps/AppsView';
 import StandaloneAppView from './components/apps/StandaloneAppView';
 import { View, ViewOptions } from './utils/navigationUtils';
 
+import SearchSidebar from './components/search/SearchSidebar';
+import BookmarkManager from './components/bookmarks/BookmarkManager';
+import ReflexionPanel from './components/features/ReflexionPanel';
+import CriticManagerPanel from './components/features/CriticManagerPanel';
+import PlanManagerPanel from './components/features/PlanManagerPanel';
+import GuardrailsPanel from './components/features/GuardrailsPanel';
+import BudgetPanel from './components/features/BudgetPanel';
+import { ToolsBridgePanel } from './components/tools';
+import { CLIIntegrationPanel } from './components/cli';
+import FeatureStatusDashboard from './components/settings/features/FeatureStatusDashboard';
+
 import { useNavigation } from './hooks/useNavigation';
 import { errorMessage } from './utils/conversionUtils';
 import { getInitialWorkingDir } from './utils/workingDir';
@@ -692,6 +703,16 @@ export function AppInner() {
                 }
               />
               <Route path="permission" element={<PermissionRoute />} />
+              <Route path="search" element={<SearchSidebar />} />
+              <Route path="bookmarks" element={<BookmarkManager />} />
+              <Route path="reflexion" element={<ReflexionPanel />} />
+              <Route path="critic" element={<CriticManagerPanel />} />
+              <Route path="plans" element={<PlanManagerPanel />} />
+              <Route path="guardrails" element={<GuardrailsPanel />} />
+              <Route path="budget" element={<BudgetPanel />} />
+              <Route path="tools" element={<ToolsBridgePanel />} />
+              <Route path="cli" element={<CLIIntegrationPanel />} />
+              <Route path="features-dashboard" element={<FeatureStatusDashboard />} />
             </Route>
           </Routes>
         </div>

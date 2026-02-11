@@ -184,3 +184,50 @@ jobs:
           path: ui/desktop/out/make/rpm/x64/*.rpm
           if-no-files-found: error
 
+      - name: Install appimagetool
+        run: |
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O /usr/local/bin/appimagetool
+          chmod +x /usr/local/bin/appimagetool
+        continue-on-error: true
+
+      - name: Build AppImage
+        run: |
+          cd ui/desktop
+
+          # Create AppDir structure from packaged Electron app
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+
+          # Copy the packaged Electron app
+          if [ -d "out/Goose-linux-x64" ]; then
+            cp -r out/Goose-linux-x64/* AppDir/usr/bin/
+          else
+            echo "Warning: out/Goose-linux-x64 not found"
+            ls -la out/ || true
+            exit 0
+          fi
+
+          # Copy icon
+          cp src/images/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/goose.png
+          cp src/images/icon.png AppDir/goose.png
+
+          # Copy AppImage metadata
+          cp appimage/goose.desktop AppDir/
+          cp appimage/AppRun AppDir/
+          chmod +x AppDir/AppRun
+          chmod +x AppDir/usr/bin/Goose
+
+          # Build AppImage
+          ARCH=x86_64 appimagetool --no-appstream AppDir/ Goose-x86_64.AppImage
+
+          echo "AppImage built:"
+          ls -la Goose-x86_64.AppImage
+        continue-on-error: true
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        with:
+          name: Goose-linux-x64-appimage
+          path: ui/desktop/Goose-x86_64.AppImage
+          if-no-files-found: warn
+

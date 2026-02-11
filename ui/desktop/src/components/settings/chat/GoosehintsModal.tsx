@@ -14,7 +14,7 @@ const HelpText = () => (
   <div className="text-sm flex-col space-y-4 text-text-muted">
     <p>
       .goosehints is a text file used to provide additional context about your project and improve
-      the communication with Goose.
+      the communication with Super-Goose.
     </p>
     <p>
       Please make sure <span className="font-bold">Developer</span> extension is enabled in the
@@ -27,7 +27,7 @@ const HelpText = () => (
         variant="link"
         className="text-blue-500 hover:text-blue-600 p-0 h-auto"
         onClick={() =>
-          window.open('https://block.github.io/goose/docs/guides/using-goosehints/', '_blank')
+          window.open('https://ghenghis.github.io/Super-Goose/docs/guides/using-goosehints/', '_blank')
         }
       >
         using .goosehints

@@ -63,10 +63,40 @@ module.exports = {
       },
     },
     {
+      name: '@electron-forge/maker-squirrel',
+      config: {
+        name: 'Super-Goose',
+        authors: 'Ghenghis',
+        description: 'Super-Goose - AI Coding Agent Desktop App',
+        setupIcon: 'src/images/icon.ico',
+      },
+    },
+    {
+      name: '@electron-forge/maker-wix',
+      config: {
+        name: 'Super-Goose',
+        manufacturer: 'Ghenghis',
+        description: 'Super-Goose - AI Coding Agent Desktop App',
+        icon: 'src/images/icon.ico',
+        ui: {
+          chooseDirectory: true,
+        },
+      },
+    },
+    {
+      name: '@electron-forge/maker-dmg',
+      config: {
+        name: 'Super-Goose',
+        icon: 'src/images/icon.icns',
+        format: 'ULFO',
+        overwrite: true,
+      },
+    },
+    {
       name: '@electron-forge/maker-deb',
       config: {
         name: 'goose',
-        bin: 'Goose',
+        bin: 'Super-Goose',
         maintainer: 'Ghenghis',
         homepage: 'https://Ghenghis.github.io/Super-Goose/',
         categories: ['Development'],
@@ -81,7 +111,7 @@ module.exports = {
       name: '@electron-forge/maker-rpm',
       config: {
         name: 'goose',
-        bin: 'Goose',
+        bin: 'Super-Goose',
         maintainer: 'Ghenghis',
         homepage: 'https://Ghenghis.github.io/Super-Goose/',
         categories: ['Development'],

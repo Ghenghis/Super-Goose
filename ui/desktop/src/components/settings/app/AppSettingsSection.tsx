@@ -259,6 +259,165 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
         </CardContent>
       </Card>
 
+      {/* Super-Goose Features */}
+      <Card className="rounded-lg">
+        <CardHeader className="pb-0">
+          <CardTitle className="">Super-Goose Features</CardTitle>
+          <CardDescription>Configure advanced AI agent capabilities</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4 space-y-4 px-4">
+          {/* Budget Limit */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Session Budget Limit</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                Maximum spend per session (0 = unlimited)
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-text-muted">$</span>
+              <input
+                type="number"
+                min="0"
+                step="0.50"
+                defaultValue={localStorage.getItem('super_goose_budget_limit') || '0'}
+                className="w-20 px-2 py-1 text-sm border rounded bg-background-default text-text-default border-border-default"
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val)) {
+                    localStorage.setItem('super_goose_budget_limit', val.toString());
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Guardrails */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Input/Output Guardrails</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                Scan messages for secrets, PII, prompt injection
+              </p>
+            </div>
+            <div className="flex items-center">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Active</span>
+            </div>
+          </div>
+
+          {/* Reflexion */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Reflexion Learning</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                Learn from past failures to improve responses
+              </p>
+            </div>
+            <div className="flex items-center">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Active</span>
+            </div>
+          </div>
+
+          {/* Rate Limiting */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Rate Limiting</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                50 tool calls/min per tool, 500ms backpressure
+              </p>
+            </div>
+            <div className="flex items-center">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Active</span>
+            </div>
+          </div>
+
+          {/* Execution Mode */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Execution Mode</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                Freeform (default) or Structured (Code-Test-Fix)
+              </p>
+            </div>
+            <div className="flex items-center">
+              <select
+                className="px-2 py-1 text-sm border rounded bg-background-default text-text-default border-border-default"
+                defaultValue={localStorage.getItem('super_goose_execution_mode') || 'freeform'}
+                onChange={(e) => {
+                  localStorage.setItem('super_goose_execution_mode', e.target.value);
+                }}
+              >
+                <option value="freeform">Freeform</option>
+                <option value="structured">Structured</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Reasoning Mode */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Reasoning Mode</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                Choose how the agent approaches problems
+              </p>
+            </div>
+            <div className="flex items-center">
+              <select
+                className="px-2 py-1 text-sm border rounded bg-background-default text-text-default border-border-default"
+                defaultValue={localStorage.getItem('super_goose_reasoning_mode') || 'standard'}
+                onChange={(e) => {
+                  localStorage.setItem('super_goose_reasoning_mode', e.target.value);
+                }}
+              >
+                <option value="standard">Standard</option>
+                <option value="react">ReAct (Reason + Act)</option>
+                <option value="cot">Chain-of-Thought</option>
+                <option value="tot">Tree-of-Thoughts</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Auto-Checkpoint */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Auto-Checkpoint</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                Save checkpoints every 10 minutes and after each tool
+              </p>
+            </div>
+            <div className="flex items-center">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Active</span>
+            </div>
+          </div>
+
+          {/* Memory System */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Memory System</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                Working, Episodic, and Semantic memory tiers
+              </p>
+            </div>
+            <div className="flex items-center">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Active</span>
+            </div>
+          </div>
+
+          {/* HITL Breakpoints */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Human-in-the-Loop</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                Breakpoints, feedback injection, plan approval
+              </p>
+            </div>
+            <div className="flex items-center">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Active</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="rounded-lg">
         <CardHeader className="pb-0">
           <CardTitle className="mb-1">Theme</CardTitle>
@@ -285,7 +444,7 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
             <Button
               onClick={() => {
                 window.open(
-                  'https://github.com/Ghenghis/goose/issues/new?template=bug_report.md',
+                  'https://github.com/Ghenghis/Super-Goose/issues/new?template=bug_report.md',
                   '_blank'
                 );
               }}
@@ -297,7 +456,7 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
             <Button
               onClick={() => {
                 window.open(
-                  'https://github.com/block/goose/issues/new?template=feature_request.md',
+                  'https://github.com/Ghenghis/Super-Goose/issues/new?template=feature_request.md',
                   '_blank'
                 );
               }}
@@ -347,6 +506,30 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
           </Card>
         </div>
       )}
+
+      {/* Slash Commands Reference */}
+      <Card className="rounded-lg">
+        <CardHeader className="pb-0">
+          <CardTitle className="mb-1">Slash Commands</CardTitle>
+          <CardDescription>Available commands in the chat input</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4 px-4">
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/compact</code> <span className="text-text-muted">Compact conversation context</span></div>
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/model</code> <span className="text-text-muted">Switch AI model mid-session</span></div>
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/bookmark</code> <span className="text-text-muted">Save/restore checkpoints</span></div>
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/memory</code> <span className="text-text-muted">View/manage memory system</span></div>
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/pause</code> <span className="text-text-muted">Pause agent execution</span></div>
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/resume</code> <span className="text-text-muted">Resume with feedback</span></div>
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/breakpoint</code> <span className="text-text-muted">Set tool breakpoints</span></div>
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/inspect</code> <span className="text-text-muted">Inspect current state</span></div>
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/plan</code> <span className="text-text-muted">Show/approve/reject plans</span></div>
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/clear</code> <span className="text-text-muted">Clear conversation history</span></div>
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/prompts</code> <span className="text-text-muted">List available prompts</span></div>
+            <div className="flex gap-2"><code className="px-1 bg-background-muted rounded">/summarize</code> <span className="text-text-muted">Summarize conversation</span></div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Notification Instructions Modal */}
       <Dialog

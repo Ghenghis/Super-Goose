@@ -183,6 +183,37 @@ jobs:
           7z a -tzip "goose-${TARGET}.zip" goose-package/
           echo "ARTIFACT=target/${TARGET}/release/goose-${TARGET}.zip" >> $GITHUB_ENV
 
+      - name: Build CLI NSIS installer (Windows)
+        if: matrix.os == 'windows'
+        shell: bash
+        run: |
+          # Install NSIS
+          choco install nsis -y 2>/dev/null || true
+
+          export TARGET="${{ matrix.architecture }}-${{ matrix.target-suffix }}"
+          mkdir -p "target/${TARGET}/release/nsis-out"
+
+          # Check if installer-cli.nsi exists
+          if [ -f "ui/desktop/installer-cli.nsi" ]; then
+            "/c/Program Files (x86)/NSIS/makensis.exe" \
+              /DVERSION="${{ inputs.version || '0.0.0' }}" \
+              /DOUTDIR="..\\..\\..\\..\\target\\${TARGET}\\release\\nsis-out" \
+              /DCLI_BINARY="..\\..\\..\\..\\target\\${TARGET}\\release\\goose.exe" \
+              ui/desktop/installer-cli.nsi
+            echo "CLI NSIS installer built"
+            ls -la "target/${TARGET}/release/nsis-out/"
+          else
+            echo "Warning: installer-cli.nsi not found, skipping CLI installer"
+          fi
+
+      - name: Upload CLI installer artifact (Windows)
+        if: matrix.os == 'windows'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        with:
+          name: goose-cli-installer-windows
+          path: target/${{ matrix.architecture }}-${{ matrix.target-suffix }}/release/nsis-out/Goose-CLI-Setup.exe
+          if-no-files-found: warn
+
       - name: Upload CLI artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wifi, Plus, Trash2, RefreshCw, Cpu, Printer, Smartphone, Server, Terminal, Power, Thermometer, Home, AlertTriangle } from 'lucide-react';
+import { Wifi, Plus, Trash2, RefreshCw, Cpu, Printer, Smartphone, Server, Terminal, Thermometer, Home, AlertTriangle } from 'lucide-react';
 
 const CONSCIOUS_API = 'http://localhost:8999';
 

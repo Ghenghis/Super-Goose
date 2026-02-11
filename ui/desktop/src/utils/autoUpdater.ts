@@ -280,7 +280,7 @@ export function registerUpdateIpcHandlers() {
           type: 'info',
           title: 'Update Ready to Install',
           message: `Version ${githubUpdateInfo.latestVersion} is ready to install.`,
-          detail: `The update has been downloaded and extracted. To complete the installation:\n\n1. Click "Open Folder" to view the new Goose.app\n2. Quit Goose (this app will close)\n3. Drag the new Goose.app to your Applications folder\n4. Replace the existing app when prompted\n\nThe update will be available the next time you launch Goose.`,
+          detail: `The update has been downloaded and extracted. To complete the installation:\n\n1. Click "Open Folder" to view the new Super-Goose.app\n2. Quit Super-Goose (this app will close)\n3. Drag the new Super-Goose.app to your Applications folder\n4. Replace the existing app when prompted\n\nThe update will be available the next time you launch Super-Goose.`,
           buttons: ['Open Folder & Quit', 'Open Folder Only', 'Cancel'],
           defaultId: 0,
           cancelId: 2,
@@ -639,7 +639,7 @@ export function setupAutoUpdater(tray?: Tray) {
     // Show native notification
     const notification = new Notification({
       title: 'Update Ready',
-      body: `Version ${info.version} has been downloaded. Restarting Goose to install...`,
+      body: `Version ${info.version} has been downloaded. Restarting Super-Goose to install...`,
     });
     notification.show();
 
@@ -731,7 +731,7 @@ function updateTrayIcon(hasUpdate: boolean) {
     } else {
       iconPath = path.join(process.resourcesPath, 'images', 'iconTemplateUpdate.png');
     }
-    trayRef.setToolTip('Goose - Update Available');
+    trayRef.setToolTip('Super-Goose - Update Available');
   } else {
     // Use normal icon
     if (isDev) {
@@ -739,7 +739,7 @@ function updateTrayIcon(hasUpdate: boolean) {
     } else {
       iconPath = path.join(process.resourcesPath, 'images', 'iconTemplate.png');
     }
-    trayRef.setToolTip('Goose');
+    trayRef.setToolTip('Super-Goose');
   }
 
   const icon = nativeImage.createFromPath(iconPath);

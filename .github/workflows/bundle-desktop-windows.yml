@@ -124,6 +124,14 @@ jobs:
             echo "Windows-specific files copied successfully"
           fi
 
+      - name: Install WiX Toolset for MSI packaging
+        shell: pwsh
+        run: choco install wixtoolset -y --version=3.14.1
+
+      - name: Install NSIS for installer packaging
+        shell: pwsh
+        run: choco install nsis -y
+
       - name: Build desktop UI with npm
         shell: bash
         env:
@@ -251,3 +259,58 @@ jobs:
         with:
           name: Goose-win32-x64
           path: ui/desktop/out/Goose-win32-x64/Goose-win32-x64.zip
+
+      - name: Upload Squirrel installer
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        with:
+          name: Goose-win32-squirrel
+          path: |
+            ui/desktop/out/make/squirrel.windows/x64/*.exe
+            ui/desktop/out/make/squirrel.windows/x64/RELEASES
+          if-no-files-found: warn
+
+      - name: Upload MSI installer
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        with:
+          name: Goose-win32-msi
+          path: ui/desktop/out/make/wix/x64/*.msi
+          if-no-files-found: warn
+
+      - name: Build NSIS desktop installer
+        shell: bash
+        run: |
+          cd ui/desktop
+          mkdir -p out/make/nsis
+          "/c/Program Files (x86)/NSIS/makensis.exe" \
+            /DVERSION="${{ inputs.version || '0.0.0' }}" \
+            /DOUTDIR="out\\make\\nsis" \
+            /DSOURCE_DIR="dist-windows" \
+            installer.nsi
+          echo "NSIS desktop installer built:"
+          ls -la out/make/nsis/
+
+      - name: Upload NSIS desktop installer
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        with:
+          name: Goose-win32-nsis
+          path: ui/desktop/out/make/nsis/Goose-Setup-NSIS.exe
+          if-no-files-found: warn
+
+      - name: Create portable self-extracting EXE
+        shell: bash
+        run: |
+          cd ui/desktop
+          # Create 7z archive from dist-windows
+          7z a -t7z dist-windows.7z dist-windows/
+          # Create self-extracting archive
+          cat "/c/Program Files/7-Zip/7z.sfx" dist-windows.7z > "out/make/nsis/Goose-Portable.exe" || \
+          cat "/c/Program Files (x86)/7-Zip/7z.sfx" dist-windows.7z > "out/make/nsis/Goose-Portable.exe" || \
+          echo "Warning: 7z.sfx not found, skipping portable EXE"
+          ls -la out/make/nsis/ || true
+
+      - name: Upload portable EXE
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        with:
+          name: Goose-win32-portable
+          path: ui/desktop/out/make/nsis/Goose-Portable.exe
+          if-no-files-found: warn

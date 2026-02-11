@@ -16,8 +16,8 @@ interface ShortcutConfig {
 const shortcutConfigs: ShortcutConfig[] = [
   {
     key: 'focusWindow',
-    label: 'Focus Goose Window',
-    description: 'Bring Goose window to front from anywhere',
+    label: 'Focus Super-Goose Window',
+    description: 'Bring Super-Goose window to front from anywhere',
     category: 'global',
   },
   {
@@ -35,7 +35,7 @@ const shortcutConfigs: ShortcutConfig[] = [
   {
     key: 'newChatWindow',
     label: 'New Chat Window',
-    description: 'Open a new Goose window',
+    description: 'Open a new Super-Goose window',
     category: 'application',
   },
   {
@@ -110,8 +110,8 @@ const categoryLabels = {
 };
 
 const categoryDescriptions = {
-  global: 'These shortcuts work system-wide, even when Goose is not focused',
-  application: 'These shortcuts work when Goose is the active application',
+  global: 'These shortcuts work system-wide, even when Super-Goose is not focused',
+  application: 'These shortcuts work when Super-Goose is the active application',
   search: 'These shortcuts work when searching in a conversation',
   window: 'These shortcuts control window behavior',
 };
@@ -272,7 +272,7 @@ export default function KeyboardShortcutsSection() {
                 <h3 className="text-text-default text-sm font-medium mb-1">Restart Required</h3>
                 <p className="text-xs text-text-muted">
                   Changes to application shortcuts (like New Chat, Settings, etc.) require
-                  restarting Goose to take effect. Global shortcuts (Focus Window, Quick Launcher)
+                  restarting Super-Goose to take effect. Global shortcuts (Focus Window, Quick Launcher)
                   work immediately.
                 </p>
               </div>
