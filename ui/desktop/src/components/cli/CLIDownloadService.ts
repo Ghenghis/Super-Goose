@@ -4,9 +4,9 @@
  * Service module (not a React component) that handles CLI binary downloads,
  * platform detection, version checking, and installation verification.
  *
- * Currently uses mock / simulated implementations that mirror the real
- * download-and-extract flow. In a production build the actual Electron IPC
- * calls would replace the setTimeout-based simulations.
+ * Uses Electron IPC when available (via `window.electron.cli`) and falls
+ * back to mock / simulated implementations when running outside of the
+ * Electron main-process context (e.g. in a browser or during tests).
  */
 
 // ---------------------------------------------------------------------------
@@ -38,6 +38,37 @@ export interface PlatformInfo {
   installDir: string;
   /** Binary filename, e.g. "goose.exe" or "goose". */
   binaryName: string;
+}
+
+// ---------------------------------------------------------------------------
+// Electron CLI IPC type (matches CLIPreloadAPI from cli-preload.ts)
+// ---------------------------------------------------------------------------
+
+/**
+ * Shape of `window.electron.cli` when the preload bridge is wired up.
+ * Kept as a local interface so this file compiles without importing
+ * from the preload module (which uses `ipcRenderer`).
+ */
+interface ElectronCLIBridge {
+  getBinaryPath: () => Promise<{ found: boolean; path: string }>;
+  checkVersion: (binaryPath: string) => Promise<{ success: boolean; version?: string; error?: string }>;
+  executeCommand: (binaryPath: string, args: string[]) => Promise<{ success: boolean; stdout?: string; stderr?: string; code?: number | null; error?: string }>;
+  startSession: (binaryPath: string) => Promise<{ success: boolean; error?: string }>;
+  sendInput: (input: string) => Promise<{ success: boolean; error?: string }>;
+  killSession: () => Promise<{ success: boolean; error?: string }>;
+  getLatestRelease: () => Promise<{ success: boolean; version?: string; assets?: Array<{ name: string; url: string; size: number }>; error?: string }>;
+  getPlatformInfo: () => Promise<{ platform: string; arch: string; homedir: string }>;
+  onOutput: (callback: (data: { type: string; content: string }) => void) => () => void;
+}
+
+/** Accessor for the optional CLI bridge on the window object. */
+function getElectronCLI(): ElectronCLIBridge | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (window as any).electron?.cli as ElectronCLIBridge | undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -76,33 +107,26 @@ function getHomeDir(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Public API
+// Helper: convert Node platform string to PlatformInfo['os']
 // ---------------------------------------------------------------------------
 
-/**
- * Detect the current operating system and CPU architecture.
- * Returns a `PlatformInfo` object with the correct asset name, install
- * directory, and binary name for the host platform.
- */
-export function detectPlatform(): PlatformInfo {
-  let os: PlatformInfo['os'] = 'linux';
-  let arch: PlatformInfo['arch'] = 'x64';
+function nodePlatformToOS(platform: string): PlatformInfo['os'] {
+  if (platform === 'win32') return 'windows';
+  if (platform === 'darwin') return 'macos';
+  return 'linux';
+}
 
-  // Detect OS -------------------------------------------------------------------
-  const platform = (typeof process !== 'undefined' && process.platform) || 'win32';
-  if (platform === 'win32') os = 'windows';
-  else if (platform === 'darwin') os = 'macos';
-  else os = 'linux';
+function nodeArchToArch(arch: string): PlatformInfo['arch'] {
+  return arch === 'arm64' ? 'arm64' : 'x64';
+}
 
-  // Detect arch -----------------------------------------------------------------
-  const cpuArch = (typeof process !== 'undefined' && process.arch) || 'x64';
-  arch = cpuArch === 'arm64' ? 'arm64' : 'x64';
-
-  // Build derived values --------------------------------------------------------
+function buildPlatformInfo(
+  os: PlatformInfo['os'],
+  arch: PlatformInfo['arch'],
+  home: string,
+): PlatformInfo {
   const assetKey = `${os}-${arch}`;
   const assetName = ASSET_MAP[assetKey] || ASSET_MAP['linux-x64'];
-
-  const home = getHomeDir();
   const isWin = os === 'windows';
   const installDir = isWin ? `${home}\\.goose\\bin` : `${home}/.goose/bin`;
   const binaryName = isWin ? 'goose.exe' : 'goose';
@@ -110,12 +134,84 @@ export function detectPlatform(): PlatformInfo {
   return { os, arch, assetName, installDir, binaryName };
 }
 
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect the current operating system and CPU architecture.
+ *
+ * Tries Electron IPC (`cli:get-platform-info`) first for an authoritative
+ * answer from the main process, then falls back to `process.platform` /
+ * `process.arch` / navigator heuristics.
+ *
+ * NOTE: The IPC path is async but `detectPlatform()` was originally
+ * synchronous. The sync fallback is kept so existing call-sites continue
+ * to work. Use the new `detectPlatformAsync()` when you can `await`.
+ */
+export function detectPlatform(): PlatformInfo {
+  // Synchronous fallback (always works, even without IPC)
+  let os: PlatformInfo['os'] = 'linux';
+  let arch: PlatformInfo['arch'] = 'x64';
+
+  const platform = (typeof process !== 'undefined' && process.platform) || 'win32';
+  if (platform === 'win32') os = 'windows';
+  else if (platform === 'darwin') os = 'macos';
+  else os = 'linux';
+
+  const cpuArch = (typeof process !== 'undefined' && process.arch) || 'x64';
+  arch = cpuArch === 'arm64' ? 'arm64' : 'x64';
+
+  const home = getHomeDir();
+  return buildPlatformInfo(os, arch, home);
+}
+
+/**
+ * Async variant of `detectPlatform()` that queries the Electron main
+ * process via IPC when available, falling back to the sync implementation.
+ */
+export async function detectPlatformAsync(): Promise<PlatformInfo> {
+  const cli = getElectronCLI();
+  if (cli) {
+    try {
+      const info = await cli.getPlatformInfo();
+      const os = nodePlatformToOS(info.platform);
+      const arch = nodeArchToArch(info.arch);
+      return buildPlatformInfo(os, arch, info.homedir);
+    } catch (err) {
+      console.warn('[CLIDownloadService] IPC getPlatformInfo failed, using fallback:', err);
+    }
+  }
+  return detectPlatform();
+}
+
 /**
  * Fetch the latest release version tag from the GitHub releases API.
+ *
+ * Tries Electron IPC first (which uses Node `https` in the main process
+ * and avoids CORS issues), then falls back to `fetch()` in the renderer.
  *
  * @returns A version string such as `"v1.24.05"`.
  */
 export async function getLatestVersion(): Promise<string> {
+  // --- IPC path (preferred) ------------------------------------------------
+  const cli = getElectronCLI();
+  if (cli) {
+    try {
+      const result = await cli.getLatestRelease();
+      if (result.success && result.version) {
+        return result.version;
+      }
+      // IPC call succeeded but GitHub returned an error — log and fall through
+      if (result.error) {
+        console.warn('[CLIDownloadService] IPC getLatestRelease error:', result.error);
+      }
+    } catch (err) {
+      console.warn('[CLIDownloadService] IPC getLatestRelease failed, using fetch fallback:', err);
+    }
+  }
+
+  // --- Fetch fallback (renderer-side) --------------------------------------
   try {
     const response = await fetch(RELEASES_API, {
       headers: { Accept: 'application/vnd.github.v3+json' },
@@ -251,8 +347,9 @@ export async function installCLI(
 /**
  * Verify whether the CLI binary is installed and retrieve its version.
  *
- * **Mock implementation** -- checks `localStorage` for a previously-stored
- * version string. A real implementation would spawn `goose --version`.
+ * Tries Electron IPC first: asks the main process to locate the binary
+ * and run `goose --version`. Falls back to checking `localStorage` for a
+ * previously-stored version string (mock behaviour).
  *
  * @param platform Platform info.
  * @returns Object with `installed` flag and `version` string (or null).
@@ -260,8 +357,42 @@ export async function installCLI(
 export async function verifyCLI(
   _platform: PlatformInfo,
 ): Promise<{ installed: boolean; version: string | null }> {
-  // In a real build we would use child_process to run `goose --version`.
-  // For now, check localStorage as a stand-in.
+  // --- IPC path (preferred) ------------------------------------------------
+  const cli = getElectronCLI();
+  if (cli) {
+    try {
+      // Step 1: Ask main process where the binary is
+      const pathResult = await cli.getBinaryPath();
+
+      if (pathResult.found) {
+        // Step 2: Run --version to confirm it works
+        const versionResult = await cli.checkVersion(pathResult.path);
+
+        if (versionResult.success && versionResult.version) {
+          // Persist to localStorage so mock fallback stays consistent
+          try {
+            localStorage.setItem('cli_installed_version', versionResult.version);
+          } catch {
+            // Quota or security error — not critical
+          }
+          return { installed: true, version: versionResult.version };
+        }
+
+        // Binary exists but --version failed
+        console.warn(
+          '[CLIDownloadService] Binary found but --version failed:',
+          versionResult.error,
+        );
+        return { installed: false, version: null };
+      }
+
+      // Binary not found via IPC — fall through to mock
+    } catch (err) {
+      console.warn('[CLIDownloadService] IPC verifyCLI failed, using mock fallback:', err);
+    }
+  }
+
+  // --- Mock fallback -------------------------------------------------------
   const storedVersion = localStorage.getItem('cli_installed_version');
   if (storedVersion) {
     return { installed: true, version: storedVersion };

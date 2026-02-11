@@ -17,6 +17,50 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Settings } from './settings';
 
 // ---------------------------------------------------------------------------
+// Settings Keys Enum
+// ---------------------------------------------------------------------------
+
+/**
+ * Canonical enum of all settings keys used across the app.
+ * Components should reference these instead of raw strings so that
+ * renames are caught by the type-checker.
+ */
+export enum SettingsKeys {
+  // Budget & cost
+  BudgetLimit = 'budgetLimit',
+  BudgetWarningThreshold = 'budgetWarningThreshold',
+  CostTrackingEnabled = 'costTrackingEnabled',
+
+  // Execution
+  ExecutionMode = 'executionMode',
+  ReasoningMode = 'reasoningMode',
+
+  // Guardrails
+  GuardrailsEnabled = 'guardrailsEnabled',
+  GuardrailsMode = 'guardrailsMode',
+
+  // Reflexion
+  ReflexionEnabled = 'reflexionEnabled',
+  ReflexionMaxRetries = 'reflexionMaxRetries',
+
+  // Bookmarks & search
+  BookmarksEnabled = 'bookmarksEnabled',
+  SearchEnabled = 'searchEnabled',
+
+  // Compaction
+  CompactionEnabled = 'compactionEnabled',
+  CompactionThreshold = 'compactionThreshold',
+
+  // Rate limiting
+  RateLimitCallsPerMin = 'rateLimitCallsPerMin',
+  RateLimitBackpressureMs = 'rateLimitBackpressureMs',
+
+  // Misc
+  ProjectAutoDetection = 'projectAutoDetection',
+  ModelHotSwitch = 'modelHotSwitch',
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -225,4 +269,136 @@ export function useFeatureSettings(): UseFeatureSettingsReturn {
   }, []);
 
   return { settings, updateSetting, resetAll, isLoading };
+}
+
+// ---------------------------------------------------------------------------
+// Backend sync helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * POST a single setting value to the backend REST API.
+ *
+ * The endpoint is expected to be `POST /api/settings/{key}` with a JSON body
+ * `{ value }`.  If the backend is unreachable or returns an error the call
+ * resolves to `false` and logs a warning.
+ */
+export async function syncSettingToBackend(key: string, value: unknown): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/settings/${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value }),
+    });
+    return response.ok;
+  } catch (err) {
+    console.warn(`[settingsBridge] syncSettingToBackend("${key}") failed, falling back to localStorage:`, err);
+    return false;
+  }
+}
+
+/**
+ * GET a single setting value from the backend REST API.
+ *
+ * The endpoint is expected to be `GET /api/settings/{key}` and should return
+ * `{ value }`.  Returns `undefined` when the backend is unavailable.
+ */
+export async function loadSettingFromBackend<T = unknown>(key: string): Promise<T | undefined> {
+  try {
+    const response = await fetch(`/api/settings/${encodeURIComponent(key)}`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.value as T;
+    }
+    return undefined;
+  } catch (err) {
+    console.warn(`[settingsBridge] loadSettingFromBackend("${key}") failed, falling back to localStorage:`, err);
+    return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Generic settings bridge hook
+// ---------------------------------------------------------------------------
+
+interface UseSettingsBridgeReturn<T> {
+  /** Current value (starts with `defaultValue` until the load completes). */
+  value: T;
+  /** Update the value locally AND persist it (localStorage + optional backend). */
+  setValue: (next: T) => Promise<void>;
+  /** `true` while the initial load is in flight. */
+  isLoading: boolean;
+}
+
+/**
+ * Generic React hook that manages a single settings value.
+ *
+ * Persistence strategy (layered):
+ *   1. localStorage  -- immediate, always available
+ *   2. Backend API    -- best-effort POST/GET, falls back silently
+ *
+ * ```tsx
+ * const { value, setValue, isLoading } = useSettingsBridge<number>('budgetLimit', 100);
+ * ```
+ */
+export function useSettingsBridge<T>(key: string, defaultValue: T): UseSettingsBridgeReturn<T> {
+  const [value, setValueState] = useState<T>(defaultValue);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Initial load: try backend first, fall back to localStorage.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // 1. Try backend
+      const backendValue = await loadSettingFromBackend<T>(key);
+      if (!cancelled && mountedRef.current && backendValue !== undefined) {
+        setValueState(backendValue);
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Fall back to localStorage
+      try {
+        const stored = localStorage.getItem(`settings:${key}`);
+        if (stored !== null && !cancelled && mountedRef.current) {
+          setValueState(JSON.parse(stored) as T);
+        }
+      } catch {
+        // corrupt localStorage entry -- ignore, use default
+      }
+
+      if (!cancelled && mountedRef.current) {
+        setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [key, defaultValue]);
+
+  const setValue = useCallback(
+    async (next: T): Promise<void> => {
+      // Optimistic local update
+      setValueState(next);
+
+      // Persist to localStorage (synchronous, always works)
+      try {
+        localStorage.setItem(`settings:${key}`, JSON.stringify(next));
+      } catch {
+        console.warn(`[settingsBridge] localStorage write failed for key "${key}"`);
+      }
+
+      // Best-effort backend sync
+      await syncSettingToBackend(key, next);
+    },
+    [key]
+  );
+
+  return { value, setValue, isLoading };
 }

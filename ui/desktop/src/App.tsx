@@ -57,6 +57,8 @@ import BudgetPanel from './components/features/BudgetPanel';
 import { ToolsBridgePanel } from './components/tools';
 import { CLIIntegrationPanel } from './components/cli';
 import FeatureStatusDashboard from './components/settings/features/FeatureStatusDashboard';
+import ConsciousPanel from './components/conscious/ConsciousPanel';
+import EnterpriseRoutePanel from './components/settings/enterprise/EnterpriseRoutePanel';
 
 import { useNavigation } from './hooks/useNavigation';
 import { errorMessage } from './utils/conversionUtils';
@@ -713,6 +715,8 @@ export function AppInner() {
               <Route path="tools" element={<ToolsBridgePanel />} />
               <Route path="cli" element={<CLIIntegrationPanel />} />
               <Route path="features-dashboard" element={<FeatureStatusDashboard />} />
+              <Route path="conscious" element={<ConsciousPanel />} />
+              <Route path="enterprise" element={<EnterpriseRoutePanel />} />
             </Route>
           </Routes>
         </div>
