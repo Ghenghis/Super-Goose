@@ -4277,6 +4277,7 @@ dependencies = [
  "open",
  "rand 0.8.5",
  "regex",
+ "reqwest 0.12.28",
  "rmcp 0.14.0",
  "rustyline",
  "serde",

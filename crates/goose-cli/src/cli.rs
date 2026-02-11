@@ -20,11 +20,22 @@ use crate::commands::term::{
 use crate::computer_use::{ComputerUseArgs, ComputerUseInterface};
 
 use crate::commands::schedule::{
-    handle_schedule_add, handle_schedule_cron_help, handle_schedule_list, handle_schedule_remove,
-    handle_schedule_run_now, handle_schedule_services_status, handle_schedule_services_stop,
-    handle_schedule_sessions,
+    handle_schedule_add, handle_schedule_cron_help, handle_schedule_inspect, handle_schedule_kill,
+    handle_schedule_list, handle_schedule_pause, handle_schedule_remove, handle_schedule_run_now,
+    handle_schedule_services_status, handle_schedule_services_stop, handle_schedule_sessions,
+    handle_schedule_unpause, handle_schedule_update,
+};
+use crate::commands::orchestrator::{
+    handle_orchestrator_add_task, handle_orchestrator_create, handle_orchestrator_start,
+    handle_orchestrator_status,
+};
+use crate::commands::permissions::{
+    handle_permissions_list, handle_permissions_reset, handle_permissions_set,
 };
 use crate::commands::session::{handle_session_list, handle_session_remove};
+use crate::commands::tunnel::{
+    handle_tunnel_start, handle_tunnel_status, handle_tunnel_stop,
+};
 use crate::commands::workflow::handle_workflow_command;
 use crate::recipes::extract_from_cli::extract_recipe_info_from_cli;
 use crate::recipes::recipe::{explain_recipe, render_recipe_as_yaml};
@@ -608,6 +619,44 @@ enum SchedulerCommand {
         #[arg(long = "schedule-id", alias = "id", help = "ID of the schedule to run")]
         schedule_id: String,
     },
+    /// Pause a scheduled job (prevents future runs until unpaused)
+    #[command(about = "Pause a scheduled job")]
+    Pause {
+        /// ID of the schedule to pause
+        #[arg(long = "schedule-id", alias = "id", help = "ID of the schedule to pause")]
+        schedule_id: String,
+    },
+    /// Unpause a previously paused scheduled job
+    #[command(about = "Unpause a scheduled job")]
+    Unpause {
+        /// ID of the schedule to unpause
+        #[arg(long = "schedule-id", alias = "id", help = "ID of the schedule to unpause")]
+        schedule_id: String,
+    },
+    /// Update the cron expression for an existing schedule
+    #[command(about = "Update cron expression for a schedule")]
+    Update {
+        /// ID of the schedule to update
+        #[arg(long = "schedule-id", alias = "id", help = "ID of the schedule to update")]
+        schedule_id: String,
+        /// New cron expression
+        #[arg(long, help = "New cron expression for the schedule")]
+        cron: String,
+    },
+    /// Kill the currently running job for a schedule
+    #[command(about = "Kill a running scheduled job")]
+    Kill {
+        /// ID of the schedule whose running job to kill
+        #[arg(long = "schedule-id", alias = "id", help = "ID of the schedule whose running job to kill")]
+        schedule_id: String,
+    },
+    /// Inspect the currently running job (session ID, duration, start time)
+    #[command(about = "Inspect a running scheduled job")]
+    Inspect {
+        /// ID of the schedule to inspect
+        #[arg(long = "schedule-id", alias = "id", help = "ID of the schedule to inspect")]
+        schedule_id: String,
+    },
     /// Check status of scheduler services (deprecated - no external services needed)
     #[command(about = "[Deprecated] Check status of scheduler services")]
     ServicesStatus {},
@@ -1046,12 +1095,112 @@ enum Command {
         bin_name: String,
     },
 
+    /// Manage tool permissions (allow, ask, deny per tool)
+    #[command(about = "Manage tool permissions for extensions")]
+    Permissions {
+        #[command(subcommand)]
+        command: PermissionsCommand,
+    },
+
+    /// Manage multi-agent orchestrator workflows
+    #[command(about = "Manage dynamic multi-agent orchestrator")]
+    Orchestrator {
+        #[command(subcommand)]
+        command: OrchestratorCommand,
+    },
+
+    /// Manage remote access tunnel (requires goosed server running)
+    #[command(about = "Manage remote access tunnel via goosed server")]
+    Tunnel {
+        #[command(subcommand)]
+        command: TunnelCommand,
+    },
+
     /// Computer Use interface for AI agents - full project control and debugging
     #[command(about = "Computer Use interface for AI agents")]
     ComputerUse {
         #[command(flatten)]
         args: ComputerUseArgs,
     },
+}
+
+/// Subcommands for managing tool permissions
+#[derive(Subcommand, Debug)]
+enum PermissionsCommand {
+    /// List all tool permissions
+    #[command(about = "List current tool permissions")]
+    List {},
+    /// Set permission for a specific tool
+    #[command(about = "Set permission for a tool (allow, ask, deny)")]
+    Set {
+        /// Tool name (e.g., "developer__shell", "bash")
+        #[arg(help = "Tool name to set permission for")]
+        tool: String,
+        /// Permission level: allow, ask, or deny
+        #[arg(help = "Permission level: allow, ask, or deny")]
+        level: String,
+    },
+    /// Reset all permissions to defaults
+    #[command(about = "Reset all tool permissions to defaults")]
+    Reset {},
+}
+
+/// Subcommands for multi-agent orchestration
+#[derive(Subcommand, Debug)]
+enum OrchestratorCommand {
+    /// Show orchestrator status and available agent roles
+    #[command(about = "Show orchestrator status")]
+    Status {},
+    /// Create a new multi-agent workflow
+    #[command(about = "Create a new multi-agent workflow")]
+    Create {
+        /// Workflow name
+        #[arg(long, help = "Name for the workflow")]
+        name: String,
+        /// Description
+        #[arg(long, help = "Description of the workflow")]
+        description: Option<String>,
+    },
+    /// Add a task to an existing workflow
+    #[command(about = "Add a task to a workflow")]
+    AddTask {
+        /// Workflow ID to add task to
+        #[arg(long = "workflow-id", help = "ID of the workflow")]
+        workflow_id: String,
+        /// Task name
+        #[arg(long, help = "Task name")]
+        name: String,
+        /// Task description
+        #[arg(long, help = "Task description")]
+        description: String,
+        /// Agent role (code, test, deploy, docs, security)
+        #[arg(long, help = "Agent role: code, test, deploy, docs, security, coordinator")]
+        role: String,
+        /// Dependency task IDs
+        #[arg(long, value_delimiter = ',', help = "Comma-separated dependency task IDs")]
+        depends_on: Vec<String>,
+    },
+    /// Start executing a workflow
+    #[command(about = "Start executing a workflow")]
+    Start {
+        /// Workflow ID to start
+        #[arg(long = "workflow-id", help = "ID of the workflow to start")]
+        workflow_id: String,
+    },
+}
+
+/// Subcommands for managing the remote access tunnel
+#[derive(Subcommand, Debug)]
+enum TunnelCommand {
+    /// Start the remote access tunnel
+    #[command(about = "Start the remote access tunnel")]
+    Start {},
+    /// Stop the remote access tunnel
+    #[command(about = "Stop the remote access tunnel")]
+    Stop {},
+    /// Show tunnel status (running, URL, hostname)
+    #[command(about = "Show tunnel status")]
+    Status {},
 }
 
 #[derive(Subcommand)]
@@ -1146,6 +1295,9 @@ fn get_command_name(command: &Option<Command>) -> &'static str {
         Some(Command::Term { .. }) => "term",
         Some(Command::Completion { .. }) => "completion",
         Some(Command::ComputerUse { .. }) => "computer_use",
+        Some(Command::Permissions { .. }) => "permissions",
+        Some(Command::Orchestrator { .. }) => "orchestrator",
+        Some(Command::Tunnel { .. }) => "tunnel",
         None => "default_session",
     }
 }
@@ -1549,6 +1701,13 @@ async fn handle_schedule_command(command: SchedulerCommand) -> Result<()> {
             handle_schedule_sessions(schedule_id, limit).await
         }
         SchedulerCommand::RunNow { schedule_id } => handle_schedule_run_now(schedule_id).await,
+        SchedulerCommand::Pause { schedule_id } => handle_schedule_pause(schedule_id).await,
+        SchedulerCommand::Unpause { schedule_id } => handle_schedule_unpause(schedule_id).await,
+        SchedulerCommand::Update { schedule_id, cron } => {
+            handle_schedule_update(schedule_id, cron).await
+        }
+        SchedulerCommand::Kill { schedule_id } => handle_schedule_kill(schedule_id).await,
+        SchedulerCommand::Inspect { schedule_id } => handle_schedule_inspect(schedule_id).await,
         SchedulerCommand::ServicesStatus {} => handle_schedule_services_status().await,
         SchedulerCommand::ServicesStop {} => handle_schedule_services_stop().await,
         SchedulerCommand::CronHelp {} => handle_schedule_cron_help().await,
@@ -1725,6 +1884,44 @@ pub async fn cli() -> anyhow::Result<()> {
             no_auth,
         }) => crate::commands::web::handle_web(port, host, open, auth_token, no_auth).await,
         Some(Command::Term { command }) => handle_term_subcommand(command).await,
+        Some(Command::Permissions { command }) => handle_permissions_command(command).await,
+        Some(Command::Orchestrator { command }) => handle_orchestrator_command(command).await,
+        Some(Command::Tunnel { command }) => handle_tunnel_command(command).await,
         None => handle_default_session().await,
+    }
+}
+
+async fn handle_permissions_command(command: PermissionsCommand) -> Result<()> {
+    match command {
+        PermissionsCommand::List {} => handle_permissions_list().await,
+        PermissionsCommand::Set { tool, level } => handle_permissions_set(tool, level).await,
+        PermissionsCommand::Reset {} => handle_permissions_reset().await,
+    }
+}
+
+async fn handle_orchestrator_command(command: OrchestratorCommand) -> Result<()> {
+    match command {
+        OrchestratorCommand::Status {} => handle_orchestrator_status().await,
+        OrchestratorCommand::Create { name, description } => {
+            handle_orchestrator_create(name, description).await
+        }
+        OrchestratorCommand::AddTask {
+            workflow_id,
+            name,
+            description,
+            role,
+            depends_on,
+        } => handle_orchestrator_add_task(workflow_id, name, description, role, depends_on).await,
+        OrchestratorCommand::Start { workflow_id } => {
+            handle_orchestrator_start(workflow_id).await
+        }
+    }
+}
+
+async fn handle_tunnel_command(command: TunnelCommand) -> Result<()> {
+    match command {
+        TunnelCommand::Start {} => handle_tunnel_start().await,
+        TunnelCommand::Stop {} => handle_tunnel_stop().await,
+        TunnelCommand::Status {} => handle_tunnel_status().await,
     }
 }

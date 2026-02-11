@@ -1,4 +1,5 @@
 use anyhow::{bail, Context, Result};
+use chrono;
 use goose::scheduler::{
     get_default_scheduled_recipes_dir, get_default_scheduler_storage_path, ScheduledJob, Scheduler,
     SchedulerError,
@@ -260,6 +261,124 @@ pub async fn handle_schedule_run_now(schedule_id: String) -> Result<()> {
         },
     }
     Ok(())
+}
+
+pub async fn handle_schedule_pause(schedule_id: String) -> Result<()> {
+    let scheduler_storage_path =
+        get_default_scheduler_storage_path().context("Failed to get scheduler storage path")?;
+    let session_manager = Arc::new(SessionManager::instance());
+    let scheduler = Scheduler::new(scheduler_storage_path, session_manager)
+        .await
+        .context("Failed to initialize scheduler")?;
+
+    match scheduler.pause_schedule(&schedule_id).await {
+        Ok(_) => {
+            println!("⏸️  Schedule '{}' paused. No future runs until unpaused.", schedule_id);
+            Ok(())
+        }
+        Err(SchedulerError::JobNotFound(job_id)) => {
+            bail!("Error: Job with ID '{}' not found.", job_id);
+        }
+        Err(e) => bail!("Failed to pause schedule '{}': {:?}", schedule_id, e),
+    }
+}
+
+pub async fn handle_schedule_unpause(schedule_id: String) -> Result<()> {
+    let scheduler_storage_path =
+        get_default_scheduler_storage_path().context("Failed to get scheduler storage path")?;
+    let session_manager = Arc::new(SessionManager::instance());
+    let scheduler = Scheduler::new(scheduler_storage_path, session_manager)
+        .await
+        .context("Failed to initialize scheduler")?;
+
+    match scheduler.unpause_schedule(&schedule_id).await {
+        Ok(_) => {
+            println!("▶️  Schedule '{}' unpaused. Future runs will resume.", schedule_id);
+            Ok(())
+        }
+        Err(SchedulerError::JobNotFound(job_id)) => {
+            bail!("Error: Job with ID '{}' not found.", job_id);
+        }
+        Err(e) => bail!("Failed to unpause schedule '{}': {:?}", schedule_id, e),
+    }
+}
+
+pub async fn handle_schedule_update(schedule_id: String, new_cron: String) -> Result<()> {
+    // Validate cron expression before sending to scheduler for helpful error messages
+    validate_cron_expression(&new_cron)?;
+
+    let scheduler_storage_path =
+        get_default_scheduler_storage_path().context("Failed to get scheduler storage path")?;
+    let session_manager = Arc::new(SessionManager::instance());
+    let scheduler = Scheduler::new(scheduler_storage_path, session_manager)
+        .await
+        .context("Failed to initialize scheduler")?;
+
+    match scheduler.update_schedule(&schedule_id, new_cron.clone()).await {
+        Ok(_) => {
+            println!(
+                "✅ Schedule '{}' updated. New cron: {}",
+                schedule_id, new_cron
+            );
+            Ok(())
+        }
+        Err(SchedulerError::JobNotFound(job_id)) => {
+            bail!("Error: Job with ID '{}' not found.", job_id);
+        }
+        Err(e) => bail!("Failed to update schedule '{}': {:?}", schedule_id, e),
+    }
+}
+
+pub async fn handle_schedule_kill(schedule_id: String) -> Result<()> {
+    let scheduler_storage_path =
+        get_default_scheduler_storage_path().context("Failed to get scheduler storage path")?;
+    let session_manager = Arc::new(SessionManager::instance());
+    let scheduler = Scheduler::new(scheduler_storage_path, session_manager)
+        .await
+        .context("Failed to initialize scheduler")?;
+
+    match scheduler.kill_running_job(&schedule_id).await {
+        Ok(_) => {
+            println!("🔴 Running job for schedule '{}' killed.", schedule_id);
+            Ok(())
+        }
+        Err(SchedulerError::JobNotFound(job_id)) => {
+            bail!("Error: Job with ID '{}' not found.", job_id);
+        }
+        Err(e) => bail!("Failed to kill running job for '{}': {:?}", schedule_id, e),
+    }
+}
+
+pub async fn handle_schedule_inspect(schedule_id: String) -> Result<()> {
+    let scheduler_storage_path =
+        get_default_scheduler_storage_path().context("Failed to get scheduler storage path")?;
+    let session_manager = Arc::new(SessionManager::instance());
+    let scheduler = Scheduler::new(scheduler_storage_path, session_manager)
+        .await
+        .context("Failed to initialize scheduler")?;
+
+    match scheduler.get_running_job_info(&schedule_id).await {
+        Ok(Some((session_id, start_time))) => {
+            let duration = chrono::Utc::now() - start_time;
+            println!("🔍 Running job for schedule '{}':", schedule_id);
+            println!("  Session ID: {}", session_id);
+            println!("  Started: {}", start_time.to_rfc3339());
+            println!(
+                "  Duration: {}m {}s",
+                duration.num_minutes(),
+                duration.num_seconds() % 60
+            );
+            Ok(())
+        }
+        Ok(None) => {
+            println!("No job currently running for schedule '{}'.", schedule_id);
+            Ok(())
+        }
+        Err(SchedulerError::JobNotFound(job_id)) => {
+            bail!("Error: Job with ID '{}' not found.", job_id);
+        }
+        Err(e) => bail!("Failed to inspect schedule '{}': {:?}", schedule_id, e),
+    }
 }
 
 pub async fn handle_schedule_services_status() -> Result<()> {

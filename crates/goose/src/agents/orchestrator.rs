@@ -920,6 +920,51 @@ impl AgentOrchestrator {
 
         result
     }
+
+    /// Serialize the orchestrator's workflow state to JSON for file-backed persistence.
+    /// This captures workflows, stats, and config but NOT specialist agents (transient).
+    pub async fn save_state(&self) -> Result<String> {
+        let active_workflows = self.active_workflows.read().await;
+        let stats = self.execution_stats.read().await;
+
+        let mut workflows: HashMap<Uuid, Workflow> = HashMap::new();
+        for (id, wf_arc) in active_workflows.iter() {
+            let wf = wf_arc.lock().await;
+            workflows.insert(*id, wf.clone());
+        }
+
+        let state = serde_json::json!({
+            "config": self.config,
+            "workflows": workflows,
+            "stats": *stats,
+        });
+
+        Ok(serde_json::to_string_pretty(&state)?)
+    }
+
+    /// Restore orchestrator state from a previously saved JSON string.
+    pub async fn load_state(&self, json: &str) -> Result<()> {
+        let state: serde_json::Value = serde_json::from_str(json)?;
+
+        // Restore workflows
+        if let Some(workflows) = state.get("workflows") {
+            let wf_map: HashMap<Uuid, Workflow> = serde_json::from_value(workflows.clone())?;
+            let mut active = self.active_workflows.write().await;
+            active.clear();
+            for (id, wf) in wf_map {
+                active.insert(id, Arc::new(Mutex::new(wf)));
+            }
+        }
+
+        // Restore stats
+        if let Some(stats_val) = state.get("stats") {
+            let restored_stats: ExecutionStats = serde_json::from_value(stats_val.clone())?;
+            let mut stats = self.execution_stats.write().await;
+            *stats = restored_stats;
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for AgentOrchestrator {

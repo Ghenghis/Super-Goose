@@ -87,6 +87,20 @@ impl PermissionManager {
         self.config_path.as_path()
     }
 
+    /// Retrieves the full permission config for a named category (e.g., "user", "smart_approve").
+    pub fn get_permission_config(&self, name: &str) -> Option<PermissionConfig> {
+        self.permission_map.read().unwrap().get(name).cloned()
+    }
+
+    /// Clear all permissions (reset both in-memory map and config file).
+    pub fn reset_all(&self) {
+        let mut map = self.permission_map.write().unwrap();
+        map.clear();
+        let yaml_content =
+            serde_yaml::to_string(&*map).expect("Failed to serialize permission config");
+        let _ = std::fs::write(&self.config_path, yaml_content);
+    }
+
     /// Helper function to retrieve the permission level for a specific permission category and tool.
     fn get_permission(&self, name: &str, principal_name: &str) -> Option<PermissionLevel> {
         let map = self.permission_map.read().unwrap();

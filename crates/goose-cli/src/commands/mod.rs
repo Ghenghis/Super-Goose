@@ -1,10 +1,13 @@
 pub mod configure;
 pub mod info;
+pub mod orchestrator;
+pub mod permissions;
 pub mod project;
 pub mod recipe;
 pub mod schedule;
 pub mod session;
 pub mod term;
+pub mod tunnel;
 pub mod update;
 pub mod web;
 pub mod workflow;
