@@ -32,7 +32,8 @@ use crate::commands::orchestrator::{
 use crate::commands::permissions::{
     handle_permissions_list, handle_permissions_reset, handle_permissions_set,
 };
-use crate::commands::session::{handle_session_list, handle_session_remove};
+use crate::commands::cost::handle_cost_status;
+use crate::commands::session::{handle_session_list, handle_session_remove, handle_session_search};
 use crate::commands::tunnel::{
     handle_tunnel_start, handle_tunnel_status, handle_tunnel_stop,
 };
@@ -538,6 +539,16 @@ enum SessionCommand {
         )]
         regex: Option<String>,
     },
+    /// Search across all session histories
+    #[command(about = "Search conversation history across all sessions")]
+    Search {
+        /// Search query
+        #[arg(help = "Text to search for in session history")]
+        query: String,
+        /// Maximum results to return
+        #[arg(short, long, default_value = "10", help = "Maximum results")]
+        limit: usize,
+    },
     #[command(about = "Export a session")]
     Export {
         #[command(flatten)]
@@ -955,6 +966,10 @@ enum Command {
         )]
         history: bool,
 
+        /// Set a cost budget limit in dollars
+        #[arg(long, help = "Set maximum cost budget in dollars (e.g., --budget 5.00)")]
+        budget: Option<f64>,
+
         #[command(flatten)]
         session_opts: SessionOptions,
 
@@ -1122,6 +1137,10 @@ enum Command {
         #[command(flatten)]
         args: ComputerUseArgs,
     },
+
+    /// Show cost tracking status and budget information
+    #[command(about = "Show cost tracking status and budget information")]
+    Cost {},
 }
 
 /// Subcommands for managing tool permissions
@@ -1298,6 +1317,7 @@ fn get_command_name(command: &Option<Command>) -> &'static str {
         Some(Command::Permissions { .. }) => "permissions",
         Some(Command::Orchestrator { .. }) => "orchestrator",
         Some(Command::Tunnel { .. }) => "tunnel",
+        Some(Command::Cost {}) => "cost",
         None => "default_session",
     }
 }
@@ -1324,6 +1344,9 @@ async fn handle_session_subcommand(command: SessionCommand) -> Result<()> {
             limit,
         } => {
             handle_session_list(format, ascending, working_dir, limit).await?;
+        }
+        SessionCommand::Search { query, limit } => {
+            handle_session_search(&query, limit).await?;
         }
         SessionCommand::Remove { identifier, regex } => {
             let (session_id, name) = if let Some(id) = identifier {
@@ -1385,6 +1408,7 @@ async fn handle_interactive_session(
     resume: bool,
     fork: bool,
     history: bool,
+    budget: Option<f64>,
     session_opts: SessionOptions,
     extension_opts: ExtensionOptions,
 ) -> Result<()> {
@@ -1456,6 +1480,12 @@ async fn handle_interactive_session(
         execution_mode: session_opts.execution_mode.clone(),
     })
     .await;
+
+    // Wire budget to cost tracker if --budget was provided
+    if let Some(budget_amount) = budget {
+        session.set_budget(budget_amount).await;
+        eprintln!("Budget enforcement active: ${:.2}", budget_amount);
+    }
 
     if (resume || fork) && history {
         session.render_message_history();
@@ -1825,6 +1855,7 @@ pub async fn cli() -> anyhow::Result<()> {
             resume,
             fork,
             history,
+            budget,
             session_opts,
             extension_opts,
         }) => {
@@ -1833,6 +1864,7 @@ pub async fn cli() -> anyhow::Result<()> {
                 resume,
                 fork,
                 history,
+                budget,
                 session_opts,
                 extension_opts,
             )
@@ -1887,6 +1919,7 @@ pub async fn cli() -> anyhow::Result<()> {
         Some(Command::Permissions { command }) => handle_permissions_command(command).await,
         Some(Command::Orchestrator { command }) => handle_orchestrator_command(command).await,
         Some(Command::Tunnel { command }) => handle_tunnel_command(command).await,
+        Some(Command::Cost {}) => handle_cost_status().await,
         None => handle_default_session().await,
     }
 }

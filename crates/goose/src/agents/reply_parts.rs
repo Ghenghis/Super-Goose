@@ -185,6 +185,16 @@ impl Agent {
             .with_enable_subagents(self.subagents_enabled(session_id).await)
             .build();
 
+        // === PROJECT DETECTION: Auto-detect project type and inject context ===
+        {
+            let project_ctx = super::project_detector::detect_project(working_dir);
+            let project_prompt = project_ctx.to_system_prompt();
+            if !project_prompt.is_empty() {
+                system_prompt.push_str(&format!("\n\n{}", project_prompt));
+                tracing::info!("Auto-detected project: {}", project_ctx.summary());
+            }
+        }
+
         // Inject plan context if planning is enabled and there's an active plan
         if let Some(plan_context) = self.get_plan_context().await {
             system_prompt.push_str("\n\n");

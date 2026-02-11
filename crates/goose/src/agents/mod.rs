@@ -37,6 +37,7 @@ pub mod orchestrator;
 pub mod persistence;
 pub mod planner;
 pub mod platform_tools;
+pub mod project_detector;
 pub mod prompt_manager;
 pub mod reasoning;
 pub mod reflexion;

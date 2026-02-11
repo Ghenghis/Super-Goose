@@ -1,4 +1,5 @@
 pub mod configure;
+pub mod cost;
 pub mod info;
 pub mod orchestrator;
 pub mod permissions;

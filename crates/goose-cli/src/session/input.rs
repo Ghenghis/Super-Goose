@@ -25,6 +25,7 @@ pub enum InputResult {
     Recipe(Option<String>),
     Compact,
     ToggleFullToolOutput,
+    ModelSwitch { model: String },
 }
 
 #[derive(Debug)]
@@ -234,6 +235,8 @@ fn handle_slash_command(input: &str) -> Option<InputResult> {
     const CMD_EXTENSION: &str = "/extension ";
     const CMD_BUILTIN: &str = "/builtin ";
     const CMD_MODE: &str = "/mode ";
+    const CMD_MODEL: &str = "/model";
+    const CMD_MODEL_WITH_SPACE: &str = "/model ";
     const CMD_PLAN: &str = "/plan";
     const CMD_ENDPLAN: &str = "/endplan";
     const CMD_CLEAR: &str = "/clear";
@@ -296,6 +299,17 @@ fn handle_slash_command(input: &str) -> Option<InputResult> {
         s if s.starts_with(CMD_MODE) => Some(InputResult::GooseMode(
             s.get(CMD_MODE.len()..).unwrap_or("").to_string(),
         )),
+        s if s.starts_with(CMD_MODEL_WITH_SPACE) => {
+            let model_name = s.get(CMD_MODEL_WITH_SPACE.len()..).unwrap_or("").trim();
+            if model_name.is_empty() {
+                Some(InputResult::Message("Usage: /model <model-name> - e.g., /model claude-sonnet-4-20250514".to_string()))
+            } else {
+                Some(InputResult::ModelSwitch { model: model_name.to_string() })
+            }
+        }
+        s if s == CMD_MODEL => {
+            Some(InputResult::Message("Usage: /model <model-name> - e.g., /model claude-sonnet-4-20250514".to_string()))
+        }
         s if s.starts_with(CMD_PLAN) => {
             parse_plan_command(s.get(CMD_PLAN.len()..).unwrap_or("").trim().to_string())
         }
@@ -425,6 +439,7 @@ fn print_help() {
 /builtin <names> - Add builtin extensions by name (comma-separated)
 /prompts [--extension <name>] - List all available prompts, optionally filtered by extension
 /prompt <n> [--info] [key=value...] - Get prompt info or execute a prompt
+/model <name> - Switch to a different model mid-session (e.g., /model claude-sonnet-4-20250514)
 /mode <name> - Set the goose mode to use ('auto', 'approve', 'chat', 'smart_approve')
 /plan <message_text> -  Enters 'plan' mode with optional message. Create a plan based on the current messages and asks user if they want to act on it.
                         If user acts on the plan, goose mode is set to 'auto' and returns to 'normal' goose mode.

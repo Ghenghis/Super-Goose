@@ -267,6 +267,12 @@ impl CliSession {
         &self.session_id
     }
 
+    /// Set cost budget for the session's agent
+    pub async fn set_budget(&self, budget: f64) {
+        self.agent.cost_tracker().set_budget(budget).await;
+        tracing::info!("Budget set to ${:.2} for session {}", budget, self.session_id);
+    }
+
     /// Parse a stdio extension command string into an ExtensionConfig
     /// Format: "ENV1=val1 ENV2=val2 command args..."
     pub fn parse_stdio_extension(extension_command: &str) -> Result<ExtensionConfig> {
@@ -574,6 +580,18 @@ impl CliSession {
             InputResult::Compact => {
                 history.save(editor);
                 self.handle_compact().await?;
+            }
+            InputResult::ModelSwitch { model } => {
+                history.save(editor);
+                match goose::config::Config::global().set_goose_model(&model) {
+                    Ok(()) => {
+                        println!("Model switched to: {}", model);
+                        tracing::info!("Model hot-switched to: {}", model);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to switch model: {}", e);
+                    }
+                }
             }
         }
         Ok(())

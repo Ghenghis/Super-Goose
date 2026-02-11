@@ -84,6 +84,10 @@ impl Agent {
             "inspect" => self.handle_hitl_command("inspect", &params, session_id).await,
             #[cfg(feature = "memory")]
             "plan" => self.handle_hitl_command("plan", &params, session_id).await,
+            #[cfg(feature = "memory")]
+            "bookmark" | "bm" | "checkpoint" => {
+                self.handle_bookmark_command(&params, session_id).await
+            }
             _ => {
                 self.handle_recipe_command(command, params_str, session_id)
                     .await
@@ -705,6 +709,192 @@ impl Agent {
                  - `/bp remove <index>` — Remove a breakpoint\n\
                  - `/bp list` — List all breakpoints\n\
                  - `/bp clear` — Remove all breakpoints",
+                other
+            )))),
+        }
+    }
+
+    /// Handle /bookmark (session bookmarks/checkpoints) slash commands
+    pub(crate) async fn handle_bookmark_command(
+        &self,
+        params: &[&str],
+        session_id: &str,
+    ) -> Result<Option<Message>> {
+        use crate::agents::persistence::{CheckpointManager, CheckpointSummary};
+        let cp_guard = self.checkpoint_manager.lock().await;
+        let manager: &CheckpointManager = match cp_guard.as_ref() {
+            Some(mgr) => mgr,
+            None => {
+                return Ok(Some(Message::assistant().with_text(
+                    "Checkpointing is not enabled. Start a session with memory features to use bookmarks.",
+                )));
+            }
+        };
+
+        match params.first().copied() {
+            Some("save") | Some("create") => {
+                let label = if params.len() > 1 {
+                    params[1..].join(" ")
+                } else {
+                    format!("Bookmark at {}", chrono::Utc::now().format("%H:%M:%S"))
+                };
+
+                // Create checkpoint with current session state
+                let state = serde_json::json!({
+                    "session_id": session_id,
+                    "label": label,
+                    "created_at": chrono::Utc::now().to_rfc3339(),
+                });
+                let metadata = super::persistence::CheckpointMetadata {
+                    label: Some(label.clone()),
+                    tags: vec!["bookmark".to_string()],
+                    auto: false,
+                    ..Default::default()
+                };
+                let mut checkpoint = super::persistence::Checkpoint::new(session_id, state);
+                checkpoint = checkpoint.with_metadata(metadata);
+
+                manager.checkpointer().save(&checkpoint).await?;
+
+                Ok(Some(Message::assistant().with_text(format!(
+                    "Bookmark saved: \"{}\" (ID: {})",
+                    label,
+                    &checkpoint.checkpoint_id[..8]
+                ))))
+            }
+
+            Some("list") | None => {
+                let summaries: Vec<CheckpointSummary> = manager.checkpointer().list(session_id).await?;
+                if summaries.is_empty() {
+                    return Ok(Some(Message::assistant().with_text(
+                        "No bookmarks for this session. Use `/bookmark save [label]` to create one.",
+                    )));
+                }
+                let list: String = summaries
+                    .iter()
+                    .enumerate()
+                    .map(|(i, s)| {
+                        let label = s
+                            .metadata
+                            .label
+                            .as_deref()
+                            .unwrap_or("(unnamed)");
+                        let time = s.created_at.format("%Y-%m-%d %H:%M:%S");
+                        let auto_tag = if s.metadata.auto { " [auto]" } else { "" };
+                        format!(
+                            "  [{}] {} -- {}{} ({})",
+                            i,
+                            label,
+                            time,
+                            auto_tag,
+                            &s.checkpoint_id[..8]
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                Ok(Some(Message::assistant().with_text(format!(
+                    "Session Bookmarks:\n{}",
+                    list
+                ))))
+            }
+
+            Some("restore") | Some("load") => {
+                let target = params.get(1).unwrap_or(&"");
+                if target.is_empty() {
+                    return Ok(Some(Message::assistant().with_text(
+                        "Usage: `/bookmark restore <index|id>` -- restore a saved bookmark",
+                    )));
+                }
+                // Try parsing as index first
+                let summaries: Vec<CheckpointSummary> = manager.checkpointer().list(session_id).await?;
+                let checkpoint_id = if let Ok(idx) = target.parse::<usize>() {
+                    summaries.get(idx).map(|s| s.checkpoint_id.clone())
+                } else {
+                    // Try matching by ID prefix
+                    summaries
+                        .iter()
+                        .find(|s| s.checkpoint_id.starts_with(target))
+                        .map(|s| s.checkpoint_id.clone())
+                };
+
+                match checkpoint_id {
+                    Some(id) => {
+                        let loaded = manager.checkpointer().load_by_id(&id).await?;
+                        match loaded {
+                            Some(cp) => {
+                                let label = cp
+                                    .metadata
+                                    .label
+                                    .as_deref()
+                                    .unwrap_or("(unnamed)");
+                                Ok(Some(Message::assistant().with_text(format!(
+                                    "Restored bookmark: \"{}\" (created {})\n\
+                                     State snapshot loaded. The agent will use this context.",
+                                    label,
+                                    cp.created_at.format("%Y-%m-%d %H:%M:%S")
+                                ))))
+                            }
+                            None => Ok(Some(Message::assistant().with_text(
+                                "Bookmark not found. Use `/bookmark list` to see available bookmarks.",
+                            ))),
+                        }
+                    }
+                    None => Ok(Some(Message::assistant().with_text(format!(
+                        "No bookmark matching '{}'. Use `/bookmark list` to see available bookmarks.",
+                        target
+                    )))),
+                }
+            }
+
+            Some("delete") | Some("remove") => {
+                let target = params.get(1).unwrap_or(&"");
+                if target.is_empty() {
+                    return Ok(Some(Message::assistant().with_text(
+                        "Usage: `/bookmark delete <index|id>` -- delete a bookmark",
+                    )));
+                }
+                let summaries: Vec<CheckpointSummary> = manager.checkpointer().list(session_id).await?;
+                let checkpoint_id = if let Ok(idx) = target.parse::<usize>() {
+                    summaries.get(idx).map(|s| s.checkpoint_id.clone())
+                } else {
+                    summaries
+                        .iter()
+                        .find(|s| s.checkpoint_id.starts_with(target))
+                        .map(|s| s.checkpoint_id.clone())
+                };
+
+                match checkpoint_id {
+                    Some(id) => {
+                        let deleted = manager.checkpointer().delete(&id).await?;
+                        if deleted {
+                            Ok(Some(Message::assistant().with_text("Bookmark deleted.")))
+                        } else {
+                            Ok(Some(Message::assistant().with_text("Bookmark not found.")))
+                        }
+                    }
+                    None => Ok(Some(Message::assistant().with_text(format!(
+                        "No bookmark matching '{}'. Use `/bookmark list` to see available bookmarks.",
+                        target
+                    )))),
+                }
+            }
+
+            Some("clear") => {
+                let count = manager.checkpointer().delete_thread(session_id).await?;
+                Ok(Some(Message::assistant().with_text(format!(
+                    "Cleared {} bookmark(s) for this session.",
+                    count
+                ))))
+            }
+
+            Some(other) => Ok(Some(Message::assistant().with_text(format!(
+                "Unknown /bookmark subcommand: `{}`\n\n\
+                 Usage:\n\
+                 - `/bookmark save [label]` -- Save current state as bookmark\n\
+                 - `/bookmark list` -- List all bookmarks\n\
+                 - `/bookmark restore <index|id>` -- Restore a bookmark\n\
+                 - `/bookmark delete <index|id>` -- Delete a bookmark\n\
+                 - `/bookmark clear` -- Delete all bookmarks",
                 other
             )))),
         }

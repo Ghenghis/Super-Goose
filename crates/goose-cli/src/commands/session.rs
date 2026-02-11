@@ -322,6 +322,40 @@ fn export_session_to_markdown(
     markdown_output
 }
 
+pub async fn handle_session_search(query: &str, limit: usize) -> Result<()> {
+    let session_manager = SessionManager::instance();
+    println!("Searching sessions for: \"{}\"", query);
+    println!("---");
+
+    let sessions = session_manager.list_sessions().await?;
+    let mut found = 0;
+    for session in &sessions {
+        if found >= limit {
+            break;
+        }
+        let name = if session.name.is_empty() {
+            "unnamed"
+        } else {
+            &session.name
+        };
+        let working_dir = session.working_dir.to_string_lossy();
+        // Search in session name and working directory
+        if name.to_lowercase().contains(&query.to_lowercase())
+            || working_dir.to_lowercase().contains(&query.to_lowercase())
+        {
+            println!("  [{}] {} ({})", session.id, name, working_dir);
+            found += 1;
+        }
+    }
+    if found == 0 {
+        println!("  No sessions matching \"{}\" found.", query);
+    } else {
+        println!("---");
+        println!("Found {} session(s)", found);
+    }
+    Ok(())
+}
+
 /// Prompt the user to interactively select a session
 ///
 /// Shows a list of available sessions and lets the user select one

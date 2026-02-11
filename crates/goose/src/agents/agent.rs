@@ -17,6 +17,7 @@ use crate::action_required_manager::ActionRequiredManager;
 use crate::agents::critic::{AggregatedCritique, CriticManager, CritiqueContext};
 use crate::agents::persistence::CheckpointManager;
 use crate::agents::reasoning::{ReasoningConfig, ReasoningManager, ReasoningMode};
+use crate::agents::observability::CostTracker;
 use crate::agents::reflexion::{AttemptAction, AttemptOutcome, ReflexionAgent, ReflexionConfig};
 use crate::guardrails::{DetectionContext, GuardrailsEngine};
 use crate::agents::extension::{ExtensionConfig, ExtensionResult, ToolInfo};
@@ -263,8 +264,14 @@ pub struct Agent {
     pub(crate) mem0_client: Mutex<Option<super::mem0_client::Mem0Client>>,
     #[cfg(feature = "memory")]
     pub(crate) interactive_session: Mutex<super::hitl::InteractiveSession>,
-    checkpoint_manager: Mutex<Option<CheckpointManager>>,
+    pub(crate) checkpoint_manager: Mutex<Option<CheckpointManager>>,
     checkpoint_initialized: AtomicBool,
+    /// Cost tracker for budget enforcement
+    cost_tracker: Arc<CostTracker>,
+    /// Advanced compaction manager for selective context management
+    compaction_manager: Mutex<crate::compaction::CompactionManager>,
+    /// Per-tool rate limiter for runaway loop prevention
+    tool_call_counts: Mutex<HashMap<String, (u32, std::time::Instant)>>,
 }
 
 #[derive(Clone, Debug)]
@@ -374,7 +381,22 @@ impl Agent {
             interactive_session: Mutex::new(super::hitl::InteractiveSession::new()),
             checkpoint_manager: Mutex::new(None),
             checkpoint_initialized: AtomicBool::new(false),
+            cost_tracker: Arc::new(CostTracker::with_default_pricing()),
+            compaction_manager: Mutex::new(crate::compaction::CompactionManager::new(
+                crate::compaction::CompactionConfig::default(),
+            )),
+            tool_call_counts: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Get the cost tracker for budget monitoring
+    pub fn cost_tracker(&self) -> &Arc<CostTracker> {
+        &self.cost_tracker
+    }
+
+    /// Get compaction statistics
+    pub async fn compaction_stats(&self) -> crate::compaction::CompactionStats {
+        self.compaction_manager.lock().await.stats()
     }
 
     /// Create a tool inspection manager with default inspectors
@@ -631,6 +653,9 @@ impl Agent {
     ) -> anyhow::Result<bool> {
         use crate::agents::state_graph::{StateGraphConfig, StateGraphRunner};
 
+        let code_working_dir = working_dir.clone();
+        let fix_working_dir = working_dir.clone();
+        let test_working_dir = working_dir.clone();
         let config = StateGraphConfig {
             working_dir,
             test_command: test_command.map(|s| s.to_string()),
@@ -638,13 +663,49 @@ impl Agent {
         };
         let mut runner = StateGraphRunner::new(config);
 
-        // Use simple callbacks that delegate to shell commands
+        // === CODE GEN: Shell-based code generation (writes task file for agent to work on) ===
         let code_gen: crate::agents::state_graph::runner::CodeGenFn =
-            Box::new(|_task, _state| Ok(Vec::new()));
-        let test_run: crate::agents::state_graph::runner::TestRunFn =
-            Box::new(|_state| Ok(Vec::new()));
+            Box::new(move |task, _state| {
+                // Write the task description to a marker file so the agent knows what to build
+                let task_file = code_working_dir.join(".goose-task.md");
+                if let Err(e) = std::fs::write(&task_file, task) {
+                    tracing::warn!("Could not write task file: {}", e);
+                }
+                Ok(vec![task_file.display().to_string()])
+            });
+
+        // === TEST RUN: Use ShellTestRunner for real test execution ===
+        let test_run: crate::agents::state_graph::runner::TestRunFn = if let Some(cmd) = test_command {
+            let shell_runner = crate::agents::state_graph::runner::ShellTestRunner::new(
+                cmd,
+                test_working_dir,
+            );
+            shell_runner.into_callback()
+        } else {
+            // No test command specified — return empty results (loop will skip test phase)
+            Box::new(|_state| Ok(Vec::new()))
+        };
+
+        // === FIX: Record failures for the agent to pick up on next iteration ===
         let fix_apply: crate::agents::state_graph::runner::FixApplyFn =
-            Box::new(|_results, _state| Ok(Vec::new()));
+            Box::new(move |results, _state| {
+                // Write failure summary so the agent can see what went wrong
+                let failures: Vec<String> = results
+                    .iter()
+                    .filter(|r| !r.is_passed())
+                    .map(|r| format!("FAIL: {} — {}", r.test_name, r.message.as_deref().unwrap_or("unknown error")))
+                    .collect();
+                if !failures.is_empty() {
+                    let fix_file = fix_working_dir.join(".goose-failures.md");
+                    let content = format!("# Test Failures\n\n{}", failures.join("\n"));
+                    if let Err(e) = std::fs::write(&fix_file, &content) {
+                        tracing::warn!("Could not write failures file: {}", e);
+                    }
+                    Ok(vec![fix_file.display().to_string()])
+                } else {
+                    Ok(Vec::new())
+                }
+            });
 
         let success = runner.run(task, code_gen, test_run, fix_apply).await?;
         info!(
@@ -1869,6 +1930,16 @@ impl Agent {
             }
         }
 
+        // === REFLEXION: Inject past reflections for closed-loop learning ===
+        {
+            let reflexion = self.reflexion_agent.lock().await;
+            let reflexion_context = reflexion.generate_context_with_reflections(&system_prompt);
+            if !reflexion_context.is_empty() {
+                system_prompt.push_str(&format!("\n\n{}", reflexion_context));
+                info!("Injected reflexion context ({} chars) for self-improvement", reflexion_context.len());
+            }
+        }
+
         let working_dir = session.working_dir.clone();
         Ok(Box::pin(async_stream::try_stream! {
             let _ = reply_span.enter();
@@ -1964,6 +2035,20 @@ impl Agent {
                     break;
                 }
 
+                // === BUDGET: Check cost budget and halt if exceeded ===
+                if self.cost_tracker.is_over_budget().await {
+                    let total_cost = self.cost_tracker.get_cost().await;
+                    let remaining = self.cost_tracker.remaining_budget().await;
+                    let msg = format!(
+                        "Budget limit reached. Total cost: ${:.4}. Remaining: ${:.4}. Halting execution to prevent overspend.",
+                        total_cost,
+                        remaining.unwrap_or(0.0)
+                    );
+                    info!("Budget enforcement: {}", msg);
+                    yield AgentEvent::Message(Message::assistant().with_text(&msg));
+                    break;
+                }
+
                 let tool_pair_summarization_task = crate::context_mgmt::maybe_summarize_tool_pair(
                     self.provider().await?,
                     session_config.id.clone(),
@@ -2048,6 +2133,13 @@ impl Agent {
 
                             if let Some(ref usage) = usage {
                                 self.update_session_metrics(&session_config.id, session_config.schedule_id.clone(), usage, false).await?;
+                                // === COST TRACKING: Record token usage for budget enforcement ===
+                                let input_toks = usage.usage.input_tokens.unwrap_or(0).max(0) as u64;
+                                let output_toks = usage.usage.output_tokens.unwrap_or(0).max(0) as u64;
+                                if input_toks > 0 || output_toks > 0 {
+                                    let token_usage = crate::agents::observability::TokenUsage::new(input_toks, output_toks);
+                                    self.cost_tracker.record_llm_call(&token_usage);
+                                }
                             }
 
                             if let Some(response) = response {
@@ -2117,6 +2209,34 @@ impl Agent {
                                         }
                                     }
                                 } else {
+                                    // === RATE LIMITING: Track tool call frequency to detect runaway loops ===
+                                    {
+                                        let mut counts = self.tool_call_counts.lock().await;
+                                        let now = std::time::Instant::now();
+                                        let window = std::time::Duration::from_secs(60); // 1-minute window
+                                        let max_calls_per_tool: u32 = 50; // Max 50 calls per tool per minute
+
+                                        for req in remaining_requests.iter() {
+                                            if let Ok(ref tc) = req.tool_call {
+                                                let entry = counts.entry(tc.name.to_string()).or_insert((0, now));
+                                                // Reset counter if window has elapsed
+                                                if now.duration_since(entry.1) > window {
+                                                    *entry = (1, now);
+                                                } else {
+                                                    entry.0 += 1;
+                                                    if entry.0 > max_calls_per_tool {
+                                                        warn!(
+                                                            "Rate limit: tool '{}' called {} times in 60s (limit: {}). Adding backpressure.",
+                                                            tc.name, entry.0, max_calls_per_tool
+                                                        );
+                                                        // Backpressure: slow down instead of blocking
+                                                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     // === HITL: Check tool breakpoints ===
                                     #[cfg(feature = "memory")]
                                     {
@@ -2641,6 +2761,38 @@ impl Agent {
                     } else {
                         warn!("Expected a tool request/reply pair, but found {} matching messages",
                             matching.len());
+                    }
+                }
+
+                // === OUTPUT GUARDRAILS: Scan assistant responses for secrets/PII leakage ===
+                {
+                    let guardrails = self.guardrails_engine.lock().await;
+                    for msg in &messages_to_add {
+                        if msg.role == rmcp::model::Role::Assistant {
+                            let output_text: String = msg.content.iter()
+                                .filter_map(|c| match c {
+                                    MessageContent::Text(t) => Some(t.text.as_str()),
+                                    _ => None,
+                                })
+                                .collect::<Vec<_>>()
+                                .join(" ");
+                            if !output_text.is_empty() {
+                                let detection_ctx = DetectionContext::default();
+                                match guardrails.scan(&output_text, &detection_ctx).await {
+                                    Ok(result) if !result.passed => {
+                                        info!(
+                                            "Output guardrails flagged response (severity: {:?}): {}",
+                                            result.max_severity,
+                                            result.blocked_reason.as_deref().unwrap_or("Unknown")
+                                        );
+                                    }
+                                    Err(e) => {
+                                        warn!("Output guardrails scan error (non-blocking): {}", e);
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
                     }
                 }
 
