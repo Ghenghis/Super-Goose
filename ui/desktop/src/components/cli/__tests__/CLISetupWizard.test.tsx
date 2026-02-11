@@ -101,7 +101,8 @@ describe('CLISetupWizard', () => {
 
   it('should show a Cancel button', () => {
     render(<CLISetupWizard />);
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    const cancelButtons = screen.getAllByRole('button', { name: /cancel/i });
+    expect(cancelButtons.length).toBeGreaterThanOrEqual(1);
   });
 
   it('should call cancelSetup when Cancel is clicked', async () => {

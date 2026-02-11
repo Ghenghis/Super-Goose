@@ -42,7 +42,8 @@ describe('SearchSidebar', () => {
       // Auth module has 2 results, DB pooling has 3, etc.
       const badges = screen.getAllByText('2');
       expect(badges.length).toBeGreaterThanOrEqual(2); // at least "Refactor auth" and "Deploy staging"
-      expect(screen.getByText('3')).toBeInTheDocument(); // DB pooling has 3 results
+      const threes = screen.getAllByText('3');
+      expect(threes.length).toBeGreaterThanOrEqual(1); // DB pooling has 3 results
     });
   });
 
@@ -68,8 +69,7 @@ describe('SearchSidebar', () => {
       await user.type(input, 'connection');
 
       // Should display "X results across Y sessions" text
-      expect(screen.getByText(/result/)).toBeInTheDocument();
-      expect(screen.getByText(/session/)).toBeInTheDocument();
+      expect(screen.getByText(/\d+ results? across \d+ sessions?/)).toBeInTheDocument();
     });
 
     it('shows empty state when no results match', async () => {

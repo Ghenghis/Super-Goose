@@ -2,6 +2,13 @@ import '@testing-library/jest-dom';
 import { vi, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
+// Polyfill ResizeObserver for jsdom (required by Radix ScrollArea, etc.)
+globalThis.ResizeObserver = globalThis.ResizeObserver ?? class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 // Mock Electron modules before any imports
 vi.mock('electron', () => ({
   app: {

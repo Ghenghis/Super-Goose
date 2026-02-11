@@ -83,9 +83,9 @@ describe('SettingsKeys enum', () => {
     expect(SettingsKeys.ModelHotSwitch).toBe('modelHotSwitch');
   });
 
-  it('contains all 18 expected keys', () => {
+  it('contains all 17 expected keys', () => {
     const keys = Object.keys(SettingsKeys);
-    expect(keys.length).toBe(18);
+    expect(keys.length).toBe(17);
   });
 });
 

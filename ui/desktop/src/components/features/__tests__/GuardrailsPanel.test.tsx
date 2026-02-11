@@ -42,7 +42,8 @@ describe('GuardrailsPanel', () => {
       expect(promptInjection.length).toBe(2);
       const secretScanner = screen.getAllByText('Secret Scanner');
       expect(secretScanner.length).toBe(3);
-      expect(screen.getByText('PII Detection')).toBeInTheDocument();
+      const piiDetection = screen.getAllByText('PII Detection');
+      expect(piiDetection.length).toBe(2);
       expect(screen.getByText('Jailbreak')).toBeInTheDocument();
       expect(screen.getByText('Keyword Filter')).toBeInTheDocument();
       expect(screen.getByText('Topic Filter')).toBeInTheDocument();
@@ -128,7 +129,7 @@ describe('GuardrailsPanel', () => {
       const firstEntryButton = entries[0].closest('button');
       await user.click(firstEntryButton!);
 
-      expect(screen.getByText('Input')).toBeInTheDocument();
+      expect(screen.getByText('input')).toBeInTheDocument();
     });
 
     it('collapses an expanded entry when clicked again', async () => {

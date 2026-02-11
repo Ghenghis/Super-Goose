@@ -2,76 +2,41 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-// Mock the bundled-extensions JSON before importing the component.
-// Provide a small representative set with all three tiers.
-const MOCK_EXTENSIONS = [
-  {
-    id: 'developer',
-    name: 'developer',
-    display_name: 'Developer',
-    description: 'General development tools useful for software engineering.',
-    enabled: true,
-    type: 'builtin',
-    env_keys: [],
-    timeout: 300,
-    bundled: true,
-  },
-  {
-    id: 'memory',
-    name: 'memory',
-    display_name: 'Memory',
-    description: 'Teach goose your preferences as you go.',
-    enabled: false,
-    type: 'builtin',
-    env_keys: [],
-    timeout: 300,
-    bundled: true,
-  },
-  {
-    id: 'crewai_bridge',
-    name: 'crewai_bridge',
-    display_name: 'CrewAI Bridge',
-    description: 'CrewAI multi-agent task orchestration.',
-    enabled: false,
-    type: 'stdio',
-    env_keys: [],
-    timeout: 300,
-    bundled: true,
-  },
-  {
-    id: 'langgraph_bridge',
-    name: 'langgraph_bridge',
-    display_name: 'LangGraph Bridge',
-    description: 'LangGraph stateful agent workflows.',
-    enabled: false,
-    type: 'stdio',
-    env_keys: [],
-    timeout: 300,
-    bundled: true,
-  },
-  {
-    id: 'resource_coordinator',
-    name: 'resource_coordinator',
-    display_name: 'Resource Coordinator',
-    description: 'Resource allocation and management across agents.',
-    enabled: false,
-    type: 'stdio',
-    env_keys: [],
-    timeout: 300,
-    bundled: true,
-  },
-  {
-    id: 'playwright_bridge',
-    name: 'playwright_bridge',
-    display_name: 'Playwright Bridge',
-    description: 'Playwright browser automation and testing.',
-    enabled: false,
-    type: 'stdio',
-    env_keys: [],
-    timeout: 300,
-    bundled: true,
-  },
-];
+// Use vi.hoisted so that MOCK_EXTENSIONS is available when vi.mock hoists.
+const { MOCK_EXTENSIONS } = vi.hoisted(() => ({
+  MOCK_EXTENSIONS: [
+    {
+      id: 'developer', name: 'developer', display_name: 'Developer',
+      description: 'General development tools useful for software engineering.',
+      enabled: true, type: 'builtin', env_keys: [] as string[], timeout: 300, bundled: true,
+    },
+    {
+      id: 'memory', name: 'memory', display_name: 'Memory',
+      description: 'Teach goose your preferences as you go.',
+      enabled: false, type: 'builtin', env_keys: [] as string[], timeout: 300, bundled: true,
+    },
+    {
+      id: 'crewai_bridge', name: 'crewai_bridge', display_name: 'CrewAI Bridge',
+      description: 'CrewAI multi-agent task orchestration.',
+      enabled: false, type: 'stdio', env_keys: [] as string[], timeout: 300, bundled: true,
+    },
+    {
+      id: 'langgraph_bridge', name: 'langgraph_bridge', display_name: 'LangGraph Bridge',
+      description: 'LangGraph stateful agent workflows.',
+      enabled: false, type: 'stdio', env_keys: [] as string[], timeout: 300, bundled: true,
+    },
+    {
+      id: 'resource_coordinator', name: 'resource_coordinator', display_name: 'Resource Coordinator',
+      description: 'Resource allocation and management across agents.',
+      enabled: false, type: 'stdio', env_keys: [] as string[], timeout: 300, bundled: true,
+    },
+    {
+      id: 'playwright_bridge', name: 'playwright_bridge', display_name: 'Playwright Bridge',
+      description: 'Playwright browser automation and testing.',
+      enabled: false, type: 'stdio', env_keys: [] as string[], timeout: 300, bundled: true,
+    },
+  ],
+}));
 
 vi.mock('../../settings/extensions/bundled-extensions.json', () => ({
   default: MOCK_EXTENSIONS,

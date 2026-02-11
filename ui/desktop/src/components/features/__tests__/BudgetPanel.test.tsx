@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BudgetPanel from '../BudgetPanel';
 
@@ -30,7 +30,10 @@ describe('BudgetPanel', () => {
     it('renders total cost', () => {
       render(<BudgetPanel />);
       // Total: 1.47 + 1.12 + 0.39 + 0.18 = 3.16
-      expect(screen.getByText('$3.16')).toBeInTheDocument();
+      // "$3.16" appears in both the large cost display and the budget bar,
+      // so use getAllByText to verify at least one is present.
+      const costElements = screen.getAllByText('$3.16');
+      expect(costElements.length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders budget limit display', () => {
@@ -74,17 +77,16 @@ describe('BudgetPanel', () => {
       const budgetButton = screen.getByText(/Budget: \$10.00 per session/);
       await user.click(budgetButton);
 
-      // Change the value
+      // Change the value using fireEvent for controlled number input
       const input = screen.getByDisplayValue('10.00');
-      await user.clear(input);
-      await user.type(input, '5.00');
+      fireEvent.change(input, { target: { value: '5.00' } });
 
       const saveButton = screen.getByText('Save');
       await user.click(saveButton);
 
       // Should exit editing mode
       expect(screen.queryByText('Save')).not.toBeInTheDocument();
-      expect(screen.getByText(/Budget: \$5.00 per session/)).toBeInTheDocument();
+      expect(screen.getByText(/Budget: \$5\.00 per session/)).toBeInTheDocument();
     });
 
     it('updates budget bar when budget is changed', async () => {
@@ -94,15 +96,15 @@ describe('BudgetPanel', () => {
       const budgetButton = screen.getByText(/Budget: \$10.00 per session/);
       await user.click(budgetButton);
 
+      // Change the value using fireEvent for controlled number input
       const input = screen.getByDisplayValue('10.00');
-      await user.clear(input);
-      await user.type(input, '5.00');
+      fireEvent.change(input, { target: { value: '5.00' } });
 
       const saveButton = screen.getByText('Save');
       await user.click(saveButton);
 
       // Budget bar should show new values
-      expect(screen.getByText('$3.16 of $5.00 budget')).toBeInTheDocument();
+      expect(screen.getByText(/\$3\.16 of \$5\.00 budget/)).toBeInTheDocument();
       // 3.16 / 5.00 * 100 = 63.2 => 63%
       expect(screen.getByText('63%')).toBeInTheDocument();
     });

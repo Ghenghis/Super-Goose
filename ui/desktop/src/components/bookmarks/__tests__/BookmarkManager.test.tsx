@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BookmarkManager from '../BookmarkManager';
 
@@ -110,15 +110,18 @@ describe('BookmarkManager', () => {
       const user = userEvent.setup();
       render(<BookmarkManager />);
 
-      // Verify the bookmark exists
-      expect(screen.getByText('Auth flow fix')).toBeInTheDocument();
+      // Verify the first bookmark in DOM exists (sorted by session name alphabetically,
+      // "Add unit tests for payment service" comes first, containing "Stripe webhook handler")
+      expect(screen.getByText('Stripe webhook handler')).toBeInTheDocument();
 
-      // Click delete on the first bookmark
+      // Click delete on the first bookmark in the rendered list
       const deleteButtons = screen.getAllByTitle('Delete bookmark');
       await user.click(deleteButtons[0]);
 
-      // The bookmark should be removed
-      expect(screen.queryByText('Auth flow fix')).not.toBeInTheDocument();
+      // The bookmark should be removed after state update
+      await waitFor(() => {
+        expect(screen.queryByText('Stripe webhook handler')).not.toBeInTheDocument();
+      });
     });
 
     it('updates count after deleting a bookmark', async () => {

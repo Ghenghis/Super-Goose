@@ -14,12 +14,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mocks — must be set up before importing the module under test
 // ---------------------------------------------------------------------------
 
-// The setup.ts already mocks 'electron' with ipcRenderer. We need ipcMain
-// for cli-ipc.ts. Vitest hoists vi.mock calls, so this overrides the
-// setup.ts mock for this test file specifically.
-const mockHandlers = new Map<string, (...args: unknown[]) => unknown>();
-const mockIpcMainHandle = vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => {
-  mockHandlers.set(channel, handler);
+// Use vi.hoisted so mocks are available when vi.mock factory runs (hoisted above imports).
+const { mockHandlers, mockIpcMainHandle } = vi.hoisted(() => {
+  const mockHandlers = new Map<string, (...args: unknown[]) => unknown>();
+  const mockIpcMainHandle = vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => {
+    mockHandlers.set(channel, handler);
+  });
+  return { mockHandlers, mockIpcMainHandle };
 });
 
 vi.mock('electron', () => ({
@@ -42,6 +43,14 @@ vi.mock('node:fs', () => ({
 vi.mock('node:https', () => ({
   default: {
     get: vi.fn(),
+  },
+}));
+
+vi.mock('node:path', () => ({
+  default: {
+    join: (...args: string[]) => args.join('/'),
+    dirname: (p: string) => p.split('/').slice(0, -1).join('/'),
+    basename: (p: string) => p.split('/').pop() || '',
   },
 }));
 

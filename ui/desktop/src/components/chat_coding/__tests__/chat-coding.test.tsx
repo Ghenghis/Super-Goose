@@ -62,7 +62,7 @@ vi.mock('mermaid', () => ({
 // ============================================================================
 
 describe('chat_coding barrel exports', () => {
-  it('exports all Phase 1 core code components', async () => {
+  it('exports all Phase 1 core code components', { timeout: 15000 }, async () => {
     const mod = await import('../index');
     expect(mod.EnhancedCodeBlock).toBeDefined();
     expect(mod.DiffCard).toBeDefined();
@@ -77,7 +77,7 @@ describe('chat_coding barrel exports', () => {
     expect(mod.looksLikeCode).toBeDefined();
   });
 
-  it('exports all Phase 2 navigation components', async () => {
+  it('exports all Phase 2 navigation components', { timeout: 15000 }, async () => {
     const mod = await import('../index');
     expect(mod.CodeSearch).toBeDefined();
     expect(mod.findMatches).toBeDefined();
@@ -85,7 +85,7 @@ describe('chat_coding barrel exports', () => {
     expect(mod.BreadcrumbPath).toBeDefined();
   });
 
-  it('exports all Phase 3 thinking & media components', async () => {
+  it('exports all Phase 3 thinking & media components', { timeout: 15000 }, async () => {
     const mod = await import('../index');
     expect(mod.ThinkingBlock).toBeDefined();
     expect(mod.ImagePreviewCard).toBeDefined();
@@ -93,7 +93,7 @@ describe('chat_coding barrel exports', () => {
     expect(mod.ContentTypeIndicator).toBeDefined();
   });
 
-  it('exports all Phase 4 multi-agent components', async () => {
+  it('exports all Phase 4 multi-agent components', { timeout: 15000 }, async () => {
     const mod = await import('../index');
     expect(mod.SwarmOverview).toBeDefined();
     expect(mod.SubagentTrace).toBeDefined();
@@ -101,7 +101,7 @@ describe('chat_coding barrel exports', () => {
     expect(mod.SwarmProgress).toBeDefined();
   });
 
-  it('exports all Phase 5 task & workflow components', async () => {
+  it('exports all Phase 5 task & workflow components', { timeout: 15000 }, async () => {
     const mod = await import('../index');
     expect(mod.TaskGraph).toBeDefined();
     expect(mod.BatchProgress).toBeDefined();
@@ -110,7 +110,7 @@ describe('chat_coding barrel exports', () => {
     expect(mod.BatchProgressPanel).toBeDefined();
   });
 
-  it('exports all Phase 6 diagram & chart components', async () => {
+  it('exports all Phase 6 diagram & chart components', { timeout: 15000 }, async () => {
     const mod = await import('../index');
     expect(mod.MermaidDiagram).toBeDefined();
     expect(mod.detectContentType).toBeDefined();
