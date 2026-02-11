@@ -1,11 +1,13 @@
 # Super-Goose v1.24.05 Continuation State
 
-> **Last Updated**: 2026-02-11
+> **Last Updated**: 2026-02-11 (Session 3)
 > **Branch**: `main`
-> **Last Commit**: `0d78beb6cc` — feat: v1.24.05 — 10 SOTA agent features with full wiring
+> **Last Commit**: `e682e54cc7` — docs: add v1.24.05 continuation state document
+> **Prior Commit**: `37754c5a6c` — fix: audit and bug-fix pass across 27 files
 > **Cargo Check**: CLEAN (zero warnings, zero errors)
-> **Modified Files**: 23 files, 842 insertions, 218 deletions (uncommitted)
-> **Session Transcript**: `C:\Users\Admin\.claude\projects\G--goose\6b176a30-f81c-4693-84d3-e1d1201422cf.jsonl`
+> **Modified Files**: NONE (all committed and pushed to origin/main)
+> **Session Transcript**: `C:\Users\Admin\.claude\projects\G--goose\ce7ec9cc-88c7-40eb-b96d-fa9c2820d5e9.jsonl`
+> **RUSTFLAGS**: `-Lnative=C:/goose-target -Lnative=C:/PROGRA~2/WI3CF2~1/10/Lib/10.0.19041.0/um/x64`
 
 ---
 
@@ -27,20 +29,31 @@
 
 ## 1. Current Codebase State
 
-### 23 Uncommitted Modified Files
+### All Changes Committed & Pushed (Session 3)
+
+**Commit `37754c5a6c`** — fix: audit and bug-fix pass across 27 files (1008 insertions, 458 deletions)
+**Commit `e682e54cc7`** — docs: add v1.24.05 continuation state document
+
+Both pushed to `origin/main`. Working tree is clean.
+
+### 27 Files Fixed (Now Committed)
 
 ```
 crates/goose-cli/src/scenario_tests/mock_client.rs
-crates/goose/src/agents/adversarial/coach.rs
-crates/goose/src/agents/adversarial/player.rs
+crates/goose/src/agents/adversarial/coach.rs (+260)
+crates/goose/src/agents/adversarial/integration_tests.rs
+crates/goose/src/agents/adversarial/player.rs (+202)
 crates/goose/src/agents/adversarial/review.rs
-crates/goose/src/agents/evolution/memory_integration.rs
-crates/goose/src/agents/evolution/optimizer.rs
+crates/goose/src/agents/agent.rs (+65 structured loop wiring)
+crates/goose/src/agents/evolution/memory_integration.rs (+236)
+crates/goose/src/agents/evolution/memory_integration_fix_tests.rs
+crates/goose/src/agents/evolution/mod.rs
+crates/goose/src/agents/evolution/optimizer.rs (+96)
 crates/goose/src/agents/extension_manager_extension.rs
 crates/goose/src/agents/planner.rs
 crates/goose/src/agents/specialists/code_agent.rs
 crates/goose/src/agents/specialists/deploy_agent.rs
-crates/goose/src/agents/specialists/security_agent.rs
+crates/goose/src/agents/specialists/security_agent.rs (+99)
 crates/goose/src/agents/specialists/test_agent.rs
 crates/goose/src/agents/state_graph/runner.rs
 crates/goose/src/guardrails/detectors/secret_detector.rs
@@ -57,7 +70,7 @@ crates/goose/src/tools/search.rs
 
 ### What These Changes Are
 
-These are bug-fixes, dead_code warning fixes, and audit improvements from 8+ background agents across 2 sessions:
+These are bug-fixes, dead_code warning fixes, and audit improvements from 8+ background agents across 3 sessions:
 
 - **Specialist agents** (code_agent, deploy_agent, security_agent, test_agent): Dead code warnings fixed, unused imports removed
 - **Adversarial** (coach, player, review): Logging/tracing improvements, struct fixes
@@ -249,46 +262,58 @@ No `/bookmark` command handler exists in session/mod.rs or session/input.rs. The
 
 ## 7. TimeWarp Integration Status
 
-### Research Documents at `G:\goose\docs\timewarp\`
+### Research Documents at `G:\goose\docs\timewarp\` (17 files, Session 3 Update)
 
-14 files totaling 670KB+:
+| Document | Lines | Status |
+|----------|-------|--------|
+| **TIMEWARP_COMPREHENSIVE_FEATURE_SPEC.md** | 1,731 | **NEW — MASTER SPEC** (340+ event types, 16 categories) |
+| **TIMEWARP_DOCKABLE_BAR_ENHANCED_SPEC.md** | 2,159 | **NEW — 22-section docking spec** |
+| **TIMEWARP_MISSING_FEATURES_GAP_ANALYSIS.md** | 907 | **NEW — P0-P3 gaps with solutions** |
+| TIMEWARP_BAR_UI_UX_SPEC.md | 1,691 | Original UI spec |
+| TIMEWARP_SOTA_RESEARCH_UPDATE_FEB2026.md | — | Latest landscape analysis |
+| ARCHITECTURE_BLUEPRINT.md | — | Full system architecture |
+| IMPLEMENTATION_ROADMAP.md | — | 5-phase plan |
+| SUPER_GOOSE_INTEGRATION.md | — | Integration with existing systems |
+| COMPETITIVE_ANALYSIS.md | — | vs competitors |
+| GITHUB_REPOS_REFERENCE.md | — | OSS repos to build from |
+| TIMEWARP_DIAGRAMS.md | — | Mermaid diagrams |
+| README1.md | — | Overview |
+| research/ENTERPRISE_SECURITY_FEATURES.md | — | Enterprise features |
+| research/MULTI_AGENT_COORDINATION.md | — | Multi-agent coordination |
+| architecture/REST_API_SPECIFICATION.md | — | REST API spec |
+| architecture/RUST_CRATE_ARCHITECTURE.md | — | Rust crate design |
+| *(dependency versioning spec)* | — | **IN PROGRESS — agent writing to file** |
 
-| Document | Size | Status |
-|----------|------|--------|
-| README1.md | ~5KB | Overview, needs update |
-| IMPLEMENTATION_ROADMAP.md | ~15KB | 5-phase Gantt plan |
-| ARCHITECTURE_BLUEPRINT.md | ~23KB | Full system architecture |
-| TIMEWARP_MISSING_FEATURES_GAP_ANALYSIS.md | ~51KB | P0-P3 gaps identified |
-| TIMEWARP_SOTA_RESEARCH_UPDATE_FEB2026.md | ~39KB | Latest landscape analysis |
-| SUPER_GOOSE_INTEGRATION.md | ~12KB | Integration with ALMAS, Coach/Player |
-| COMPETITIVE_ANALYSIS.md | ~10KB | vs competitors |
-| GITHUB_REPOS_REFERENCE.md | ~13KB | Open source repos to build from |
-| TIMEWARP_BAR_UI_UX_SPEC.md | ~98KB | UI spec |
-| TIMEWARP_DOCKABLE_BAR_ENHANCED_SPEC.md | ~128KB | Enhanced UI spec |
-| TIMEWARP_DIAGRAMS.md | ~9KB | Mermaid diagrams |
-| research/ENTERPRISE_SECURITY_FEATURES.md | ~81KB | Enterprise features |
-| research/MULTI_AGENT_COORDINATION.md | ~74KB | Multi-agent coordination |
-| architecture/REST_API_SPECIFICATION.md | ~76KB | REST API spec |
-| architecture/RUST_CRATE_ARCHITECTURE.md | ~97KB | Rust crate design |
+### MASTER SPEC: Key Stats (TIMEWARP_COMPREHENSIVE_FEATURE_SPEC.md)
 
-### TimeWarp P0 Critical Gaps (From Gap Analysis)
+- **340+ distinct event types** across 16 categories
+- **Complete data model** — Rust structs, enums, SQLite schema
+- **16 event categories**: Git, GitHub, GitLab, Bitbucket/Azure, File System, LLM/AI, Tests, Builds, Dependencies, Containers, MCP Tools, Sessions, Security, Deployments, Versioning, Conflicts
+- **7 timeline node types**: Action, State, Error, Warning, Info, Milestone, Branch
+- **Storage**: SQLite WAL + BLAKE3 content store + zstd compression
+- **Streaming**: tokio broadcast channels + Tauri IPC + SSE
+- **Config**: 30+ TOML settings with sensible defaults
 
-1. **WAL for atomic operations** — Zero backup/crash recovery mechanisms
-2. **Configurable auto-save intervals** — No auto-save
-3. **Crash recovery with journal replay** — No journal
-4. **Incremental cloud backup** — No backup system
-5. **Undo protection** — No undo
+### Docking Spec: Key Stats (TIMEWARP_DOCKABLE_BAR_ENHANCED_SPEC.md)
 
-### TimeWarp Assessment
+- **5 dock positions**: Bottom, Top, Left, Right, Float
+- **Compact bar**: 24-40px horizontal, 40-60px vertical
+- **Expanded view**: Swim lanes, diff viewer, detail panel
+- **State machine**: 12 states, spring animations (200ms)
+- **Multi-monitor support**, auto-hide behavior
+- **60+ keyboard shortcuts**
+- **IPC protocol**: Tauri event bridge with typed messages
+- **React component architecture**: 15+ components
 
-The research documents are extensive but draft-quality. The user noted they are "not complete, too many gaps, not agentic enough, not end to end." Key issues:
+### Gap Analysis: P0 Critical Fixes Required
 
-- **No Rust implementation exists** — All documents are specs/designs, zero code
-- **UI specs are over-designed** — 226KB of UI specs for a system that has no backend
-- **Enterprise features premature** — FIPS, RBAC, data residency specs exist before core event store
-- **Integration plan exists** but depends on Super-Goose systems that are themselves incomplete (Orchestrator is dead code, MCP Gateway is dead code)
+1. **WAL for atomic operations** — Enable `PRAGMA journal_mode=WAL` at init
+2. **Auto-save intervals** — Time-based checkpoint every 60s
+3. **Crash recovery journal** — Verify hash chain on startup, repair incomplete writes
+4. **Blob write-ahead** — Write to .tmp, atomic rename, then commit SQL
+5. **Project type detection** — 17+ project types with marker files
 
-### Recommended TimeWarp Approach
+### TimeWarp Implementation Path (Revised)
 
 1. **Phase 1**: Build minimal event store (SQLite + rusqlite, WAL mode) — 1 week
 2. **Phase 2**: Add blob store with BLAKE3 content-addressing — 3 days
@@ -317,53 +342,58 @@ The research documents are extensive but draft-quality. The user noted they are 
 
 ---
 
-## 9. Prioritized Action Plan
+## 9. Prioritized Action Plan (Session 3 Update)
 
-### Tier 0: IMMEDIATE (Before v1.24.05 Release)
+### Tier 0: IMMEDIATE (Before v1.24.05 Tag) — PARTIALLY DONE
 
-| # | Action | Effort | Files |
+| # | Action | Status | Notes |
 |---|--------|--------|-------|
-| 1 | **Fix adversarial test timing** | 30 min | review.rs |
-| 2 | **Fix evolution test TaskAttempt** | 1 hour | memory_integration.rs |
-| 3 | **Wire run_structured_loop** or remove it | 2 hours | agent.rs |
-| 4 | **Implement /bookmark** or remove from feature list | 2 hours | session/mod.rs |
-| 5 | **Commit 23 modified files** | 10 min | git add + commit |
-| 6 | **Run full test suite** (`cargo test -p goose`) | 5 min | — |
+| 1 | ~~Commit 27 modified files~~ | DONE | `37754c5a6c` pushed |
+| 2 | ~~Cargo check clean~~ | DONE | 0 warnings, 0 errors |
+| 3 | **Run full test suite** (`cargo test -p goose --lib`) | PENDING | Compiled OK, tests need full run |
+| 4 | **Fix adversarial test timing** | PENDING | review.rs `>= 0` instead of `> 0` |
+| 5 | **Fix evolution test TaskAttempt** | PENDING | memory_integration.rs |
+| 6 | **Wire run_structured_loop** or remove it | PENDING | agent.rs |
+| 7 | **Implement /bookmark** or remove from feature list | PENDING | session/mod.rs |
 
 ### Tier 1: CRITICAL (Highest ROI, Next Sprint)
 
-| # | Feature | Effort | Impact |
-|---|---------|--------|--------|
-| 1 | **Anthropic Prompt Caching** | 1-2 days | 90% cost reduction |
-| 2 | **Native Extended Thinking** | 2-3 days | Better reasoning quality |
-| 3 | **Codebase Indexer v1** (tree-sitter + embeddings) | 1-2 weeks | Enables semantic code search |
-| 4 | **Parallel Tool Execution** | 3-5 days | 2-5x latency reduction |
+| # | Feature | Effort | Impact | Agent? |
+|---|---------|--------|--------|--------|
+| 1 | **Anthropic Prompt Caching** | 1-2 days | 90% cost reduction | YES — cache_control in anthropic.rs |
+| 2 | **Native Extended Thinking** | 2-3 days | Better reasoning | YES — thinking param in provider |
+| 3 | **Parallel Tool Execution** | 3-5 days | 2-5x latency reduction | YES — tokio::join! in tool_execution.rs |
+| 4 | **Codebase Indexer v1** (tree-sitter + embeddings) | 1-2 weeks | Semantic search | Research agent first |
 
 ### Tier 2: HIGH VALUE (Following Sprint)
 
-| # | Feature | Effort | Impact |
-|---|---------|--------|--------|
-| 5 | **Background Agent Mode** | 2-3 weeks | Async workflows |
-| 6 | **File Edit Tool with Diff Preview** | 1 week | Better edit UX |
-| 7 | **More Test Parsers** (pytest, cargo, go) | 2-3 days | Broader language support |
-| 8 | **SWE-bench Integration** | 1 week | Benchmarking |
+| # | Feature | Effort | Impact | Agent? |
+|---|---------|--------|--------|--------|
+| 5 | **Background Agent Mode** | 2-3 weeks | Async workflows | Architecture agent |
+| 6 | **File Edit Tool with Diff Preview** | 1 week | Better edit UX | YES |
+| 7 | **More Test Parsers** (pytest, cargo, go) | 2-3 days | Language support | YES |
+| 8 | **SWE-bench Integration** | 1 week | Benchmarking | Research agent |
 
-### Tier 3: STRATEGIC (v1.25.x)
+### Tier 3: STRATEGIC (TimeWarp v0.1 — v1.25.x)
 
-| # | Feature | Effort | Impact |
-|---|---------|--------|--------|
-| 9 | **TimeWarp Event Store** (Phase 1-3) | 2 weeks | Time-travel for agents |
-| 10 | **Vector DB Persistence** (replace in-memory semantic store) | 1 week | Cross-session memory |
-| 11 | **Git-Aware Agent** (auto-commits, branch management) | 1 week | Git integration |
-| 12 | **Wire Dead Code** (Orchestrator, WorkflowEngine, McpGateway) | 1-2 weeks | Activate existing code |
+| # | Feature | Effort | Spec Ready? |
+|---|---------|--------|-------------|
+| 9 | **TimeWarp Event Store** (SQLite WAL + BLAKE3 blobs) | 2 weeks | YES — COMPREHENSIVE_FEATURE_SPEC |
+| 10 | **TimeWarp CLI** (`tw` commands for timeline nav) | 1 week | YES |
+| 11 | **TimeWarp Agent Hook** (wire into agent.rs event loop) | 3 days | YES — integration points spec'd |
+| 12 | **TimeWarp Compact Bar** (React + Tauri) | 2 weeks | YES — DOCKABLE_BAR_ENHANCED_SPEC |
+| 13 | **Dependency Versioning Engine** | 1-2 weeks | IN PROGRESS — agent writing spec |
+| 14 | **Conflict Detection Pipeline** | 1-2 weeks | YES — 13 conflict types spec'd |
 
-### Tier 4: FUTURE
+### Tier 4: STRATEGIC (v1.26.x+)
 
 | # | Feature | Effort |
 |---|---------|--------|
-| 13 | **TimeWarp UI** (timeline bar, branch visualization) | 3-4 weeks |
-| 14 | **Enterprise TimeWarp** (encryption, RBAC, compliance) | 4-6 weeks |
-| 15 | **CI/CD Timeline Integration** | 1-2 weeks |
+| 15 | **Vector DB Persistence** (replace in-memory semantic store) | 1 week |
+| 16 | **Wire Dead Code** (Orchestrator, WorkflowEngine, McpGateway) | 1-2 weeks |
+| 17 | **Enterprise TimeWarp** (encryption, RBAC, compliance) | 4-6 weeks |
+| 18 | **Multi-Agent Coordination** (vector clocks, causal deps) | 2-3 weeks |
+| 19 | **CI/CD Timeline Integration** | 1-2 weeks |
 
 ---
 
@@ -373,8 +403,10 @@ The research documents are extensive but draft-quality. The user noted they are 
 ```
 Cargo: C:\Users\Admin\.cargo\bin\cargo.exe
 Target Dir: C:\goose-target (~44GB, can safely clean incremental/)
-RUSTFLAGS: -Lnative=C:/goose-target  (for dbghelp.lib)
+RUSTFLAGS: -Lnative=C:/goose-target -Lnative=C:/PROGRA~2/WI3CF2~1/10/Lib/10.0.19041.0/um/x64
+  (first for dbghelp.lib, second for ktmw32.lib from Windows SDK)
 Git: G:\goose (NVME)
+PowerShell: Must use $env:RUSTFLAGS or heredoc pattern — bash eats $ variables
 ```
 
 ### Concurrent Agent Limitations
@@ -390,37 +422,47 @@ Git: G:\goose (NVME)
 
 ---
 
-## 11. Next Session Checklist
+## 11. Next Session Checklist (Updated Session 3)
 
-### Quick Start (5 minutes)
-```bash
+### Quick Start (2 minutes)
+```powershell
 cd G:\goose
-git status                    # Verify 23 modified files
-cargo check -p goose          # Should be clean
+git log --oneline -5           # Should show e682e54, 37754c5 at top
+$env:RUSTFLAGS = '-Lnative=C:/goose-target -Lnative=C:/PROGRA~2/WI3CF2~1/10/Lib/10.0.19041.0/um/x64'
+& 'C:\Users\Admin\.cargo\bin\cargo.exe' check -p goose    # Should be clean
 ```
 
-### Priority 1: Fix & Commit (30 minutes)
-1. Fix review.rs timing assertion (`>= 0` instead of `> 0`)
-2. Fix memory_integration.rs TaskAttempt construction
-3. Wire run_structured_loop OR remove it
-4. Implement /bookmark OR remove from feature list
-5. `cargo test -p goose --lib` to verify
-6. Commit all 23 files
+### Priority 1: Full Test Suite & Tag Release (1-2 hours)
+1. Run `cargo test -p goose --lib` with RUSTFLAGS set (compiled OK last session)
+2. Fix any failing tests (review.rs timing, memory_integration.rs TaskAttempt)
+3. Decide: wire `run_structured_loop` OR remove from feature list
+4. Decide: implement `/bookmark` OR remove from feature list
+5. Tag `v1.24.05` release
 
-### Priority 2: High-Impact Gaps (2-3 days)
-1. Add prompt caching to Anthropic provider
-2. Add native extended thinking support
-3. Start codebase indexer prototype
+### Priority 2: Launch 4-5 Code Agents (parallel research, sequential builds)
+1. **Agent: Anthropic Prompt Caching** — Add `cache_control` to providers/anthropic.rs
+2. **Agent: Extended Thinking** — Add `thinking` parameter in provider layer
+3. **Agent: Parallel Tool Execution** — Research tokio::join! in tool_execution.rs
+4. **Agent: Dead code audit** — Which of 7,239 dead code lines to wire vs remove
+5. **Agent: Test parser expansion** — pytest, cargo test, go test parsers
 
-### Priority 3: Audit & Release (1 day)
-1. Run 4 bug-fix agents (one at a time to avoid lock contention)
-2. Full `cargo test` suite
-3. Tag v1.24.05 release
+### Priority 3: TimeWarp Implementation Start (after v1.24.05 tag)
+1. Create `crates/timewarp/` workspace crate (per RUST_CRATE_ARCHITECTURE.md)
+2. Implement core event store (SQLite WAL + BLAKE3)
+3. Define Rust event enum (340+ event types from COMPREHENSIVE_FEATURE_SPEC)
+4. Wire basic event recording hook into agent.rs
+5. Add `goose tw` CLI subcommands
 
-### Priority 4: TimeWarp (1-2 weeks)
-1. Build minimal event store with SQLite
-2. Wire into agent.rs as event recorder
-3. Add `tw` CLI commands for timeline navigation
+### Priority 4: TimeWarp UI (after core is working)
+1. Add React TimeWarp bar component (per DOCKABLE_BAR_ENHANCED_SPEC)
+2. Tauri IPC bridge for event streaming
+3. Compact bar with dock positions
+4. Expanded view with swim lanes
+
+### Available Tools for Agents
+See `C:\Users\Admin\.claude\projects\G--goose\memory\tools-inventory.md` for complete inventory:
+- 13 MCP servers, 16+ agent types, 30+ skills
+- Key for TimeWarp: Serena (LSP), Sonatype (deps), Context7 (docs), Desktop Commander (processes)
 
 ---
 

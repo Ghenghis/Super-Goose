@@ -144,6 +144,19 @@ pub struct SessionOptions {
         value_parser = clap::builder::PossibleValuesParser::new(["freeform", "structured"])
     )]
     pub execution_mode: Option<String>,
+
+    #[arg(
+        long = "thinking",
+        value_name = "BUDGET",
+        help = "Enable native extended thinking with optional token budget",
+        long_help = "Enable Anthropic's native extended thinking feature. The model uses internal\n\
+        chain-of-thought reasoning before responding, improving quality on complex tasks.\n\
+        Optionally specify a token budget (minimum 1024, default 10000).\n\
+        Example: --thinking or --thinking 20000",
+        num_args = 0..=1,
+        default_missing_value = "10000",
+    )]
+    pub thinking: Option<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -1454,6 +1467,16 @@ async fn handle_interactive_session(
         }
     }
 
+    // Wire --thinking flag to environment variables so ModelConfig picks them up
+    if let Some(thinking_budget) = session_opts.thinking {
+        std::env::set_var("GOOSE_THINKING", "true");
+        std::env::set_var("GOOSE_THINKING_BUDGET", thinking_budget.to_string());
+        eprintln!(
+            "Native extended thinking enabled (budget: {} tokens)",
+            thinking_budget
+        );
+    }
+
     let mut session: crate::CliSession = build_session(SessionBuilderConfig {
         session_id,
         resume,
@@ -1667,6 +1690,18 @@ async fn handle_run_command(
 
     let session_id =
         get_or_create_session_id(identifier, run_behavior.resume, run_behavior.no_session).await?;
+
+    // Wire --thinking flag to environment variables so ModelConfig picks them up
+    if let Some(thinking_budget) = session_opts.thinking {
+        std::env::set_var("GOOSE_THINKING", "true");
+        std::env::set_var("GOOSE_THINKING_BUDGET", thinking_budget.to_string());
+        if !output_opts.quiet {
+            eprintln!(
+                "Native extended thinking enabled (budget: {} tokens)",
+                thinking_budget
+            );
+        }
+    }
 
     let mut session = build_session(SessionBuilderConfig {
         session_id,

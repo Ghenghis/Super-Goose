@@ -595,13 +595,8 @@ pub fn create_request(
             .insert("tools".to_string(), json!(tools_spec));
     }
 
-    let is_thinking_enabled = std::env::var("CLAUDE_THINKING_ENABLED").is_ok();
-    if is_claude_sonnet && is_thinking_enabled {
-        // Minimum budget_tokens is 1024
-        let budget_tokens = std::env::var("CLAUDE_THINKING_BUDGET")
-            .unwrap_or_else(|_| "16000".to_string())
-            .parse()
-            .unwrap_or(16000);
+    if is_claude_sonnet && model_config.thinking_enabled {
+        let budget_tokens = model_config.thinking_budget.unwrap_or(10000).max(1024);
 
         // For Claude models with thinking enabled, we need to add max_tokens + budget_tokens
         // Default to 8192 (Claude max output) + budget if not specified
@@ -1042,6 +1037,8 @@ mod tests {
             toolshim_model: None,
             fast_model: None,
             request_params: None,
+            thinking_enabled: false,
+            thinking_budget: None,
         };
         let request = create_request(&model_config, "system", &[], &[], &ImageFormat::OpenAi)?;
         let obj = request.as_object().unwrap();
@@ -1074,6 +1071,8 @@ mod tests {
             toolshim_model: None,
             fast_model: None,
             request_params: None,
+            thinking_enabled: false,
+            thinking_budget: None,
         };
         let request = create_request(&model_config, "system", &[], &[], &ImageFormat::OpenAi)?;
         assert_eq!(request["reasoning_effort"], "high");
@@ -1393,6 +1392,8 @@ mod tests {
             toolshim_model: None,
             fast_model: None,
             request_params: None,
+            thinking_enabled: false,
+            thinking_budget: None,
         };
 
         let messages = vec![
@@ -1445,6 +1446,8 @@ mod tests {
             toolshim_model: None,
             fast_model: None,
             request_params: None,
+            thinking_enabled: false,
+            thinking_budget: None,
         };
 
         let messages = vec![Message::user().with_text("Hello")];

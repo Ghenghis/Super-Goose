@@ -285,6 +285,12 @@ pub struct Usage {
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub total_tokens: Option<i32>,
+    /// Tokens written to Anthropic's prompt cache (1.25x input cost)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_creation_input_tokens: Option<i32>,
+    /// Tokens read from Anthropic's prompt cache (0.1x input cost)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_read_input_tokens: Option<i32>,
 }
 
 fn sum_optionals<T>(a: Option<T>, b: Option<T>) -> Option<T>
@@ -303,11 +309,20 @@ impl Add for Usage {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        Self::new(
+        let mut result = Self::new(
             sum_optionals(self.input_tokens, other.input_tokens),
             sum_optionals(self.output_tokens, other.output_tokens),
             sum_optionals(self.total_tokens, other.total_tokens),
-        )
+        );
+        result.cache_creation_input_tokens = sum_optionals(
+            self.cache_creation_input_tokens,
+            other.cache_creation_input_tokens,
+        );
+        result.cache_read_input_tokens = sum_optionals(
+            self.cache_read_input_tokens,
+            other.cache_read_input_tokens,
+        );
+        result
     }
 }
 
@@ -338,7 +353,26 @@ impl Usage {
             input_tokens,
             output_tokens,
             total_tokens: calculated_total,
+            cache_creation_input_tokens: None,
+            cache_read_input_tokens: None,
         }
+    }
+
+    /// Create a Usage with Anthropic prompt cache token breakdown.
+    ///
+    /// `input_tokens` here is the total input (fresh + cache_creation + cache_read).
+    /// The cache fields provide the detailed breakdown for accurate cost calculation.
+    pub fn with_cache(
+        input_tokens: Option<i32>,
+        output_tokens: Option<i32>,
+        total_tokens: Option<i32>,
+        cache_creation_input_tokens: Option<i32>,
+        cache_read_input_tokens: Option<i32>,
+    ) -> Self {
+        let mut usage = Self::new(input_tokens, output_tokens, total_tokens);
+        usage.cache_creation_input_tokens = cache_creation_input_tokens;
+        usage.cache_read_input_tokens = cache_read_input_tokens;
+        usage
     }
 }
 

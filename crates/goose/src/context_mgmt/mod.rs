@@ -550,6 +550,8 @@ mod tests {
                     toolshim_model: None,
                     fast_model: None,
                     request_params: None,
+                    thinking_enabled: false,
+                    thinking_budget: None,
                 },
                 max_tool_responses: None,
             }

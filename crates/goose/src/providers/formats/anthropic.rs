@@ -283,67 +283,95 @@ pub fn response_to_message(response: &Value) -> Result<Message> {
     Ok(message)
 }
 
+/// Extract token counts from a JSON object that contains Anthropic usage fields.
+/// Returns (input_tokens, cache_creation, cache_read, output_tokens) as u64.
+fn extract_anthropic_token_fields(obj: &Value) -> (u64, u64, u64, u64) {
+    let input_tokens = obj
+        .get("input_tokens")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let cache_creation_tokens = obj
+        .get("cache_creation_input_tokens")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let cache_read_tokens = obj
+        .get("cache_read_input_tokens")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let output_tokens = obj
+        .get("output_tokens")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    (input_tokens, cache_creation_tokens, cache_read_tokens, output_tokens)
+}
+
+/// Build a Usage struct from Anthropic token fields, preserving cache breakdown.
+fn build_usage_from_anthropic_tokens(
+    input_tokens: u64,
+    cache_creation_tokens: u64,
+    cache_read_tokens: u64,
+    output_tokens: u64,
+) -> Usage {
+    // IMPORTANT: Total input = fresh input + cache write + cache read (for display)
+    let total_input_tokens = input_tokens + cache_creation_tokens + cache_read_tokens;
+
+    // Convert to i32 with bounds checking
+    let total_input_i32 = total_input_tokens.min(i32::MAX as u64) as i32;
+    let output_tokens_i32 = output_tokens.min(i32::MAX as u64) as i32;
+    let total_tokens_i32 =
+        (total_input_i32 as i64 + output_tokens_i32 as i64).min(i32::MAX as i64) as i32;
+
+    // Preserve cache breakdown as Option<i32> (only set if non-zero)
+    let cache_creation_i32 = if cache_creation_tokens > 0 {
+        Some(cache_creation_tokens.min(i32::MAX as u64) as i32)
+    } else {
+        None
+    };
+    let cache_read_i32 = if cache_read_tokens > 0 {
+        Some(cache_read_tokens.min(i32::MAX as u64) as i32)
+    } else {
+        None
+    };
+
+    // Log cache performance when caching is active
+    if cache_creation_tokens > 0 || cache_read_tokens > 0 {
+        let cache_hit_pct = if total_input_tokens > 0 {
+            (cache_read_tokens as f64 / total_input_tokens as f64) * 100.0
+        } else {
+            0.0
+        };
+        tracing::info!(
+            "Anthropic prompt cache: fresh={}, cache_write={}, cache_read={}, output={} (cache hit: {:.1}%)",
+            input_tokens, cache_creation_tokens, cache_read_tokens, output_tokens, cache_hit_pct
+        );
+    }
+
+    Usage::with_cache(
+        Some(total_input_i32),
+        Some(output_tokens_i32),
+        Some(total_tokens_i32),
+        cache_creation_i32,
+        cache_read_i32,
+    )
+}
+
 /// Extract usage information from Anthropic's API response
 pub fn get_usage(data: &Value) -> Result<Usage> {
     // Extract usage data if available
     if let Some(usage) = data.get("usage") {
-        // Get all token fields for analysis
-        let input_tokens = usage
-            .get("input_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
+        let (input_tokens, cache_creation_tokens, cache_read_tokens, output_tokens) =
+            extract_anthropic_token_fields(usage);
 
-        let cache_creation_tokens = usage
-            .get("cache_creation_input_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        let cache_read_tokens = usage
-            .get("cache_read_input_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        let output_tokens = usage
-            .get("output_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        // IMPORTANT: For display purposes, we want to show the ACTUAL total tokens consumed
-        // The cache pricing should only affect cost calculation, not token count display
-        let total_input_tokens = input_tokens + cache_creation_tokens + cache_read_tokens;
-
-        // Convert to i32 with bounds checking
-        let total_input_i32 = total_input_tokens.min(i32::MAX as u64) as i32;
-        let output_tokens_i32 = output_tokens.min(i32::MAX as u64) as i32;
-        let total_tokens_i32 =
-            (total_input_i32 as i64 + output_tokens_i32 as i64).min(i32::MAX as i64) as i32;
-
-        Ok(Usage::new(
-            Some(total_input_i32),
-            Some(output_tokens_i32),
-            Some(total_tokens_i32),
+        Ok(build_usage_from_anthropic_tokens(
+            input_tokens,
+            cache_creation_tokens,
+            cache_read_tokens,
+            output_tokens,
         ))
     } else if data.as_object().is_some() {
-        // Check if the data itself is the usage object (for message_delta events that might have usage at top level)
-        let input_tokens = data
-            .get("input_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        let cache_creation_tokens = data
-            .get("cache_creation_input_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        let cache_read_tokens = data
-            .get("cache_read_input_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        let output_tokens = data
-            .get("output_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
+        // Check if the data itself is the usage object (for message_delta events)
+        let (input_tokens, cache_creation_tokens, cache_read_tokens, output_tokens) =
+            extract_anthropic_token_fields(data);
 
         // If we found any token data, process it
         if input_tokens > 0
@@ -351,23 +379,19 @@ pub fn get_usage(data: &Value) -> Result<Usage> {
             || cache_read_tokens > 0
             || output_tokens > 0
         {
-            let total_input_tokens = input_tokens + cache_creation_tokens + cache_read_tokens;
+            tracing::debug!(
+                "Anthropic token counts from direct object: input={}, cache_create={}, cache_read={}, output={}",
+                input_tokens, cache_creation_tokens, cache_read_tokens, output_tokens
+            );
 
-            let total_input_i32 = total_input_tokens.min(i32::MAX as u64) as i32;
-            let output_tokens_i32 = output_tokens.min(i32::MAX as u64) as i32;
-            let total_tokens_i32 =
-                (total_input_i32 as i64 + output_tokens_i32 as i64).min(i32::MAX as i64) as i32;
-
-            tracing::debug!("🔍 Anthropic ACTUAL token counts from direct object: input={}, output={}, total={}", 
-                    total_input_i32, output_tokens_i32, total_tokens_i32);
-
-            Ok(Usage::new(
-                Some(total_input_i32),
-                Some(output_tokens_i32),
-                Some(total_tokens_i32),
+            Ok(build_usage_from_anthropic_tokens(
+                input_tokens,
+                cache_creation_tokens,
+                cache_read_tokens,
+                output_tokens,
             ))
         } else {
-            tracing::debug!("🔍 Anthropic no token data found in object");
+            tracing::debug!("Anthropic no token data found in object");
             Ok(Usage::new(None, None, None))
         }
     } else {
@@ -430,23 +454,12 @@ pub fn create_request(
             .insert("tools".to_string(), json!(tool_specs));
     }
 
-    // Add temperature if specified and not using extended thinking model
-    if let Some(temp) = model_config.temperature {
-        payload
-            .as_object_mut()
-            .unwrap()
-            .insert("temperature".to_string(), json!(temp));
-    }
+    // When native extended thinking is enabled, temperature must NOT be set
+    // (the Anthropic API returns 400 if both are present)
+    if model_config.thinking_enabled {
+        let budget_tokens = model_config.thinking_budget.unwrap_or(10000).max(1024);
 
-    // Add thinking parameters when CLAUDE_THINKING_ENABLED is set
-    let is_thinking_enabled = std::env::var("CLAUDE_THINKING_ENABLED").is_ok();
-    if is_thinking_enabled {
-        // Minimum budget_tokens is 1024
-        let budget_tokens = std::env::var("CLAUDE_THINKING_BUDGET")
-            .unwrap_or_else(|_| "16000".to_string())
-            .parse()
-            .unwrap_or(16000);
-
+        // Increase max_tokens to accommodate the thinking budget
         payload
             .as_object_mut()
             .unwrap()
@@ -459,7 +472,21 @@ pub fn create_request(
                 "budget_tokens": budget_tokens
             }),
         );
+
+        tracing::info!(
+            "Native extended thinking enabled with budget_tokens={}",
+            budget_tokens
+        );
+    } else {
+        // Only add temperature when thinking is NOT enabled
+        if let Some(temp) = model_config.temperature {
+            payload
+                .as_object_mut()
+                .unwrap()
+                .insert("temperature".to_string(), json!(temp));
+        }
     }
+
     Ok(payload)
 }
 
@@ -493,6 +520,12 @@ where
         let mut current_tool_id: Option<String> = None;
         let mut final_usage: Option<crate::providers::base::ProviderUsage> = None;
         let mut message_id: Option<String> = None;
+        // Extended thinking state
+        let mut is_thinking_block = false;
+        let mut accumulated_thinking = String::new();
+        let mut thinking_signature: Option<String> = None;
+        let mut is_redacted_thinking_block = false;
+        let mut redacted_thinking_data: Option<String> = None;
 
         while let Some(line_result) = stream.next().await {
             let line = line_result?;
@@ -545,48 +578,119 @@ where
                 "content_block_start" => {
                     // A new content block started
                     if let Some(content_block) = event.data.get("content_block") {
-                        if content_block.get("type") == Some(&json!("tool_use")) {
-                            if let Some(id) = content_block.get("id").and_then(|v| v.as_str()) {
-                                current_tool_id = Some(id.to_string());
-                                if let Some(name) = content_block.get("name").and_then(|v| v.as_str()) {
-                                    accumulated_tool_calls.insert(id.to_string(), (name.to_string(), String::new()));
+                        let block_type = content_block.get("type").and_then(|v| v.as_str());
+                        match block_type {
+                            Some("tool_use") => {
+                                if let Some(id) = content_block.get("id").and_then(|v| v.as_str()) {
+                                    current_tool_id = Some(id.to_string());
+                                    if let Some(name) = content_block.get("name").and_then(|v| v.as_str()) {
+                                        accumulated_tool_calls.insert(id.to_string(), (name.to_string(), String::new()));
+                                    }
                                 }
                             }
+                            Some("thinking") => {
+                                is_thinking_block = true;
+                                accumulated_thinking.clear();
+                                thinking_signature = None;
+                                tracing::debug!("Streaming: thinking block started");
+                            }
+                            Some("redacted_thinking") => {
+                                is_redacted_thinking_block = true;
+                                redacted_thinking_data = content_block.get("data").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                tracing::debug!("Streaming: redacted_thinking block started");
+                            }
+                            _ => {}
                         }
                     }
                     continue;
                 }
                 "content_block_delta" => {
                     if let Some(delta) = event.data.get("delta") {
-                        if delta.get("type") == Some(&json!("text_delta")) {
-                            // Text content delta
-                            if let Some(text) = delta.get("text").and_then(|v| v.as_str()) {
-                                accumulated_text.push_str(text);
+                        let delta_type = delta.get("type").and_then(|v| v.as_str());
+                        match delta_type {
+                            Some("text_delta") => {
+                                // Text content delta
+                                if let Some(text) = delta.get("text").and_then(|v| v.as_str()) {
+                                    accumulated_text.push_str(text);
 
-                                // Yield partial text message with the same ID from message_start
-                                let mut message = Message::new(
-                                    Role::Assistant,
-                                    chrono::Utc::now().timestamp(),
-                                    vec![MessageContent::text(text)],
-                                );
-                                message.id = message_id.clone();
-                                yield (Some(message), None);
+                                    // Yield partial text message with the same ID from message_start
+                                    let mut message = Message::new(
+                                        Role::Assistant,
+                                        chrono::Utc::now().timestamp(),
+                                        vec![MessageContent::text(text)],
+                                    );
+                                    message.id = message_id.clone();
+                                    yield (Some(message), None);
+                                }
                             }
-                        } else if delta.get("type") == Some(&json!("input_json_delta")) {
-                            // Tool input delta
-                            if let Some(tool_id) = &current_tool_id {
-                                if let Some(partial_json) = delta.get("partial_json").and_then(|v| v.as_str()) {
-                                    if let Some((_name, args)) = accumulated_tool_calls.get_mut(tool_id) {
-                                        args.push_str(partial_json);
+                            Some("input_json_delta") => {
+                                // Tool input delta
+                                if let Some(tool_id) = &current_tool_id {
+                                    if let Some(partial_json) = delta.get("partial_json").and_then(|v| v.as_str()) {
+                                        if let Some((_name, args)) = accumulated_tool_calls.get_mut(tool_id) {
+                                            args.push_str(partial_json);
+                                        }
                                     }
                                 }
                             }
+                            Some("thinking_delta") => {
+                                // Extended thinking content delta
+                                if is_thinking_block {
+                                    if let Some(thinking_text) = delta.get("thinking").and_then(|v| v.as_str()) {
+                                        accumulated_thinking.push_str(thinking_text);
+                                    }
+                                }
+                            }
+                            Some("signature_delta") => {
+                                // Thinking signature arrives at end of thinking block
+                                if is_thinking_block {
+                                    if let Some(sig) = delta.get("signature").and_then(|v| v.as_str()) {
+                                        thinking_signature = Some(sig.to_string());
+                                    }
+                                }
+                            }
+                            _ => {}
                         }
                     }
                     continue;
                 }
                 "content_block_stop" => {
-                    // Content block finished
+                    // Content block finished -- handle thinking blocks first
+                    if is_thinking_block {
+                        is_thinking_block = false;
+                        let sig = thinking_signature.take().unwrap_or_default();
+                        if !accumulated_thinking.is_empty() {
+                            let mut message = Message::new(
+                                Role::Assistant,
+                                chrono::Utc::now().timestamp(),
+                                vec![MessageContent::Thinking(crate::conversation::message::ThinkingContent {
+                                    thinking: accumulated_thinking.clone(),
+                                    signature: sig,
+                                })],
+                            );
+                            message.id = message_id.clone();
+                            yield (Some(message), None);
+                            tracing::debug!("Streaming: yielded thinking block ({} chars)", accumulated_thinking.len());
+                        }
+                        accumulated_thinking.clear();
+                        continue;
+                    }
+                    if is_redacted_thinking_block {
+                        is_redacted_thinking_block = false;
+                        if let Some(data) = redacted_thinking_data.take() {
+                            let mut message = Message::new(
+                                Role::Assistant,
+                                chrono::Utc::now().timestamp(),
+                                vec![MessageContent::RedactedThinking(crate::conversation::message::RedactedThinkingContent {
+                                    data,
+                                })],
+                            );
+                            message.id = message_id.clone();
+                            yield (Some(message), None);
+                            tracing::debug!("Streaming: yielded redacted_thinking block");
+                        }
+                        continue;
+                    }
                     if let Some(tool_id) = current_tool_id.take() {
                         // Tool call finished, yield complete tool call
                         if let Some((name, args)) = accumulated_tool_calls.remove(&tool_id) {
@@ -652,7 +756,10 @@ where
                                 (None, None) => None,
                             };
 
-                            let merged_usage = crate::providers::base::Usage::new(merged_input, merged_output, merged_total);
+                            let mut merged_usage = crate::providers::base::Usage::new(merged_input, merged_output, merged_total);
+                            // Preserve cache token breakdown from message_start (which has input tokens)
+                            merged_usage.cache_creation_input_tokens = existing_usage.usage.cache_creation_input_tokens.or(delta_usage.cache_creation_input_tokens);
+                            merged_usage.cache_read_input_tokens = existing_usage.usage.cache_read_input_tokens.or(delta_usage.cache_read_input_tokens);
                             final_usage = Some(crate::providers::base::ProviderUsage::new(existing_usage.model.clone(), merged_usage));
                             tracing::debug!("🔍 Anthropic MERGED usage: input_tokens={:?}, output_tokens={:?}, total_tokens={:?}",
                                     merged_input, merged_output, merged_total);
@@ -972,7 +1079,60 @@ mod tests {
         assert_eq!(usage.output_tokens, Some(50));
         assert_eq!(usage.total_tokens, Some(15057)); // 15007 + 50
 
+        // Verify cache breakdown is preserved for accurate cost calculation
+        assert_eq!(usage.cache_creation_input_tokens, Some(10000));
+        assert_eq!(usage.cache_read_input_tokens, Some(5000));
+
         Ok(())
+    }
+
+    #[test]
+    fn test_cache_fields_none_when_zero() -> Result<()> {
+        // When no caching occurs, cache fields should be None (not Some(0))
+        let response = json!({
+            "id": "msg_no_cache",
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "text", "text": "Hello"}],
+            "model": "claude-sonnet-4-20250514",
+            "stop_reason": "end_turn",
+            "usage": {
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "cache_creation_input_tokens": 0,
+                "cache_read_input_tokens": 0
+            }
+        });
+
+        let usage = get_usage(&response)?;
+        assert_eq!(usage.input_tokens, Some(100));
+        assert_eq!(usage.output_tokens, Some(50));
+        // Cache fields should be None when zero (saves serialization space)
+        assert_eq!(usage.cache_creation_input_tokens, None);
+        assert_eq!(usage.cache_read_input_tokens, None);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_usage_with_cache_constructor() {
+        let usage = Usage::with_cache(Some(15007), Some(50), Some(15057), Some(10000), Some(5000));
+        assert_eq!(usage.input_tokens, Some(15007));
+        assert_eq!(usage.output_tokens, Some(50));
+        assert_eq!(usage.total_tokens, Some(15057));
+        assert_eq!(usage.cache_creation_input_tokens, Some(10000));
+        assert_eq!(usage.cache_read_input_tokens, Some(5000));
+    }
+
+    #[test]
+    fn test_usage_add_preserves_cache_fields() {
+        let u1 = Usage::with_cache(Some(100), Some(50), Some(150), Some(80), Some(20));
+        let u2 = Usage::with_cache(Some(200), Some(100), Some(300), Some(50), Some(150));
+        let sum = u1 + u2;
+        assert_eq!(sum.input_tokens, Some(300));
+        assert_eq!(sum.output_tokens, Some(150));
+        assert_eq!(sum.cache_creation_input_tokens, Some(130)); // 80 + 50
+        assert_eq!(sum.cache_read_input_tokens, Some(170)); // 20 + 150
     }
 
     #[test]

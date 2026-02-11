@@ -121,11 +121,12 @@ impl AnthropicProvider {
     fn get_conditional_headers(&self) -> Vec<(&str, &str)> {
         let mut headers = Vec::new();
 
-        let is_thinking_enabled = std::env::var("CLAUDE_THINKING_ENABLED").is_ok();
+        if self.model.thinking_enabled {
+            // Extended thinking may need larger output window
+            headers.push(("anthropic-beta", "output-128k-2025-02-19"));
+        }
+
         if self.model.model_name.starts_with("claude-3-7-sonnet-") {
-            if is_thinking_enabled {
-                headers.push(("anthropic-beta", "output-128k-2025-02-19"));
-            }
             headers.push(("anthropic-beta", "token-efficient-tools-2025-02-19"));
         }
 
@@ -326,5 +327,9 @@ impl Provider for AnthropicProvider {
 
     fn supports_streaming(&self) -> bool {
         self.supports_streaming
+    }
+
+    async fn supports_cache_control(&self) -> bool {
+        true
     }
 }

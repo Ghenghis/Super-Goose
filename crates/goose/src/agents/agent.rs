@@ -2201,8 +2201,11 @@ impl Agent {
                                 // === COST TRACKING: Record token usage for budget enforcement ===
                                 let input_toks = usage.usage.input_tokens.unwrap_or(0).max(0) as u64;
                                 let output_toks = usage.usage.output_tokens.unwrap_or(0).max(0) as u64;
+                                // Extract cache_read tokens for accurate cost calculation
+                                let cached_toks = usage.usage.cache_read_input_tokens.unwrap_or(0).max(0) as u64;
                                 if input_toks > 0 || output_toks > 0 {
-                                    let token_usage = crate::agents::observability::TokenUsage::new(input_toks, output_toks);
+                                    let token_usage = crate::agents::observability::TokenUsage::new(input_toks, output_toks)
+                                        .with_cached(cached_toks);
                                     self.cost_tracker.record_llm_call(&token_usage);
                                 }
                             }

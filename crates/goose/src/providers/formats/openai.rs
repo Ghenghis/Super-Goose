@@ -1389,6 +1389,8 @@ mod tests {
             toolshim_model: None,
             fast_model: None,
             request_params: None,
+            thinking_enabled: false,
+            thinking_budget: None,
         };
         let request = create_request(
             &model_config,
@@ -1429,6 +1431,8 @@ mod tests {
             toolshim_model: None,
             fast_model: None,
             request_params: None,
+            thinking_enabled: false,
+            thinking_budget: None,
         };
         let request = create_request(
             &model_config,
@@ -1470,6 +1474,8 @@ mod tests {
             toolshim_model: None,
             fast_model: None,
             request_params: None,
+            thinking_enabled: false,
+            thinking_budget: None,
         };
         let request = create_request(
             &model_config,

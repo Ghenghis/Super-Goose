@@ -115,6 +115,12 @@ pub struct ModelConfig {
     /// Provider-specific request parameters (e.g., anthropic_beta headers)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request_params: Option<HashMap<String, Value>>,
+    /// Enable native extended thinking (Anthropic `thinking` API parameter)
+    #[serde(default)]
+    pub thinking_enabled: bool,
+    /// Token budget for extended thinking (minimum 1024, default 10000)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thinking_budget: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -156,6 +162,7 @@ impl ModelConfig {
         let max_tokens = Self::parse_max_tokens()?;
         let toolshim = Self::parse_toolshim()?;
         let toolshim_model = Self::parse_toolshim_model()?;
+        let (thinking_enabled, thinking_budget) = Self::parse_thinking()?;
 
         Ok(Self {
             model_name,
@@ -166,6 +173,8 @@ impl ModelConfig {
             toolshim_model,
             fast_model: None,
             request_params,
+            thinking_enabled,
+            thinking_budget,
         })
     }
 
@@ -291,6 +300,58 @@ impl ModelConfig {
         }
     }
 
+    /// Parse native extended thinking configuration from environment variables.
+    ///
+    /// - `GOOSE_THINKING=1|true|yes|on` enables native thinking
+    /// - `GOOSE_THINKING_BUDGET=N` sets budget_tokens (minimum 1024, default 10000)
+    /// - Legacy `CLAUDE_THINKING_ENABLED` is also respected for backward compatibility
+    fn parse_thinking() -> Result<(bool, Option<i32>), ConfigError> {
+        let enabled = if let Ok(val) = std::env::var("GOOSE_THINKING") {
+            match val.to_lowercase().as_str() {
+                "1" | "true" | "yes" | "on" => true,
+                "0" | "false" | "no" | "off" => false,
+                _ => {
+                    return Err(ConfigError::InvalidValue(
+                        "GOOSE_THINKING".to_string(),
+                        val,
+                        "must be one of: 1, true, yes, on, 0, false, no, off".to_string(),
+                    ));
+                }
+            }
+        } else {
+            // Backward compat: check the legacy env var
+            std::env::var("CLAUDE_THINKING_ENABLED").is_ok()
+        };
+
+        let budget = if enabled {
+            if let Ok(val) = std::env::var("GOOSE_THINKING_BUDGET") {
+                let budget = val.parse::<i32>().map_err(|_| {
+                    ConfigError::InvalidValue(
+                        "GOOSE_THINKING_BUDGET".to_string(),
+                        val.clone(),
+                        "must be a positive integer".to_string(),
+                    )
+                })?;
+                if budget < 1024 {
+                    return Err(ConfigError::InvalidRange(
+                        "GOOSE_THINKING_BUDGET".to_string(),
+                        "must be at least 1024".to_string(),
+                    ));
+                }
+                Some(budget)
+            } else if let Ok(val) = std::env::var("CLAUDE_THINKING_BUDGET") {
+                // Legacy env var backward compat
+                Some(val.parse::<i32>().unwrap_or(10000).max(1024))
+            } else {
+                Some(10000) // default budget
+            }
+        } else {
+            None
+        };
+
+        Ok((enabled, budget))
+    }
+
     fn get_model_specific_limit(model_name: &str) -> Option<usize> {
         MODEL_SPECIFIC_LIMITS
             .iter()
@@ -337,6 +398,18 @@ impl ModelConfig {
 
     pub fn with_fast(mut self, fast_model: String) -> Self {
         self.fast_model = Some(fast_model);
+        self
+    }
+
+    /// Enable or disable native extended thinking
+    pub fn with_thinking(mut self, enabled: bool) -> Self {
+        self.thinking_enabled = enabled;
+        self
+    }
+
+    /// Set the thinking token budget (minimum 1024)
+    pub fn with_thinking_budget(mut self, budget: Option<i32>) -> Self {
+        self.thinking_budget = budget;
         self
     }
 
