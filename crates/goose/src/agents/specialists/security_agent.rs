@@ -23,6 +23,7 @@ pub struct SecurityAgent {
 
 /// A pattern that indicates a potential vulnerability
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct VulnerabilityPattern {
     id: String,
     name: String,
@@ -34,8 +35,8 @@ struct VulnerabilityPattern {
 }
 
 /// Severity levels for vulnerabilities
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[allow(dead_code)]
 enum VulnerabilitySeverity {
     Info,
     Low,
@@ -57,8 +58,8 @@ impl std::fmt::Display for VulnerabilitySeverity {
 }
 
 /// A compliance rule to check
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ComplianceRule {
     id: String,
     name: String,
@@ -68,8 +69,8 @@ struct ComplianceRule {
 }
 
 /// Categories of compliance rules
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 enum ComplianceCategory {
     Authentication,
     Authorization,
@@ -98,6 +99,7 @@ impl std::fmt::Display for ComplianceCategory {
 
 /// Result of a compliance check
 #[derive(Debug)]
+#[allow(dead_code)]
 struct ComplianceCheckResult {
     passed: bool,
     findings: Vec<String>,
@@ -105,8 +107,8 @@ struct ComplianceCheckResult {
 }
 
 /// Detected vulnerability
-#[allow(dead_code)]
 #[derive(Debug)]
+#[allow(dead_code)]
 struct DetectedVulnerability {
     pattern_id: String,
     name: String,
@@ -118,8 +120,8 @@ struct DetectedVulnerability {
 }
 
 /// Compliance issue found
-#[allow(dead_code)]
 #[derive(Debug)]
+#[allow(dead_code)]
 struct ComplianceIssue {
     rule_id: String,
     rule_name: String,
@@ -290,6 +292,20 @@ impl SecurityAgent {
                 check_fn: Self::check_logging_compliance,
                 description: "Security events should be logged appropriately".to_string(),
             },
+            ComplianceRule {
+                id: "COMP-007".to_string(),
+                name: "Authorization Controls".to_string(),
+                category: ComplianceCategory::Authorization,
+                check_fn: Self::check_authorization_compliance,
+                description: "Access controls should enforce least-privilege principles".to_string(),
+            },
+            ComplianceRule {
+                id: "COMP-008".to_string(),
+                name: "Cryptography Standards".to_string(),
+                category: ComplianceCategory::Cryptography,
+                check_fn: Self::check_crypto_compliance,
+                description: "Cryptographic operations should use approved algorithms".to_string(),
+            },
         ]
     }
 
@@ -389,6 +405,48 @@ impl SecurityAgent {
         }
     }
 
+    fn check_authorization_compliance(context: &SpecialistContext) -> ComplianceCheckResult {
+        let has_authz = context.metadata.iter().any(|(k, _)| {
+            k.to_lowercase().contains("role")
+                || k.to_lowercase().contains("permission")
+                || k.to_lowercase().contains("rbac")
+                || k.to_lowercase().contains("acl")
+        });
+
+        ComplianceCheckResult {
+            passed: has_authz,
+            findings: if has_authz {
+                vec![]
+            } else {
+                vec!["No authorization controls detected".to_string()]
+            },
+            recommendations: vec![
+                "Implement role-based access control (RBAC)".to_string(),
+                "Follow least-privilege principles".to_string(),
+            ],
+        }
+    }
+
+    fn check_crypto_compliance(context: &SpecialistContext) -> ComplianceCheckResult {
+        let task_lower = context.task.to_lowercase();
+        let uses_weak_crypto = task_lower.contains("md5")
+            || task_lower.contains("sha1")
+            || task_lower.contains("des ");
+
+        ComplianceCheckResult {
+            passed: !uses_weak_crypto,
+            findings: if uses_weak_crypto {
+                vec!["Potentially weak cryptographic algorithm detected".to_string()]
+            } else {
+                vec![]
+            },
+            recommendations: vec![
+                "Use SHA-256 or stronger hash algorithms".to_string(),
+                "Use AES-256 for symmetric encryption".to_string(),
+            ],
+        }
+    }
+
     /// Perform vulnerability scanning on the context
     fn scan_vulnerabilities(&self, context: &SpecialistContext) -> Vec<DetectedVulnerability> {
         let mut vulnerabilities = Vec::new();
@@ -435,6 +493,23 @@ impl SecurityAgent {
                     fix_suggestion: "Ensure sensitive files are not committed to version control"
                         .to_string(),
                 });
+            } else if file_name.contains("config")
+                || file_name.contains("settings")
+                || file_name.ends_with(".yml")
+                || file_name.ends_with(".yaml")
+                || file_name.ends_with(".toml")
+            {
+                vulnerabilities.push(DetectedVulnerability {
+                    pattern_id: "VULN-012".to_string(),
+                    name: "Configuration File".to_string(),
+                    severity: VulnerabilitySeverity::Info,
+                    location: file.clone(),
+                    description: "Configuration file detected — review for sensitive values"
+                        .to_string(),
+                    cwe_id: None,
+                    fix_suggestion: "Verify no secrets or credentials in configuration files"
+                        .to_string(),
+                });
             }
         }
 
@@ -448,6 +523,7 @@ impl SecurityAgent {
         for rule in &self.compliance_rules {
             let result = (rule.check_fn)(context);
             if !result.passed || !result.findings.is_empty() {
+                tracing::debug!("Compliance issue: {} — {}", rule.name, rule.description);
                 issues.push(ComplianceIssue {
                     rule_id: rule.id.clone(),
                     rule_name: rule.name.clone(),
@@ -474,13 +550,20 @@ impl SecurityAgent {
 
         // Add vulnerability-specific recommendations
         for vuln in &vulnerabilities {
-            recommendations.push(format!("[{}] {}", vuln.severity, vuln.fix_suggestion));
+            recommendations.push(format!(
+                "[{}] {} at {}{}: {}",
+                vuln.severity,
+                vuln.pattern_id,
+                vuln.location,
+                vuln.cwe_id.as_deref().map(|c| format!(" ({})", c)).unwrap_or_default(),
+                vuln.fix_suggestion,
+            ));
         }
 
         // Add compliance recommendations
         for issue in &compliance_issues {
             for rec in &issue.recommendations {
-                recommendations.push(format!("[{}] {}", issue.category, rec));
+                recommendations.push(format!("[{}/{}] {}", issue.category, issue.rule_id, rec));
             }
         }
 
@@ -502,7 +585,7 @@ impl SecurityAgent {
                 .collect(),
             compliance_issues: compliance_issues
                 .iter()
-                .map(|c| format!("[{}] {}: {:?}", c.category, c.rule_name, c.findings))
+                .map(|c| format!("[{}] {} ({}): {:?}", c.category, c.rule_name, c.rule_id, c.findings))
                 .collect(),
             recommendations,
             risk_level,

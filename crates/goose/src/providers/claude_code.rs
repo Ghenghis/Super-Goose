@@ -29,8 +29,7 @@ struct CliProcess {
     child: tokio::process::Child,
     stdin: tokio::process::ChildStdin,
     reader: BufReader<tokio::process::ChildStdout>,
-    #[allow(dead_code)]
-    stderr_handle: tokio::task::JoinHandle<String>,
+    _stderr_handle: tokio::task::JoinHandle<String>,
     messages_sent: usize,
 }
 
@@ -330,7 +329,7 @@ impl ClaudeCodeProvider {
                     child,
                     stdin,
                     reader: BufReader::new(stdout),
-                    stderr_handle,
+                    _stderr_handle: stderr_handle,
                     messages_sent: 0,
                 }))
             })

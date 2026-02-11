@@ -74,7 +74,7 @@ struct CopilotTokenEndpoints {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[allow(dead_code)] // useful for debugging
+#[allow(dead_code)] // fields accessed via serde deserialization and Debug fmt
 struct CopilotTokenInfo {
     token: String,
     expires_at: i64,

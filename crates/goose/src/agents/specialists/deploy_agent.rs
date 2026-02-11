@@ -11,8 +11,7 @@ use crate::agents::orchestrator::{AgentRole, TaskResult};
 /// Specialist agent focused on deployment and infrastructure
 pub struct DeployAgent {
     config: SpecialistConfig,
-    #[allow(dead_code)]
-    capabilities: DeployCapabilities,
+    _capabilities: DeployCapabilities,
 }
 
 /// Deployment capabilities
@@ -78,7 +77,7 @@ impl DeployAgent {
     pub fn new(config: SpecialistConfig) -> Self {
         Self {
             config,
-            capabilities: DeployCapabilities::default(),
+            _capabilities: DeployCapabilities::default(),
         }
     }
 
@@ -104,7 +103,7 @@ impl DeployAgent {
 
         DeployRequirements {
             language,
-            framework,
+            _framework: framework,
             platform,
             deployment_type,
             environment,
@@ -124,7 +123,7 @@ impl DeployAgent {
                 .and_then(|v| v.as_str())
                 .unwrap_or("basic")
                 .to_string(),
-            monitoring_required: context
+            _monitoring_required: context
                 .metadata
                 .get("monitoring")
                 .and_then(|v| v.as_bool())
@@ -205,7 +204,7 @@ impl DeployAgent {
             _ => {
                 artifacts.push(DeploymentArtifact {
                     path: format!("{}/deploy.sh", context.working_dir),
-                    content: format!(
+                    _content: format!(
                         "#!/bin/bash\n# Deployment script for: {}\necho 'Deploy to {:?}'\n",
                         context.task, requirements.platform
                     ),
@@ -239,7 +238,7 @@ impl DeployAgent {
 
         artifacts.push(DeploymentArtifact {
             path: format!("{}/Dockerfile", context.working_dir),
-            content: dockerfile_content,
+            _content: dockerfile_content,
             artifact_type: "dockerfile".to_string(),
         });
 
@@ -290,7 +289,7 @@ volumes:
 
         artifacts.push(DeploymentArtifact {
             path: format!("{}/docker-compose.yml", context.working_dir),
-            content: compose_content,
+            _content: compose_content,
             artifact_type: "compose".to_string(),
         });
 
@@ -314,7 +313,7 @@ target/doc
 
         artifacts.push(DeploymentArtifact {
             path: format!("{}/.dockerignore", context.working_dir),
-            content: dockerignore_content.to_string(),
+            _content: dockerignore_content.to_string(),
             artifact_type: "config".to_string(),
         });
 
@@ -391,7 +390,7 @@ spec:
 
         artifacts.push(DeploymentArtifact {
             path: format!("{}/k8s/deployment.yaml", context.working_dir),
-            content: k8s_deployment,
+            _content: k8s_deployment,
             artifact_type: "k8s".to_string(),
         });
 
@@ -408,7 +407,7 @@ stringData:
 "#;
             artifacts.push(DeploymentArtifact {
                 path: format!("{}/k8s/secrets.yaml", context.working_dir),
-                content: secrets_config.to_string(),
+                _content: secrets_config.to_string(),
                 artifact_type: "k8s".to_string(),
             });
         }
@@ -434,7 +433,7 @@ stringData:
 
         artifacts.push(DeploymentArtifact {
             path: format!("{}/Procfile", context.working_dir),
-            content: procfile_content.to_string(),
+            _content: procfile_content.to_string(),
             artifact_type: "procfile".to_string(),
         });
 
@@ -480,7 +479,7 @@ stringData:
 
         artifacts.push(DeploymentArtifact {
             path: format!("{}/app.json", context.working_dir),
-            content: app_json,
+            _content: app_json,
             artifact_type: "config".to_string(),
         });
 
@@ -522,7 +521,7 @@ stringData:
 
                 artifacts.push(DeploymentArtifact {
                     path: format!("{}/netlify.toml", context.working_dir),
-                    content: netlify_config,
+                    _content: netlify_config,
                     artifact_type: "config".to_string(),
                 });
             }
@@ -555,7 +554,7 @@ stringData:
 
                 artifacts.push(DeploymentArtifact {
                     path: format!("{}/vercel.json", context.working_dir),
-                    content: vercel_config,
+                    _content: vercel_config,
                     artifact_type: "config".to_string(),
                 });
             }
@@ -664,7 +663,7 @@ jobs:
 
         artifacts.push(DeploymentArtifact {
             path: format!("{}/.github/workflows/deploy.yml", context.working_dir),
-            content: github_workflow,
+            _content: github_workflow,
             artifact_type: "cicd".to_string(),
         });
 
@@ -941,16 +940,14 @@ impl SpecialistAgent for DeployAgent {
 #[derive(Debug, Clone)]
 struct DeployRequirements {
     language: Option<String>,
-    #[allow(dead_code)]
-    framework: Option<String>,
+    _framework: Option<String>,
     platform: Option<String>,
     deployment_type: DeploymentType,
     environment: String,
     requires_database: bool,
     requires_secrets: bool,
     scaling_requirements: String,
-    #[allow(dead_code)]
-    monitoring_required: bool,
+    _monitoring_required: bool,
 }
 
 /// Type of deployment
@@ -966,7 +963,6 @@ enum DeploymentType {
 #[derive(Debug, Clone)]
 struct DeploymentArtifact {
     path: String,
-    #[allow(dead_code)]
-    content: String,
+    _content: String,
     artifact_type: String,
 }

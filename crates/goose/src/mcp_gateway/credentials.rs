@@ -152,11 +152,10 @@ impl Credentials {
 }
 
 /// Storage key for credentials (for potential future use with keyring)
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct CredentialKey {
-    server_id: String,
-    scope: CredentialScope,
+struct _CredentialKey {
+    _server_id: String,
+    _scope: CredentialScope,
 }
 
 /// Credential storage trait

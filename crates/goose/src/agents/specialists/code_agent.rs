@@ -109,17 +109,17 @@ impl CodeAgent {
             framework,
             complexity,
             estimated_lines,
-            requires_tests: context
+            _requires_tests: context
                 .metadata
                 .get("require_tests")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true),
-            requires_docs: context
+            _requires_docs: context
                 .metadata
                 .get("require_docs")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false),
-            architecture_pattern: context
+            _architecture_pattern: context
                 .metadata
                 .get("architecture")
                 .and_then(|v| v.as_str())
@@ -154,7 +154,7 @@ impl CodeAgent {
                         "// Generated code for: {}\n// Language: {:?}\n// Framework: {:?}",
                         context.task, requirements.language, requirements.framework
                     ),
-                    language: requirements.language.clone(),
+                    _language: requirements.language.clone(),
                 });
             }
         }
@@ -217,7 +217,7 @@ mod tests {{
         files.push(GeneratedFile {
             path: format!("{}/src/main.rs", context.working_dir),
             content: main_content,
-            language: Some("rust".to_string()),
+            _language: Some("rust".to_string()),
         });
 
         // Cargo.toml if needed
@@ -244,7 +244,7 @@ tokio-test = "0.4"
             files.push(GeneratedFile {
                 path: format!("{}/Cargo.toml", context.working_dir),
                 content: cargo_content,
-                language: Some("toml".to_string()),
+                _language: Some("toml".to_string()),
             });
         }
 
@@ -300,7 +300,7 @@ if __name__ == "__main__":
         files.push(GeneratedFile {
             path: format!("{}/main.py", context.working_dir),
             content: main_content,
-            language: Some("python".to_string()),
+            _language: Some("python".to_string()),
         });
 
         // Requirements file if needed
@@ -314,7 +314,7 @@ if __name__ == "__main__":
             files.push(GeneratedFile {
                 path: format!("{}/requirements.txt", context.working_dir),
                 content: requirements_content.to_string(),
-                language: Some("text".to_string()),
+                _language: Some("text".to_string()),
             });
         }
 
@@ -388,7 +388,7 @@ if (typeof require !== 'undefined' && require.main === module) {{
         files.push(GeneratedFile {
             path: format!("{}/main.{}", context.working_dir, extension),
             content: main_content,
-            language: requirements.language.clone(),
+            _language: requirements.language.clone(),
         });
 
         // Package.json if needed
@@ -425,7 +425,7 @@ if (typeof require !== 'undefined' && require.main === module) {{
             files.push(GeneratedFile {
                 path: format!("{}/package.json", context.working_dir),
                 content: package_content,
-                language: Some("json".to_string()),
+                _language: Some("json".to_string()),
             });
         }
 
@@ -550,12 +550,9 @@ struct CodeRequirements {
     framework: Option<String>,
     complexity: u32,
     estimated_lines: usize,
-    #[allow(dead_code)]
-    requires_tests: bool,
-    #[allow(dead_code)]
-    requires_docs: bool,
-    #[allow(dead_code)]
-    architecture_pattern: Option<String>,
+    _requires_tests: bool,
+    _requires_docs: bool,
+    _architecture_pattern: Option<String>,
 }
 
 /// Generated code file
@@ -563,6 +560,5 @@ struct CodeRequirements {
 struct GeneratedFile {
     path: String,
     content: String,
-    #[allow(dead_code)]
-    language: Option<String>,
+    _language: Option<String>,
 }

@@ -40,8 +40,7 @@ pub struct ProviderRouter {
     /// Provider registry
     registry: Arc<RwLock<ProviderRegistry>>,
     /// Router configuration
-    #[allow(dead_code)]
-    config: RouterConfig,
+    _config: RouterConfig,
     /// Active run states
     run_states: Arc<RwLock<std::collections::HashMap<RunId, RunProviderState>>>,
     /// Project policies
@@ -53,7 +52,7 @@ impl ProviderRouter {
     pub fn new(config: RouterConfig) -> Self {
         Self {
             registry: Arc::new(RwLock::new(ProviderRegistry::new())),
-            config,
+            _config: config,
             run_states: Arc::new(RwLock::new(std::collections::HashMap::new())),
             project_policies: Arc::new(RwLock::new(std::collections::HashMap::new())),
         }

@@ -76,7 +76,6 @@ pub const MANAGE_EXTENSIONS_TOOL_NAME_COMPLETE: &str = "extensionmanager__manage
 
 pub struct ExtensionManagerClient {
     info: InitializeResult,
-    #[allow(dead_code)]
     context: PlatformExtensionContext,
 }
 

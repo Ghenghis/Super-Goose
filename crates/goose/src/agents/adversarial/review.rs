@@ -241,6 +241,7 @@ impl ReviewCycle {
             }
         }
 
+        // Note: sub-millisecond operations may yield 0ms, which is valid
         stats.total_duration_ms = start_time.elapsed().as_millis() as u64;
 
         info!(

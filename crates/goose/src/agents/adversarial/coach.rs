@@ -272,59 +272,240 @@ impl CoachAgent {
         Ok(review.with_duration(duration_ms))
     }
 
-    /// Internal review logic (placeholder)
+    /// Internal review logic — offline/fallback validation against quality standards.
+    ///
+    /// This checks the PlayerResult against the configured QualityStandards without
+    /// making any LLM calls. It validates success state, scans for TODO/FIXME markers,
+    /// detects test command failures, and scores quality accordingly.
     async fn review_work_internal(&self, player_result: &PlayerResult) -> Result<CoachReview> {
-        // This is a placeholder that would integrate with the actual LLM provider
-        // In production, this would:
-        // 1. Analyze Player's output against quality standards
-        // 2. Check for compilation errors, test failures, etc.
-        // 3. Review code quality, documentation, best practices
-        // 4. Generate detailed feedback and suggestions
-        // 5. Calculate quality score
-        // 6. Return comprehensive review
+        let standards = &self.config.quality_standards;
+        let mut issues: Vec<ReviewIssue> = Vec::new();
+        let mut suggestions: Vec<String> = Vec::new();
+        let mut positive_notes: Vec<String> = Vec::new();
 
         debug!(
             provider = %self.config.provider,
             model = %self.config.model,
             success = player_result.success,
-            "Simulating review"
+            commands = player_result.commands_executed.len(),
+            files = player_result.files_changed.len(),
+            "Reviewing player result against quality standards"
         );
 
-        // Basic validation based on quality standards
-        let mut review = if !player_result.success {
-            CoachReview::rejected("Player task failed").with_issue(ReviewIssue {
-                severity: IssueSeverity::Critical,
-                category: IssueCategory::Other,
-                description: "Task execution failed".to_string(),
-                location: None,
-            })
-        } else {
-            // Check quality standards
-            let mut quality_score = 1.0;
-            let issues = Vec::new();
-
-            // In production, would run actual checks here
-            if self.config.quality_standards.zero_errors {
-                // Would check: cargo build
-            }
-            if self.config.quality_standards.tests_must_pass {
-                // Would check: cargo test
-            }
-            if self.config.quality_standards.no_todos {
-                // Would check: grep for TODO/FIXME
-            }
-
-            if issues.is_empty() {
-                CoachReview::approved(quality_score)
+        // --- Check 1: zero_errors — player task must have succeeded ---
+        if standards.zero_errors {
+            if !player_result.success {
+                issues.push(ReviewIssue {
+                    severity: IssueSeverity::Critical,
+                    category: IssueCategory::CompilationError,
+                    description: format!(
+                        "Task execution failed: {}",
+                        player_result.output.lines().next().unwrap_or("unknown error")
+                    ),
+                    location: None,
+                });
+                suggestions.push(
+                    "Fix the reported errors and re-run the task".to_string(),
+                );
             } else {
-                quality_score -= issues.len() as f32 * 0.1;
-                let mut review = CoachReview::rejected("Quality standards not met");
-                for issue in issues {
-                    review = review.with_issue(issue);
-                }
-                review.quality_score = quality_score.max(0.0);
-                review
+                positive_notes.push("Task completed without errors".to_string());
             }
+        }
+
+        // --- Check 2: tests_must_pass — look for test commands and their outcomes ---
+        if standards.tests_must_pass {
+            let test_keywords = ["cargo test", "npm test", "pytest", "go test", "make test"];
+            let test_commands: Vec<&String> = player_result
+                .commands_executed
+                .iter()
+                .filter(|cmd| {
+                    let lower = cmd.to_lowercase();
+                    test_keywords.iter().any(|kw| lower.contains(kw))
+                })
+                .collect();
+
+            if !test_commands.is_empty() {
+                // Tests were executed — check output for failure indicators
+                let output_lower = player_result.output.to_lowercase();
+                let failure_markers = [
+                    "test failed",
+                    "tests failed",
+                    "failure",
+                    "failed",
+                    "error[",
+                    "panicked at",
+                    "assertion failed",
+                ];
+                let has_failure = failure_markers
+                    .iter()
+                    .any(|marker| output_lower.contains(marker));
+
+                if has_failure {
+                    issues.push(ReviewIssue {
+                        severity: IssueSeverity::Critical,
+                        category: IssueCategory::TestFailure,
+                        description: format!(
+                            "Test failure detected after running: {}",
+                            test_commands
+                                .iter()
+                                .map(|c| c.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ),
+                        location: None,
+                    });
+                    suggestions.push(
+                        "Review test output, fix failing tests, and re-run".to_string(),
+                    );
+                } else {
+                    positive_notes.push(format!(
+                        "Tests executed and passed ({})",
+                        test_commands.len()
+                    ));
+                }
+            }
+            // If no test commands were run, we do not penalize — tests may not
+            // have been relevant to this task.
+        }
+
+        // --- Check 3: no_todos — scan output for TODO/FIXME markers ---
+        if standards.no_todos {
+            let todo_markers = ["TODO", "FIXME", "HACK", "XXX"];
+            let mut found_markers: Vec<String> = Vec::new();
+
+            for line in player_result.output.lines() {
+                for marker in &todo_markers {
+                    if line.contains(marker) {
+                        found_markers.push(format!("{}: {}", marker, line.trim()));
+                    }
+                }
+            }
+
+            if !found_markers.is_empty() {
+                let count = found_markers.len();
+                issues.push(ReviewIssue {
+                    severity: IssueSeverity::Major,
+                    category: IssueCategory::CodeQuality,
+                    description: format!(
+                        "Found {} TODO/FIXME marker(s) in output: {}",
+                        count,
+                        found_markers
+                            .iter()
+                            .take(5)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                            .join("; ")
+                    ),
+                    location: None,
+                });
+                suggestions.push(
+                    "Resolve all TODO/FIXME comments before finalizing".to_string(),
+                );
+            } else {
+                positive_notes.push("No TODO/FIXME markers found".to_string());
+            }
+        }
+
+        // --- Check 4: zero_warnings — scan output for warning indicators ---
+        if standards.zero_warnings {
+            let output_lower = player_result.output.to_lowercase();
+            let warning_markers = ["warning:", "warn[", "warn:"];
+            let has_warnings = warning_markers
+                .iter()
+                .any(|marker| output_lower.contains(marker));
+
+            if has_warnings {
+                issues.push(ReviewIssue {
+                    severity: IssueSeverity::Minor,
+                    category: IssueCategory::CodeQuality,
+                    description: "Compiler or tool warnings detected in output".to_string(),
+                    location: None,
+                });
+                suggestions.push(
+                    "Address all warnings to maintain clean build output".to_string(),
+                );
+            }
+        }
+
+        // --- Check 5: require_docs — look for documentation indicators ---
+        if standards.require_docs && !player_result.files_changed.is_empty() {
+            let has_doc_content = player_result.output.contains("///")
+                || player_result.output.contains("//!")
+                || player_result.output.to_lowercase().contains("documentation");
+
+            if !has_doc_content {
+                issues.push(ReviewIssue {
+                    severity: IssueSeverity::Minor,
+                    category: IssueCategory::Documentation,
+                    description: "No documentation evidence found for changed files".to_string(),
+                    location: None,
+                });
+                suggestions.push(
+                    "Add documentation comments for public APIs in changed files".to_string(),
+                );
+            }
+        }
+
+        // --- Score calculation ---
+        // Start at 1.0 and deduct based on issue severity
+        let mut quality_score: f32 = 1.0;
+        for issue in &issues {
+            match issue.severity {
+                IssueSeverity::Critical => quality_score -= 0.4,
+                IssueSeverity::Major => quality_score -= 0.2,
+                IssueSeverity::Minor => quality_score -= 0.1,
+                IssueSeverity::Info => {} // No penalty for informational notes
+            }
+        }
+        quality_score = quality_score.clamp(0.0, 1.0);
+
+        // --- Build review ---
+        let has_critical = issues
+            .iter()
+            .any(|i| i.severity == IssueSeverity::Critical);
+        let has_major = issues.iter().any(|i| i.severity == IssueSeverity::Major);
+        let approved = !has_critical && !has_major;
+
+        let feedback = if approved {
+            if positive_notes.is_empty() {
+                "Work approved — all quality standards met.".to_string()
+            } else {
+                format!(
+                    "Work approved — all quality standards met. Highlights: {}",
+                    positive_notes.join("; ")
+                )
+            }
+        } else {
+            let mut failed_standards: Vec<&str> = issues
+                .iter()
+                .map(|i| match i.category {
+                    IssueCategory::CompilationError => "zero-errors",
+                    IssueCategory::TestFailure => "tests-must-pass",
+                    IssueCategory::CodeQuality => "code-quality",
+                    IssueCategory::Documentation => "documentation",
+                    IssueCategory::Security => "security",
+                    IssueCategory::Performance => "performance",
+                    IssueCategory::BestPractice => "best-practice",
+                    IssueCategory::Incomplete => "completeness",
+                    IssueCategory::Other => "other",
+                })
+                .collect();
+            failed_standards.sort_unstable();
+            failed_standards.dedup();
+            format!(
+                "Work rejected — quality standards not met. Failed checks: {}",
+                failed_standards.join(", ")
+            )
+        };
+
+        let mut review = CoachReview {
+            approved,
+            quality_score,
+            feedback,
+            issues,
+            suggestions,
+            duration_ms: 0,
+            metadata: HashMap::new(),
         };
 
         review = review
@@ -339,7 +520,8 @@ impl CoachAgent {
             .with_metadata(
                 "files_changed",
                 player_result.files_changed.len().to_string(),
-            );
+            )
+            .with_metadata("review_type", "offline_standards_check");
 
         Ok(review)
     }

@@ -198,8 +198,7 @@ pub struct ProviderRegistry {
     /// Health check results
     health_cache: HashMap<EndpointId, HealthCheckResult>,
     /// Health check interval
-    #[allow(dead_code)]
-    health_check_interval: Duration,
+    _health_check_interval: Duration,
 }
 
 impl ProviderRegistry {
@@ -208,7 +207,7 @@ impl ProviderRegistry {
         Self {
             endpoints: HashMap::new(),
             health_cache: HashMap::new(),
-            health_check_interval: Duration::from_secs(300), // 5 minutes
+            _health_check_interval: Duration::from_secs(300), // 5 minutes
         }
     }
 

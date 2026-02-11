@@ -88,6 +88,11 @@ fn convert_jest_assertion(file: &str, assertion: JestAssertionResult) -> TestRes
         Some(assertion.failure_messages.join("\n"))
     };
 
+    let (expected, actual) = message
+        .as_deref()
+        .map(extract_expected_actual)
+        .unwrap_or((None, None));
+
     TestResult {
         file: file.to_string(),
         line,
@@ -103,8 +108,8 @@ fn convert_jest_assertion(file: &str, assertion: JestAssertionResult) -> TestRes
             _ => TestStatus::Error,
         },
         message,
-        expected: None,
-        actual: None,
+        expected,
+        actual,
     }
 }
 
@@ -188,7 +193,6 @@ fn parse_jest_text_output(output: &str) -> Result<Vec<TestResult>, ParseError> {
     }
 }
 
-#[allow(dead_code)]
 fn extract_expected_actual(message: &str) -> (Option<String>, Option<String>) {
     let mut expected = None;
     let mut actual = None;

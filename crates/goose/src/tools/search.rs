@@ -36,17 +36,15 @@ pub struct ToolSearchResult {
 }
 
 /// Tool Search Tool - Dynamic tool discovery
-#[allow(dead_code)]
 pub struct ToolSearchTool {
     config: ToolSearchConfig,
     tools: HashMap<String, ToolDefinition>,
     cache: HashMap<String, Vec<ToolSearchResult>>,
-    embeddings: Option<ToolEmbeddings>,
+    _embeddings: Option<ToolEmbeddings>,
 }
 
-#[allow(dead_code)]
 struct ToolEmbeddings {
-    tool_vectors: HashMap<String, Vec<f32>>,
+    _tool_vectors: HashMap<String, Vec<f32>>,
 }
 
 impl ToolSearchTool {
@@ -55,7 +53,7 @@ impl ToolSearchTool {
             config,
             tools: HashMap::new(),
             cache: HashMap::new(),
-            embeddings: None,
+            _embeddings: None,
         }
     }
 

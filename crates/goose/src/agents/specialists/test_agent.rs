@@ -11,8 +11,7 @@ use crate::agents::orchestrator::{AgentRole, TaskResult};
 /// Specialist agent focused on testing and quality assurance
 pub struct TestAgent {
     config: SpecialistConfig,
-    #[allow(dead_code)]
-    capabilities: TestCapabilities,
+    _capabilities: TestCapabilities,
 }
 
 /// Testing capabilities of the test agent
@@ -68,7 +67,7 @@ impl TestAgent {
     pub fn new(config: SpecialistConfig) -> Self {
         Self {
             config,
-            capabilities: TestCapabilities::default(),
+            _capabilities: TestCapabilities::default(),
         }
     }
 
@@ -102,12 +101,12 @@ impl TestAgent {
                 .get("requires_mocking")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true),
-            requires_fixtures: context
+            _requires_fixtures: context
                 .metadata
                 .get("requires_fixtures")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false),
-            performance_tests: context
+            _performance_tests: context
                 .metadata
                 .get("performance_tests")
                 .and_then(|v| v.as_bool())
@@ -184,7 +183,7 @@ impl TestAgent {
                         context.task, requirements.test_framework, requirements.test_types
                     ),
                     test_type: "unit".to_string(),
-                    framework: requirements.test_framework.clone(),
+                    _framework: requirements.test_framework.clone(),
                 });
             }
         }
@@ -262,7 +261,7 @@ mod integration_tests {{
             path: format!("{}/tests/integration_test.rs", context.working_dir),
             content: test_content,
             test_type: "unit".to_string(),
-            framework: Some("cargo".to_string()),
+            _framework: Some("cargo".to_string()),
         });
 
         Ok(tests)
@@ -355,7 +354,7 @@ def sample_data():
             path: format!("{}/tests/test_main.py", context.working_dir),
             content: test_content,
             test_type: "unit".to_string(),
-            framework: Some("pytest".to_string()),
+            _framework: Some("pytest".to_string()),
         });
 
         // Generate conftest.py for pytest
@@ -383,7 +382,7 @@ def temp_dir(tmp_path):
             path: format!("{}/tests/conftest.py", context.working_dir),
             content: conftest_content.to_string(),
             test_type: "config".to_string(),
-            framework: Some("pytest".to_string()),
+            _framework: Some("pytest".to_string()),
         });
 
         Ok(tests)
@@ -485,7 +484,7 @@ describe('Integration Tests', () => {{
             path: format!("{}/tests/main.test.{}", context.working_dir, extension),
             content: test_content,
             test_type: "unit".to_string(),
-            framework: requirements.framework.clone(),
+            _framework: requirements.framework.clone(),
         });
 
         // Generate test configuration
@@ -532,7 +531,7 @@ export default defineConfig({
             path: format!("{}/{}", context.working_dir, config_filename),
             content: config_content.to_string(),
             test_type: "config".to_string(),
-            framework: requirements.framework.clone(),
+            _framework: requirements.framework.clone(),
         });
 
         Ok(tests)
@@ -672,16 +671,13 @@ impl SpecialistAgent for TestAgent {
 #[derive(Debug, Clone)]
 struct TestRequirements {
     language: Option<String>,
-    #[allow(dead_code)]
     framework: Option<String>,
     test_framework: Option<String>,
     test_types: Vec<String>,
     coverage_target: f64,
     requires_mocking: bool,
-    #[allow(dead_code)]
-    requires_fixtures: bool,
-    #[allow(dead_code)]
-    performance_tests: bool,
+    _requires_fixtures: bool,
+    _performance_tests: bool,
 }
 
 /// Generated test file
@@ -690,6 +686,5 @@ struct GeneratedTest {
     path: String,
     content: String,
     test_type: String,
-    #[allow(dead_code)]
-    framework: Option<String>,
+    _framework: Option<String>,
 }

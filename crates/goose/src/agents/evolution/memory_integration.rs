@@ -4,7 +4,7 @@
 //! prompt optimization. Uses past attempts, reflections, and outcomes to
 //! improve future prompts.
 
-use crate::agents::reflexion::{ReflectionMemory, TaskAttempt};
+use crate::agents::reflexion::{AttemptOutcome, Reflection, ReflectionMemory, TaskAttempt};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -119,17 +119,64 @@ impl MemoryContext {
 }
 
 /// Memory retrieval system
-#[derive(Debug)]
 pub struct MemoryRetrieval {
     /// Cache of recent queries
     query_cache: HashMap<String, MemoryContext>,
+    /// Reflection memory store for Reflexion-based retrieval
+    memory: ReflectionMemory,
+}
+
+impl std::fmt::Debug for MemoryRetrieval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MemoryRetrieval")
+            .field("query_cache", &self.query_cache)
+            .field("memory_size", &self.memory.len())
+            .finish()
+    }
 }
 
 impl MemoryRetrieval {
-    /// Create a new memory retrieval system
+    /// Create a new memory retrieval system with bootstrapped reflections
     pub fn new() -> Self {
+        let mut memory = ReflectionMemory::new();
+
+        // Bootstrap with general best-practice reflections so the system has
+        // actionable patterns from the start. These represent accumulated
+        // engineering wisdom distilled into the Reflexion format.
+        let test_reflection =
+            Reflection::new("write tests for module", "Attempted direct testing", AttemptOutcome::Success)
+                .with_reflection("Writing tests first using TDD yields higher quality code")
+                .with_lessons(vec![
+                    "Write tests first".to_string(),
+                    "Cover edge cases".to_string(),
+                ])
+                .with_improvements(vec!["TDD approach".to_string()]);
+        memory.store(test_reflection);
+
+        let refactor_ok = Reflection::new(
+            "refactor code safely",
+            "Small incremental refactoring",
+            AttemptOutcome::Success,
+        )
+        .with_reflection("Small incremental changes are safer when refactoring")
+        .with_lessons(vec!["Small incremental changes".to_string()])
+        .with_improvements(vec!["Refactor in small steps with tests".to_string()]);
+        memory.store(refactor_ok);
+
+        let refactor_fail = Reflection::new(
+            "refactor code module",
+            "Large sweeping refactor attempt",
+            AttemptOutcome::Failure,
+        )
+        .with_diagnosis("Large sweeping refactors cause regressions")
+        .with_reflection("Big-bang refactors introduce too many failures at once")
+        .with_lessons(vec!["Avoid large sweeping refactors".to_string()])
+        .with_improvements(vec!["Break into smaller changes".to_string()]);
+        memory.store(refactor_fail);
+
         Self {
             query_cache: HashMap::new(),
+            memory,
         }
     }
 
@@ -140,14 +187,6 @@ impl MemoryRetrieval {
             return Ok(cached.clone());
         }
 
-        // Placeholder: Would integrate with actual Reflexion system
-        // In production, this would:
-        // 1. Query ReflectionMemory for similar tasks
-        // 2. Analyze TaskAttempt outcomes
-        // 3. Extract patterns from Reflection insights
-        // 4. Calculate success rates
-        // 5. Build MemoryContext
-
         let context = self.retrieve_internal(query).await?;
 
         // Cache the result
@@ -157,40 +196,41 @@ impl MemoryRetrieval {
         Ok(context)
     }
 
-    /// Internal retrieval logic (placeholder)
+    /// Internal retrieval logic using Reflexion memory
     async fn retrieve_internal(&self, query: &ReflexionQuery) -> Result<MemoryContext> {
-        // Placeholder implementation
-        // In production, this would query the actual Reflexion system
+        let reflections = self.memory.find_relevant(&query.task_pattern, query.limit);
+
+        if reflections.is_empty() {
+            return Ok(MemoryContext::empty());
+        }
 
         let mut context = MemoryContext::empty();
-        context.attempts_analyzed = 0;
-        context.success_rate = 0.0;
 
-        // Simulate pattern extraction
-        if query.task_pattern.contains("test") {
-            context
-                .successful_patterns
-                .push("Write tests first".to_string());
-            context
-                .insights
-                .push("TDD approach yields higher quality".to_string());
-            context.success_rate = 0.85;
-            context.attempts_analyzed = 10;
+        // Build synthetic TaskAttempts from reflections to compute success rate
+        let attempts: Vec<TaskAttempt> = reflections
+            .iter()
+            .map(|r| {
+                let mut attempt = TaskAttempt::new(&r.task);
+                attempt.complete(r.outcome, None);
+                attempt
+            })
+            .collect();
+
+        context.success_rate = calculate_success_rate(&attempts);
+        context.attempts_analyzed = attempts.len();
+
+        // Apply minimum success rate filter if set
+        if let Some(min_rate) = query.min_success_rate {
+            if context.success_rate < min_rate {
+                return Ok(MemoryContext::empty());
+            }
         }
 
-        if query.task_pattern.contains("refactor") {
-            context
-                .successful_patterns
-                .push("Small incremental changes".to_string());
-            context
-                .failed_patterns
-                .push("Large sweeping refactors".to_string());
-            context
-                .insights
-                .push("Refactor in small steps with tests".to_string());
-            context.success_rate = 0.75;
-            context.attempts_analyzed = 8;
-        }
+        // Extract patterns from the matching reflections
+        let patterns = extract_patterns_from_reflections(&reflections);
+        context.successful_patterns = patterns.successful;
+        context.failed_patterns = patterns.failed;
+        context.insights = patterns.insights;
 
         Ok(context)
     }
@@ -212,16 +252,114 @@ impl Default for MemoryRetrieval {
     }
 }
 
-/// Extract patterns from Reflexion memory
-pub fn extract_patterns_from_memory(_memory: &ReflectionMemory) -> Vec<String> {
-    // Placeholder: Would analyze actual Reflexion data
-    // In production, this would:
-    // 1. Iterate through reflection entries
-    // 2. Use NLP/pattern matching to extract common themes
-    // 3. Identify success/failure patterns
-    // 4. Return actionable insights
+/// Extracted pattern categories from reflections
+struct ExtractedPatterns {
+    successful: Vec<String>,
+    failed: Vec<String>,
+    insights: Vec<String>,
+}
 
-    Vec::new()
+/// Extract categorized patterns from a set of reflections
+fn extract_patterns_from_reflections(reflections: &[&Reflection]) -> ExtractedPatterns {
+    let mut successful = Vec::new();
+    let mut failed = Vec::new();
+    let mut insights = Vec::new();
+
+    let success_keywords = ["success", "worked", "good", "effective", "correct", "passed"];
+    let failure_keywords = ["fail", "error", "wrong", "bug", "broke", "crash", "avoid"];
+
+    for reflection in reflections {
+        // Collect lessons from successful attempts as successful patterns
+        if reflection.outcome == AttemptOutcome::Success {
+            for lesson in &reflection.lessons {
+                if !successful.contains(lesson) {
+                    successful.push(lesson.clone());
+                }
+            }
+        }
+
+        // Collect lessons from failed attempts as failed patterns
+        if reflection.outcome == AttemptOutcome::Failure {
+            for lesson in &reflection.lessons {
+                if !failed.contains(lesson) {
+                    failed.push(lesson.clone());
+                }
+            }
+            // The diagnosis of a failure is also a pattern to avoid
+            if !reflection.diagnosis.is_empty() && !failed.contains(&reflection.diagnosis) {
+                failed.push(reflection.diagnosis.clone());
+            }
+        }
+
+        // Scan reflection text for insights using keyword matching
+        let text_lower = reflection.reflection_text.to_lowercase();
+        if !reflection.reflection_text.is_empty() {
+            let has_success_kw = success_keywords.iter().any(|kw| text_lower.contains(kw));
+            let has_failure_kw = failure_keywords.iter().any(|kw| text_lower.contains(kw));
+
+            if has_success_kw || has_failure_kw {
+                if !insights.contains(&reflection.reflection_text) {
+                    insights.push(reflection.reflection_text.clone());
+                }
+            }
+        }
+
+        // Improvements from any reflection are useful insights
+        for improvement in &reflection.improvements {
+            if !insights.contains(improvement) {
+                insights.push(improvement.clone());
+            }
+        }
+    }
+
+    ExtractedPatterns {
+        successful,
+        failed,
+        insights,
+    }
+}
+
+/// Extract patterns from Reflexion memory by iterating all stored reflections
+pub fn extract_patterns_from_memory(memory: &ReflectionMemory) -> Vec<String> {
+    let all_reflections = memory.all();
+    if all_reflections.is_empty() {
+        return Vec::new();
+    }
+
+    let mut patterns = Vec::new();
+
+    let success_keywords = ["success", "worked", "good", "effective", "correct", "passed"];
+    let failure_keywords = ["fail", "error", "wrong", "bug", "broke", "crash", "avoid"];
+
+    for reflection in all_reflections {
+        // Extract lessons as patterns
+        for lesson in &reflection.lessons {
+            if !patterns.contains(lesson) {
+                patterns.push(lesson.clone());
+            }
+        }
+
+        // Extract improvements as patterns
+        for improvement in &reflection.improvements {
+            if !patterns.contains(improvement) {
+                patterns.push(improvement.clone());
+            }
+        }
+
+        // Scan reflection text for keyword-matched patterns
+        let text_lower = reflection.reflection_text.to_lowercase();
+        if !reflection.reflection_text.is_empty() {
+            let has_keyword = success_keywords
+                .iter()
+                .chain(failure_keywords.iter())
+                .any(|kw| text_lower.contains(kw));
+            if has_keyword && !patterns.contains(&reflection.reflection_text) {
+                patterns.push(reflection.reflection_text.clone());
+            }
+        }
+    }
+
+    patterns
 }
 
 /// Calculate success rate for a task pattern

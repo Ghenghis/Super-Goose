@@ -1943,6 +1943,71 @@ impl Agent {
         let working_dir = session.working_dir.clone();
         Ok(Box::pin(async_stream::try_stream! {
             let _ = reply_span.enter();
+
+            // === STRUCTURED MODE: Dispatch to StateGraphRunner (Code→Test→Fix→Done) ===
+            if self.is_structured_mode().await {
+                // Extract the user's task from the last user message in the conversation
+                let task_text: String = conversation.messages().iter().rev()
+                    .find(|m| m.role == rmcp::model::Role::User)
+                    .map(|m| m.content.iter()
+                        .filter_map(|c| match c {
+                            MessageContent::Text(t) => Some(t.text.as_str()),
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" "))
+                    .unwrap_or_default();
+
+                if !task_text.is_empty() {
+                    info!("Structured mode active — dispatching to run_structured_loop for task: {}", &task_text[..task_text.len().min(100)]);
+                    yield AgentEvent::Message(
+                        Message::assistant().with_text(
+                            "Running in structured mode (Code \u{2192} Test \u{2192} Fix loop)..."
+                        )
+                    );
+
+                    let structured_working_dir = working_dir.clone();
+                    let mut structured_fallback = false;
+                    match self.run_structured_loop(&task_text, structured_working_dir, None).await {
+                        Ok(true) => {
+                            info!("Structured loop completed successfully (all tests pass)");
+                            yield AgentEvent::Message(
+                                Message::assistant().with_text(
+                                    "Structured loop completed successfully \u{2014} all validation gates passed."
+                                )
+                            );
+                        }
+                        Ok(false) => {
+                            info!("Structured loop completed with failures (some tests did not pass)");
+                            yield AgentEvent::Message(
+                                Message::assistant().with_text(
+                                    "Structured loop completed but some tests did not pass. Check .goose-failures.md for details."
+                                )
+                            );
+                        }
+                        Err(e) => {
+                            error!("Structured loop error: {}", e);
+                            yield AgentEvent::Message(
+                                Message::assistant().with_text(
+                                    format!("Structured loop encountered an error: {}. Falling back to freeform mode.", e)
+                                )
+                            );
+                            // Fall through to the freeform loop below on error
+                            structured_fallback = true;
+                        }
+                    }
+
+                    if !structured_fallback {
+                        // Structured loop handled the task — save and return
+                        let done_msg = Message::assistant().with_text("Structured execution complete.");
+                        session_manager.add_message(&session_config.id, &done_msg).await?;
+                        yield AgentEvent::Message(done_msg);
+                        return;
+                    }
+                    // On fallback, continue into the freeform loop below
+                }
+            }
+
             let mut turns_taken = 0u32;
             let max_turns = session_config.max_turns.unwrap_or(DEFAULT_MAX_TURNS);
             let mut compaction_attempts = 0;

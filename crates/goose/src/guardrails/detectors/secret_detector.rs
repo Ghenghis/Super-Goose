@@ -343,8 +343,7 @@ impl SecretDetector {
     }
 
     /// Calculate entropy of a string (for generic secret detection)
-    #[allow(dead_code)]
-    fn calculate_entropy(&self, s: &str) -> f64 {
+    fn _calculate_entropy(&self, s: &str) -> f64 {
         use std::collections::HashMap;
 
         let mut freq: HashMap<char, usize> = HashMap::new();

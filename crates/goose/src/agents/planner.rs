@@ -750,7 +750,7 @@ Output ONLY the JSON, no additional text."#.to_string()
     }
 
     /// Parse the LLM response into a Plan
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn parse_plan_response(response: &str, goal: &str) -> Result<Plan> {
         // Try to extract JSON from the response
         let json_str = Self::extract_json(response)?;
@@ -802,7 +802,7 @@ Output ONLY the JSON, no additional text."#.to_string()
     }
 
     /// Extract JSON from a response that might contain markdown or other text
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn extract_json(response: &str) -> Result<String> {
         // First, try to parse the whole response as JSON
         if serde_json::from_str::<serde_json::Value>(response).is_ok() {

@@ -14,9 +14,8 @@ pub mod progressive_disclosure;
 #[cfg(test)]
 mod integration_tests;
 
-// TODO: Fix struct field names - TaskAttempt uses attempt_id/task/actions not task_id/reflection/timestamp
-// #[cfg(test)]
-// mod memory_integration_fix_tests;
+#[cfg(test)]
+mod memory_integration_fix_tests;
 
 pub use memory_integration::{MemoryContext, MemoryRetrieval, ReflexionQuery};
 pub use metrics::{MetricsTracker, PromptPerformance, SuccessMetrics};

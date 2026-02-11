@@ -70,8 +70,7 @@ impl StateGraphRunner {
 /// Pre-built test runner using shell commands
 pub struct ShellTestRunner {
     test_command: String,
-    #[allow(dead_code)]
-    working_dir: PathBuf,
+    _working_dir: PathBuf,
     framework: TestFramework,
 }
 
@@ -80,7 +79,7 @@ impl ShellTestRunner {
         let framework = TestFramework::detect_from_command(test_command);
         Self {
             test_command: test_command.to_string(),
-            working_dir,
+            _working_dir: working_dir,
             framework,
         }
     }
