@@ -12,7 +12,6 @@ pub mod goose_apps;
 pub mod guardrails;
 pub mod hints;
 pub mod hooks;
-pub mod mcp_gateway;
 
 #[cfg(feature = "memory")]
 pub mod memory;
