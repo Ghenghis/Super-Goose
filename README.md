@@ -19,9 +19,38 @@
 
 ### What is Super-Goose?
 
-**Super-Goose merges 16 state-of-the-art open-source projects into the first self-evolving, voice-enabled, production-grade AI agent platform.** Built on Block's Goose core in Rust, it orchestrates multi-agent teams, optimizes its own prompts overnight, enforces security policies, and talks to you through a natural voice interface.
+**Super-Goose v1.24.05 merges 16 state-of-the-art open-source projects into the first self-evolving, voice-enabled, production-grade AI agent platform.** Built on Block's Goose core in Rust, it orchestrates multi-agent teams, optimizes its own prompts overnight, enforces security policies, and talks to you through a natural voice interface.
 
 </div>
+
+---
+
+## What's New in v1.24.05
+
+<div align="center">
+
+12 new capabilities. 4,454 lines of dead code removed. Leaner, smarter, cost-aware.
+
+</div>
+
+<br>
+
+| Feature | Description |
+|:--|:--|
+| **Native Extended Thinking** | --thinking flag enables Anthropic's chain-of-thought reasoning with configurable token budget |
+| **Prompt Caching** | 80-90% input cost reduction via Anthropic cache_control breakpoints with full cost visibility |
+| **Closed-Loop Reflexion** | Agent learns from past failures with episodic memory |
+| **Active Budget Enforcement** | --budget flag with real-time cost tracking and over-budget alerts |
+| **Output Guardrails** | Bidirectional scanning for secrets and PII in LLM responses |
+| **Structured Code-Test-Fix** | ShellTestRunner integration with automated test/fix cycles |
+| **/model Hot-Switch** | Live model switching without session restart |
+| **Adaptive Compaction** | Smart context window management with utilization stats |
+| **Cross-Session Search** | goose session search for finding content across sessions |
+| **Project Auto-Detection** | Automatic Rust/Node/Python/Go project type detection |
+| **Per-Tool Rate Limiting** | Backpressure-aware rate limiting per MCP tool |
+| **Session Bookmarks** | /bookmark save/list/restore/delete for marking session points |
+
+> **Codebase cleanup:** Removed 4,454 lines of dead code (MCP Gateway module) for a leaner codebase.
 
 ---
 
@@ -449,7 +478,7 @@ Pre-built binaries are available from the [Releases](https://github.com/Ghenghis
 
 | Platform | CLI | Desktop |
 |:--|:--|:--|
-| **Docker** | `ghcr.io/ghenghis/super-goose:v1.24.04` | — |
+| **Docker** | `ghcr.io/ghenghis/super-goose:v1.24.05` | — |
 | **Windows** | `goose-x86_64-pc-windows-msvc.zip` | `Goose-win32-x64.zip` |
 | **macOS ARM** | `goose-aarch64-apple-darwin.tar.bz2` | `Goose.dmg` |
 | **macOS Intel** | `goose-x86_64-apple-darwin.tar.bz2` | `Goose-intel.dmg` |
@@ -465,7 +494,7 @@ Pull the official Super-Goose Docker image from [GitHub Container Registry](http
 docker pull ghcr.io/ghenghis/super-goose:latest
 
 # Specific version
-docker pull ghcr.io/ghenghis/super-goose:v1.24.04
+docker pull ghcr.io/ghenghis/super-goose:v1.24.05
 
 # Run the CLI
 docker run --rm -it ghcr.io/ghenghis/super-goose:latest goose

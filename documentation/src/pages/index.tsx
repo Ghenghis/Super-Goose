@@ -26,7 +26,7 @@ function HeroSection() {
             View on GitHub
           </Link>
           <Link className={styles.secondaryBtn} to="https://github.com/Ghenghis/Super-Goose/releases">
-            Download v1.24.04
+            Download v1.24.05
           </Link>
         </div>
         <div className={styles.badgeRow}>
@@ -49,7 +49,7 @@ function StatsBar() {
   const stats = [
     { value: "165K+", label: "Lines of Rust" },
     { value: "~2,100", label: "Test Functions" },
-    { value: "177", label: "Commits Ahead" },
+    { value: "182", label: "Commits Ahead" },
     { value: "16", label: "Integrated Tools" },
     { value: "5", label: "Specialist Agents" },
     { value: "208", label: "Agent Tests" },
@@ -65,6 +65,51 @@ function StatsBar() {
             <span className={styles.statLabel}>{s.label}</span>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────  v1.24.05 Highlights  ───────────────────────── */
+function ReleaseHighlights() {
+  const highlights = [
+    {
+      title: "Native Extended Thinking",
+      desc: "Anthropic extended thinking support with --thinking CLI flag and configurable budget",
+      color: "#00BFFF",
+    },
+    {
+      title: "Prompt Caching",
+      desc: "80-90% input cost reduction with automatic cache_control injection for system and tool messages",
+      color: "#00CC66",
+    },
+    {
+      title: "12 SOTA Agent Features",
+      desc: "Reflexion, Budget Enforcement, Output Guardrails, Code-Test-Fix, /model Hot-Switch, Adaptive Compaction, Session Search, Auto-Detection, Rate Limiting, Bookmarks, and more",
+      color: "#9966FF",
+    },
+    {
+      title: "4,454 Lines Dead Code Removed",
+      desc: "Comprehensive audit pass removing unused code, fixing warnings, and aligning tests across 27 files",
+      color: "#FF3366",
+    },
+  ];
+
+  return (
+    <section className={styles.sectionAlt}>
+      <div className={styles.sectionInner}>
+        <h2 className={styles.sectionTitle}>What's New in v1.24.05</h2>
+        <p className={styles.sectionSubtitle}>
+          Extended thinking, prompt caching, 12 SOTA features, and a major dead-code cleanup.
+        </p>
+        <div className={styles.dockerGrid}>
+          {highlights.map((h, i) => (
+            <div key={i} className={styles.dockerCard}>
+              <h4 style={{ color: h.color }}>{h.title}</h4>
+              <p>{h.desc}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -565,7 +610,7 @@ function DownloadsSection() {
             <span>Platform</span><span>CLI</span><span>Desktop</span>
           </div>
           {[
-            { platform: "Docker", cli: "ghcr.io/ghenghis/super-goose:v1.24.04", desktop: "—" },
+            { platform: "Docker", cli: "ghcr.io/ghenghis/super-goose:v1.24.05", desktop: "—" },
             { platform: "Windows", cli: "goose-x86_64-pc-windows-msvc.zip", desktop: "Goose-win32-x64.zip" },
             { platform: "macOS ARM", cli: "goose-aarch64-apple-darwin.tar.bz2", desktop: "Goose.dmg" },
             { platform: "macOS Intel", cli: "goose-x86_64-apple-darwin.tar.bz2", desktop: "Goose-intel.dmg" },
@@ -606,7 +651,7 @@ function DockerSection() {
             <h4>Pull Image</h4>
             <code className={styles.dockerCode}>docker pull ghcr.io/ghenghis/super-goose:latest</code>
             <p>Or a specific version:</p>
-            <code className={styles.dockerCode}>docker pull ghcr.io/ghenghis/super-goose:v1.24.04</code>
+            <code className={styles.dockerCode}>docker pull ghcr.io/ghenghis/super-goose:v1.24.05</code>
           </div>
           <div className={styles.dockerCard}>
             <h4>Run CLI</h4>
@@ -736,6 +781,7 @@ export default function Home(): ReactNode {
     <Layout description="Super-Goose — The first self-evolving, voice-enabled, production-grade AI agent platform with 16 integrated tools.">
       <HeroSection />
       <StatsBar />
+      <ReleaseHighlights />
       <FeatureCardsSection />
       <PipelineSection />
       <ToolsSection />
