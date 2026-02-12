@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { useChatStream } from '../useChatStream';
 
 // Mock the API module
@@ -73,7 +73,7 @@ describe('useChatStream', () => {
   it('loads session on mount when sessionId is provided', async () => {
     const { resumeAgent } = await import('../../api');
 
-    const { result } = renderHook(() =>
+    const { result: _result } = renderHook(() =>
       useChatStream({
         sessionId: 'test-123',
         onStreamFinish,

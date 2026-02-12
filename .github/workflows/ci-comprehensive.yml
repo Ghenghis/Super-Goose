@@ -1,0 +1,370 @@
+# Comprehensive CI for Super-Goose
+#
+# Runs the full test suite including agentic cores, learning engine,
+# pipeline visualization, sidebar panels, and TypeScript type checking.
+# Complements ci-main.yml (which handles lint, build, and standard tests)
+# by adding granular test reporting for all Super-Goose subsystems.
+#
+# This workflow does NOT replace ci-main.yml. It runs alongside it to
+# provide detailed test breakdowns for the new subsystems.
+
+name: Comprehensive CI
+
+on:
+  push:
+    branches: [main, feat/*]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────
+  # STAGE 1: Detect what changed
+  # ──────────────────────────────────────────────────────────────────
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      rust-changed: ${{ steps.filter.outputs.rust }}
+      typescript-changed: ${{ steps.filter.outputs.typescript }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36  # v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'crates/**/*.rs'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+
+            typescript:
+              - 'ui/**/*.ts'
+              - 'ui/**/*.tsx'
+              - 'ui/**/*.js'
+              - 'ui/**/*.jsx'
+              - 'ui/**/package.json'
+              - 'ui/**/package-lock.json'
+              - 'ui/**/*.css'
+
+  # ──────────────────────────────────────────────────────────────────
+  # STAGE 2: Rust — Agentic Core Tests
+  # ──────────────────────────────────────────────────────────────────
+  rust-core-tests:
+    name: Rust - Agentic Core Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: detect-changes
+    if: needs.detect-changes.outputs.rust-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c  # v1
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y libdbus-1-dev gnome-keyring libxcb1-dev
+
+      - name: Run core module tests
+        run: |
+          gnome-keyring-daemon --components=secrets --daemonize --unlock <<< 'test'
+          cargo test --lib -p goose -- core:: --nocapture 2>&1 | tee core-test-output.txt
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Summarize core test results
+        if: always()
+        run: |
+          echo "### Agentic Core Tests" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E '(test result|test .+\.\.\.)' core-test-output.txt >> $GITHUB_STEP_SUMMARY || echo "No test result lines found" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ──────────────────────────────────────────────────────────────────
+  # STAGE 2: Rust — Learning Engine Tests
+  # ──────────────────────────────────────────────────────────────────
+  rust-learning-tests:
+    name: Rust - Learning Engine Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: detect-changes
+    if: needs.detect-changes.outputs.rust-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c  # v1
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y libdbus-1-dev gnome-keyring libxcb1-dev
+
+      - name: Run ExperienceStore tests
+        run: |
+          gnome-keyring-daemon --components=secrets --daemonize --unlock <<< 'test'
+          cargo test --lib -p goose -- experience_store:: --nocapture 2>&1 | tee learning-exp-output.txt
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Run InsightExtractor tests
+        run: |
+          cargo test --lib -p goose -- insight_extractor:: --nocapture 2>&1 | tee learning-insight-output.txt
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Run SkillLibrary tests
+        run: |
+          cargo test --lib -p goose -- skill_library:: --nocapture 2>&1 | tee learning-skill-output.txt
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Run Reflexion tests
+        run: |
+          cargo test --lib -p goose -- reflexion:: --nocapture 2>&1 | tee learning-reflexion-output.txt
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Run ReflectionStore tests
+        run: |
+          cargo test --lib -p goose -- reflection_store:: --nocapture 2>&1 | tee learning-reflection-output.txt
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Run Planner tests
+        run: |
+          cargo test --lib -p goose -- planner:: --nocapture 2>&1 | tee learning-planner-output.txt
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Summarize learning engine results
+        if: always()
+        run: |
+          echo "### Learning Engine Tests" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          for f in learning-*-output.txt; do
+            echo "--- $(basename $f .txt) ---" >> $GITHUB_STEP_SUMMARY
+            grep -E '(test result|test .+\.\.\.)' "$f" >> $GITHUB_STEP_SUMMARY || true
+          done
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ──────────────────────────────────────────────────────────────────
+  # STAGE 2: Rust — Full Workspace Lib Tests
+  # ──────────────────────────────────────────────────────────────────
+  rust-all-lib-tests:
+    name: Rust - Full Workspace Lib Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: detect-changes
+    if: needs.detect-changes.outputs.rust-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c  # v1
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y libdbus-1-dev gnome-keyring libxcb1-dev
+
+      - name: Run all workspace lib tests
+        run: |
+          gnome-keyring-daemon --components=secrets --daemonize --unlock <<< 'test'
+          cargo test --workspace --lib -- --skip scenario_tests 2>&1 | tee all-lib-output.txt
+        env:
+          RUST_BACKTRACE: 1
+          RUST_MIN_STACK: 8388608
+          CARGO_INCREMENTAL: 0
+
+      - name: Summarize full lib test results
+        if: always()
+        run: |
+          echo "### Full Workspace Lib Tests" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E '(test result|running [0-9]+ test)' all-lib-output.txt >> $GITHUB_STEP_SUMMARY || echo "No summary lines found" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ──────────────────────────────────────────────────────────────────
+  # STAGE 3: TypeScript — Type Check
+  # ──────────────────────────────────────────────────────────────────
+  typescript-typecheck:
+    name: TypeScript - Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: detect-changes
+    if: needs.detect-changes.outputs.typescript-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ui/desktop/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: ui/desktop
+
+      - name: TypeScript strict check (tsc --noEmit)
+        run: npx tsc --noEmit 2>&1 | tee tsc-output.txt
+        working-directory: ui/desktop
+
+      - name: Summarize TypeScript results
+        if: always()
+        run: |
+          echo "### TypeScript Type Check" >> $GITHUB_STEP_SUMMARY
+          ERRORS=$(grep -c 'error TS' ui/desktop/tsc-output.txt 2>/dev/null || echo "0")
+          if [ "$ERRORS" = "0" ]; then
+            echo "No TypeScript errors found." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Found $ERRORS TypeScript errors:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -50 ui/desktop/tsc-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ──────────────────────────────────────────────────────────────────
+  # STAGE 3: TypeScript — Vitest Unit Tests
+  # ──────────────────────────────────────────────────────────────────
+  typescript-vitest:
+    name: TypeScript - Vitest Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: detect-changes
+    if: needs.detect-changes.outputs.typescript-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ui/desktop/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: ui/desktop
+
+      - name: Run Vitest with verbose reporter
+        run: npx vitest run --reporter=verbose 2>&1 | tee vitest-output.txt
+        working-directory: ui/desktop
+
+      - name: Summarize Vitest results
+        if: always()
+        run: |
+          echo "### Vitest Unit Tests" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E '(Test Files|Tests |Duration)' ui/desktop/vitest-output.txt >> $GITHUB_STEP_SUMMARY || echo "No summary line found" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify minimum test file count
+        run: |
+          # Extract test file count from vitest output
+          TEST_FILES=$(grep -oP '\d+(?= passed)' ui/desktop/vitest-output.txt | head -1)
+          echo "Test files passed: ${TEST_FILES:-unknown}"
+          if [ -n "$TEST_FILES" ] && [ "$TEST_FILES" -lt 10 ]; then
+            echo "::warning::Only $TEST_FILES test files passed. Expected at least 10."
+          fi
+        working-directory: ui/desktop
+
+  # ──────────────────────────────────────────────────────────────────
+  # STAGE 4: Final Status Gate
+  # ──────────────────────────────────────────────────────────────────
+  comprehensive-status:
+    name: Comprehensive CI Status
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs:
+      - detect-changes
+      - rust-core-tests
+      - rust-learning-tests
+      - rust-all-lib-tests
+      - typescript-typecheck
+      - typescript-vitest
+    if: always()
+    steps:
+      - name: Check CI Result
+        run: |
+          echo "=============================================="
+          echo "     COMPREHENSIVE CI STATUS SUMMARY"
+          echo "=============================================="
+          echo ""
+          echo "Changes Detected:"
+          echo "  Rust Changed:       ${{ needs.detect-changes.outputs.rust-changed }}"
+          echo "  TypeScript Changed: ${{ needs.detect-changes.outputs.typescript-changed }}"
+          echo ""
+          echo "Job Results:"
+          echo "  rust-core-tests:       ${{ needs.rust-core-tests.result }}"
+          echo "  rust-learning-tests:   ${{ needs.rust-learning-tests.result }}"
+          echo "  rust-all-lib-tests:    ${{ needs.rust-all-lib-tests.result }}"
+          echo "  typescript-typecheck:  ${{ needs.typescript-typecheck.result }}"
+          echo "  typescript-vitest:     ${{ needs.typescript-vitest.result }}"
+          echo ""
+
+          FAILED=0
+
+          # Check Rust jobs (only if Rust changed)
+          if [[ "${{ needs.detect-changes.outputs.rust-changed }}" == "true" ]]; then
+            for job in rust-core-tests rust-learning-tests rust-all-lib-tests; do
+              RESULT="${{ needs.rust-core-tests.result }}"
+              case "$job" in
+                rust-learning-tests) RESULT="${{ needs.rust-learning-tests.result }}" ;;
+                rust-all-lib-tests) RESULT="${{ needs.rust-all-lib-tests.result }}" ;;
+              esac
+              if [[ "$RESULT" != "success" && "$RESULT" != "skipped" ]]; then
+                echo "FAIL: $job = $RESULT"
+                FAILED=1
+              fi
+            done
+          fi
+
+          # Check TypeScript jobs (only if TS changed)
+          if [[ "${{ needs.detect-changes.outputs.typescript-changed }}" == "true" ]]; then
+            for job_result in "${{ needs.typescript-typecheck.result }}" "${{ needs.typescript-vitest.result }}"; do
+              if [[ "$job_result" != "success" && "$job_result" != "skipped" ]]; then
+                echo "FAIL: TypeScript job = $job_result"
+                FAILED=1
+              fi
+            done
+          fi
+
+          if [[ "$FAILED" == "1" ]]; then
+            echo ""
+            echo "=============================================="
+            echo "  COMPREHENSIVE CI FAILED"
+            echo "=============================================="
+            exit 1
+          else
+            echo ""
+            echo "=============================================="
+            echo "  COMPREHENSIVE CI PASSED"
+            echo "=============================================="
+            exit 0
+          fi

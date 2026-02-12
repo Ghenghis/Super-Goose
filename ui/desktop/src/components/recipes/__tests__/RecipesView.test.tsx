@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 // ── Mock data ──────────────────────────────────────────────────────────────────
 
@@ -124,21 +124,15 @@ vi.mock('../../ui/card', () => ({
 }));
 
 vi.mock('../../ui/button', () => ({
-  Button: ({
-    children,
-    onClick,
-    disabled,
-    title,
-    ...rest
-  }: {
+  Button: (props: {
     children: React.ReactNode;
     onClick?: (e: React.MouseEvent) => void;
     disabled?: boolean;
     title?: string;
     [key: string]: unknown;
   }) => (
-    <button onClick={onClick} disabled={disabled} title={title} data-testid="button">
-      {children}
+    <button onClick={props.onClick} disabled={props.disabled} title={props.title} data-testid="button">
+      {props.children}
     </button>
   ),
 }));

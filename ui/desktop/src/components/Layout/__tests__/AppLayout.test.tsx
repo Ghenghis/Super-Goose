@@ -29,7 +29,7 @@ vi.mock('../../ui/sidebar', () => ({
   SidebarInset: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="sidebar-inset">{children}</div>
   ),
-  SidebarTrigger: ({ className }: { className?: string }) => (
+  SidebarTrigger: ({ className: _className }: { className?: string }) => (
     <button data-testid="sidebar-trigger">Toggle</button>
   ),
   useSidebar: () => ({

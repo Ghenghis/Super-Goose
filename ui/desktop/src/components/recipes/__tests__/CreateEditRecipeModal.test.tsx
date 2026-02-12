@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('../../ui/button', () => ({
@@ -105,12 +105,6 @@ describe('CreateEditRecipeModal', () => {
   it('renders close button that calls onClose with false', async () => {
     const user = userEvent.setup();
     render(<CreateEditRecipeModal {...defaultProps} />);
-
-    // Click the X button in the header
-    const closeButtons = screen.getAllByRole('button');
-    const xButton = closeButtons.find(
-      (btn) => btn.querySelector('svg') || btn.textContent === ''
-    );
 
     // Click the "Close" text button in footer
     await user.click(screen.getByText('Close'));

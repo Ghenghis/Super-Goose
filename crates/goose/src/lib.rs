@@ -1,6 +1,7 @@
 pub mod action_required_manager;
 pub mod agents;
 pub mod approval;
+pub mod autonomous;
 pub mod builtin_extension;
 pub mod compaction;
 pub mod config;
@@ -23,6 +24,7 @@ pub mod logging;
 pub mod mcp_utils;
 pub mod model;
 pub mod oauth;
+pub mod ota;
 pub mod observability;
 pub mod permission;
 pub mod policies;

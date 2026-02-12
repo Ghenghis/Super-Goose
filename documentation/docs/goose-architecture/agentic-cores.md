@@ -161,6 +161,97 @@ Every core tracks performance metrics:
 | Planner | 13 | ALL PASS |
 | **Backend Total** | **139** | **ALL PASS** |
 
+## Runtime Wiring (commit b12a665ed6)
+
+The agentic core system is fully wired into the Agent's runtime execution path. Here is how the components connect at runtime:
+
+### Core Dispatch Flow in `Agent::reply()`
+
+When a user message arrives, the `reply()` method follows this flow:
+
+```mermaid
+sequenceDiagram
+    participant U as User Message
+    participant A as Agent::reply()
+    participant CS as CoreSelector
+    participant REG as AgentCoreRegistry
+    participant FC as FreeformCore
+    participant NC as Non-Freeform Core
+
+    U->>A: incoming message
+    A->>CS: select_core(task_description)
+    CS-->>A: SelectionResult (core_type, confidence)
+    alt confidence > 0.7
+        A->>REG: set_active(selected_core_type)
+    end
+    A->>REG: get active core
+    alt Active core is Freeform
+        REG-->>FC: execute via reply_internal()
+    else Active core is non-Freeform
+        REG-->>NC: core.execute(ctx, task)
+        alt execution succeeds
+            NC-->>A: CoreOutput
+        else execution fails
+            A->>FC: fallback to reply_internal()
+        end
+    end
+    A->>A: record_experience(task, core, outcome)
+```
+
+**Key behaviors:**
+
+1. **CoreSelector auto-invocation**: Before dispatching, the CoreSelector analyzes the incoming task and recommends a core. If confidence exceeds 0.7, the active core is switched automatically.
+
+2. **Non-Freeform dispatch**: When a non-Freeform core is active, the task is dispatched through `core.execute()` instead of the default `reply_internal()` path.
+
+3. **Automatic fallback**: If a non-Freeform core's `execute()` fails, the system automatically falls back to `FreeformCore` (which wraps `reply_internal()`), ensuring the user always gets a response.
+
+4. **Experience recording**: After every task (success or failure), the outcome is recorded in the `ExperienceStore`, closing the learning loop so the CoreSelector can make better decisions over time.
+
+### Lazy Initialization of Learning Stores
+
+The `ExperienceStore` and `SkillLibrary` use interior mutability via `Mutex<Option<Arc<...>>>`:
+
+```mermaid
+sequenceDiagram
+    participant A as Agent::reply()
+    participant M as Mutex<Option<Arc<ExperienceStore>>>
+    participant I as init_learning_stores()
+    participant DB as SQLite
+
+    A->>M: lock()
+    alt store is None (first call)
+        A->>I: init_learning_stores()
+        I->>DB: create experience.db
+        I->>DB: create skills.db
+        I-->>M: Some(Arc<ExperienceStore>)
+    else store is Some (subsequent calls)
+        M-->>A: Arc<ExperienceStore>
+    end
+```
+
+The `init_learning_stores()` method takes `&self` (not `&mut self`) thanks to the Mutex wrapper, allowing lazy initialization on the first call to `reply()` without requiring mutable access to the Agent struct.
+
+### Experience Recording Loop
+
+Every task execution records an experience entry, creating a feedback loop:
+
+```mermaid
+graph LR
+    T[Task Arrives] --> CS[CoreSelector picks core]
+    CS --> EX[Core executes task]
+    EX --> R{Success?}
+    R -->|Yes| SE[Record success experience]
+    R -->|No| FE[Record failure experience]
+    SE --> ES[ExperienceStore]
+    FE --> ES
+    ES --> IE[InsightExtractor analyzes patterns]
+    IE --> SL[SkillLibrary stores verified strategies]
+    ES --> CS
+```
+
+The `ExperienceStore` stores: task description, core type used, outcome (success/failure), execution time, token cost, and extracted insights. The `CoreSelector` queries this data when deciding which core to use for future tasks.
+
 ## File Structure
 
 ```

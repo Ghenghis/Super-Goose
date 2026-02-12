@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('../../ui/card', () => ({
@@ -32,7 +32,7 @@ vi.mock('../../ui/input', () => ({
 }));
 
 vi.mock('../CronPicker', () => ({
-  CronPicker: ({ schedule, onChange, isValid }: any) => {
+  CronPicker: ({ schedule: _schedule, onChange, isValid }: any) => {
     // Immediately signal valid
     if (isValid) isValid(true);
     return (

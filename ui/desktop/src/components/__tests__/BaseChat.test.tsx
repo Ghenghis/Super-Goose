@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import BaseChat from '../BaseChat';
 import { ChatState } from '../../types/chatState';
@@ -65,15 +65,11 @@ vi.mock('../Layout/MainPanelLayout', () => ({
 }));
 
 vi.mock('../ui/scroll-area', () => ({
-  ScrollArea: ({
-    children,
-    ref: _ref,
-    ...props
-  }: {
+  ScrollArea: (props: {
     children: React.ReactNode;
     ref?: unknown;
     [key: string]: unknown;
-  }) => <div data-testid="scroll-area">{children}</div>,
+  }) => <div data-testid="scroll-area">{props.children}</div>,
   ScrollAreaHandle: {},
 }));
 
@@ -200,7 +196,7 @@ beforeEach(() => {
   (window.electron as Record<string, unknown>).hasAcceptedRecipeBefore = vi.fn(async () => true);
   (window.electron as Record<string, unknown>).recordRecipeHash = vi.fn(async () => {});
   (window.electron as Record<string, unknown>).logInfo = vi.fn();
-  (window as Record<string, unknown>).appConfig = {
+  (window as unknown as Record<string, unknown>).appConfig = {
     get: vi.fn(() => undefined),
   };
 

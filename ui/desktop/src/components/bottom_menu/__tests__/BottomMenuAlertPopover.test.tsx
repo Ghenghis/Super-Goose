@@ -7,7 +7,7 @@ vi.mock('../../../constants/events', () => ({
 }));
 
 vi.mock('react-icons/fa', () => ({
-  FaCircle: ({ size }: any) => <span data-testid="fa-circle" />,
+  FaCircle: ({ size: _size }: any) => <span data-testid="fa-circle" />,
 }));
 
 vi.mock('../../alerts', () => ({

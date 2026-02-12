@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('../../../ui/button', () => ({
@@ -140,7 +140,6 @@ describe('InstructionsEditor', () => {
   });
 
   it('closes on backdrop click', async () => {
-    const user = userEvent.setup();
     render(<InstructionsEditor {...defaultProps} />);
 
     // Click on the backdrop (outermost div)

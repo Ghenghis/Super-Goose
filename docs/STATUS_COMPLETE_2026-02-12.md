@@ -68,9 +68,9 @@
 **Total Phase 2 tests**: 52
 
 **Agent struct fields** (in `agent.rs`):
-- `experience_store: Option<Arc<ExperienceStore>>` (line 280)
-- `skill_library: Option<Arc<SkillLibrary>>` (line 282)
-- `core_registry: AgentCoreRegistry` (line 276)
+- `experience_store: Mutex<Option<Arc<ExperienceStore>>>` -- interior mutability for lazy init
+- `skill_library: Mutex<Option<Arc<SkillLibrary>>>` -- interior mutability for lazy init
+- `core_registry: AgentCoreRegistry`
 
 **Methods on Agent**:
 - `init_learning_stores()` -- initializes SQLite at `{data_dir}/super-goose/experience.db` and `skills.db`
@@ -92,7 +92,7 @@
 
 ### Phase 3: Auto Core Selection
 
-**Status**: COMPLETE (code exists, not auto-invoked)
+**Status**: COMPLETE (wired and auto-invoked, commit b12a665ed6)
 **File**: `crates/goose/src/agents/core/selector.rs`
 
 `CoreSelector` implements:
@@ -105,7 +105,7 @@
 
 **Tests**: 11 tests in `selector.rs`
 
-**Caveat**: `CoreSelector` is constructable via `agent.core_selector()` but is NOT automatically invoked at task start. No code calls `select_core()` or `select_with_hint()` in the reply flow.
+**Wiring**: CoreSelector is automatically invoked before dispatch in `Agent::reply()`. When confidence exceeds 0.7, the active core is switched. Experience data is recorded after every task for both success and failure paths.
 
 ### Frontend: Pipeline Visualization
 
@@ -264,23 +264,24 @@ Reflexion, guardrails, cost tracking: NOT feature-gated, always compiled.
 - `compact_messages()` is called in the reply loop for conversation compaction
 - The full `compact()` pipeline (multi-step summary, context window optimization) is not fully wired
 
-### Learning Stores Initialization
-- `init_learning_stores()` method EXISTS on Agent (line 421 of `agent.rs`)
-- It creates SQLite databases at `{data_dir}/super-goose/experience.db` and `skills.db`
-- **BUT**: `init_learning_stores()` is NEVER CALLED from anywhere in the codebase
-- The experience_store and skill_library fields are always `None` at runtime unless manually invoked
+### Learning Stores Initialization -- FIXED (commit b12a665ed6)
+- `init_learning_stores()` method on Agent takes `&self` (not `&mut self`)
+- Uses `Mutex<Option<Arc<ExperienceStore>>>` and `Mutex<Option<Arc<SkillLibrary>>>` for interior mutability
+- Lazy initialization: called automatically on first `reply()` invocation
+- Creates SQLite databases at `{data_dir}/super-goose/experience.db` and `skills.db`
 
-### Core Dispatch in Reply Flow
-- `AgentCoreRegistry` is created in Agent constructor (line 397)
+### Core Dispatch in Reply Flow -- FIXED (commit b12a665ed6)
+- `AgentCoreRegistry` is created in Agent constructor
 - `/core` and `/cores` commands work correctly to list/switch cores
-- **BUT**: The main `reply()` and `reply_internal()` flow does NOT dispatch through the active core's `execute()` method
-- All actual message handling goes through the existing `reply_internal()` path regardless of which core is "active"
-- The core abstraction is complete but not integrated into the hot path
+- Non-Freeform cores now dispatch through `core.execute()` in the reply flow
+- Automatic fallback to FreeformCore if a non-Freeform core's execute() fails
+- Experience data recorded for both success and failure paths
 
-### CoreSelector Auto-Invocation
-- `CoreSelector` code is complete with categorization, experience lookup, fallback scoring
-- `agent.core_selector()` method exists to create a selector
-- **BUT**: Nothing calls `select_core()` at task start -- there is no auto-selection wiring
+### CoreSelector Auto-Invocation -- FIXED (commit b12a665ed6)
+- `CoreSelector` runs before dispatch in `reply()` flow
+- Analyzes incoming task, recommends core, switches when confidence > 0.7
+- Queries ExperienceStore for historical performance data
+- Falls back to suitability scoring when insufficient experience data
 
 ### Pipeline Toggle in Settings
 - Pipeline visualization is working and wired into App.tsx + BaseChat.tsx
@@ -295,15 +296,16 @@ Reflexion, guardrails, cost tracking: NOT feature-gated, always compiled.
 - DoneGate runs shell commands which hang in test environments
 - Workaround: Gate disabled, callbacks handle pass/fail instead
 
-### Learning Stores Never Initialized
-- `init_learning_stores()` is defined but never called
-- All `/experience`, `/skills`, `/insights` commands will report "not initialized" at runtime
-- Non-fatal: agent works without learning stores
+### Learning Stores -- FIXED (commit b12a665ed6)
+- ~~`init_learning_stores()` is defined but never called~~
+- Now lazily initialized on first `reply()` call via `Mutex<Option<Arc<...>>>` pattern
+- `/experience`, `/skills`, `/insights` commands work after first reply
 
-### Core Execution Not Wired
-- Switching cores via `/core structured` changes the registry state
-- But reply flow ignores the active core and always uses `reply_internal()`
-- Users may expect switching cores to change behavior -- it currently does not
+### Core Execution -- FIXED (commit b12a665ed6)
+- ~~Reply flow ignores the active core and always uses `reply_internal()`~~
+- Non-Freeform cores now dispatch through `core.execute()` in the reply flow
+- Automatic fallback to FreeformCore on execution failure
+- CoreSelector auto-invokes before dispatch (switches core when confidence > 0.7)
 
 ### `npm ci` Package Lock Mismatch
 - `npm ci` fails if `package-lock.json` is mismatched with `package.json`
@@ -342,16 +344,17 @@ Reflexion, guardrails, cost tracking: NOT feature-gated, always compiled.
 
 | Backend Feature | What Exists | What's Missing |
 |-----------------|-------------|----------------|
-| ExperienceStore | Full SQLite CRUD, 11 tests | Never initialized; no UI for experience data |
-| SkillLibrary | Full SQLite CRUD, 7 tests | Never initialized; no UI for skill browsing |
-| InsightExtractor | Pattern analysis, 7 tests | Depends on ExperienceStore which is never initialized |
-| CoreSelector | Task categorization + selection, 11 tests | Never auto-invoked; no UI for selection feedback |
-| AgentCoreRegistry | 6 cores registered, hot-swap | Not dispatched in reply flow; `/core` changes state but not behavior |
+| ExperienceStore | Full SQLite CRUD, 11 tests, **lazily initialized** | No UI for experience data (CLI commands `/experience` work) |
+| SkillLibrary | Full SQLite CRUD, 7 tests, **lazily initialized** | No UI for skill browsing (CLI command `/skills` works) |
+| InsightExtractor | Pattern analysis, 7 tests | No UI for insights (CLI command `/insights` works) |
+| CoreSelector | Task categorization + selection, 11 tests, **auto-invoked** | No UI for selection feedback (auto-invokes in reply flow) |
+| AgentCoreRegistry | 6 cores registered, hot-swap, **dispatched in reply flow** | No UI for core metrics (CLI commands `/core` `/cores` work) |
 
 ### Settings Not Persisted
 - localStorage settings in React are NOT synced to the Rust backend API
 - Agent panel mock data is not connected to real SSE/WebSocket feeds
 - Pipeline toggle missing from settings UI
+- SuperGoosePanel data is static/mock (not wired to backend APIs)
 
 ---
 
@@ -382,7 +385,7 @@ Key breakdown:
 | `graph.rs` | 18 |
 | Other modules | ~65 |
 
-**Last verified passing**: 128/128 for core + learning engine modules (`cargo test --lib -p goose -- core::`)
+**Last verified passing**: 139/139 for core + learning engine modules (`cargo test --lib -p goose -- core::` + learning modules)
 
 ### Frontend Vitest Tests
 
@@ -523,13 +526,14 @@ docs/STATUS_COMPLETE_2026-02-12.md          (this file)
    ```
 
 5. **Priority items for next session** (in order):
-   - Wire `init_learning_stores()` to be called at Agent startup (e.g., in `with_config()` or first `reply()`)
-   - Wire core dispatch: make `reply()` delegate to `core_registry.active_core().execute()` when a non-Freeform core is selected
-   - Wire CoreSelector auto-invocation at task start
+   - ~~Wire `init_learning_stores()` to be called at Agent startup~~ -- DONE (commit b12a665ed6)
+   - ~~Wire core dispatch~~ -- DONE (commit b12a665ed6)
+   - ~~Wire CoreSelector auto-invocation at task start~~ -- DONE (commit b12a665ed6)
    - Add pipeline toggle to Settings UI (1 remaining pipeline item)
    - Wire localStorage settings to Rust backend API
    - Run Playwright E2E tests against built app
    - Capture visual regression baselines
+   - Wire 8 Super-Goose panels to real Rust backend API endpoints
 
 6. **Build commands**:
    ```bash
@@ -566,8 +570,8 @@ Agent struct (agent.rs)
 │   ├── WorkflowCore       ← wraps workflow_engine
 │   └── AdversarialCore    ← wraps adversarial/ (Coach/Player)
 │
-├── experience_store: Option<Arc<ExperienceStore>>  [NEVER INITIALIZED]
-├── skill_library: Option<Arc<SkillLibrary>>        [NEVER INITIALIZED]
+├── experience_store: Mutex<Option<Arc<ExperienceStore>>>  [LAZILY INITIALIZED]
+├── skill_library: Mutex<Option<Arc<SkillLibrary>>>        [LAZILY INITIALIZED]
 ├── compaction_manager: Mutex<CompactionManager>     [PARTIALLY WIRED]
 ├── CriticManager, ReflexionAgent, GuardrailsEngine  [WORKING]
 ├── CostTracker, PlanManager, PromptManager          [WORKING]
@@ -593,22 +597,29 @@ Frontend (Electron + React)
 
 **What genuinely works end-to-end**:
 - The original Goose agent loop (reply_internal) with all v1.24.05 features
-- CostTracker, Reflexion (in-memory), Guardrails (warn-only), /model switch, cross-session search, project detection, rate limiting, bookmarks
+- CostTracker, Reflexion (in-memory + SQLite persistent), Guardrails (warn-only), /model switch, cross-session search, project detection, rate limiting, bookmarks
 - Pipeline visualization (real-time, wired to ChatState)
-- All Vitest tests pass for UI components
+- All Vitest tests pass for UI components (2086/2086)
 - All 87 core module tests pass
 - All 52 learning engine tests pass
+- ExperienceStore / SkillLibrary (lazily initialized on first reply)
+- CoreSelector (auto-invoked before dispatch, switches core when confidence > 0.7)
+- Core dispatch (non-Freeform cores dispatch through core.execute(), auto-fallback on failure)
+- Experience data recorded for both success and failure paths (learning loop closed)
 
 **What exists as code but does not execute at runtime**:
-- ExperienceStore / SkillLibrary (never initialized)
-- CoreSelector (never invoked)
-- Core dispatch (cores exist but reply flow ignores them)
 - All UI panels beyond pipeline (no backend endpoints)
 - TimeWarp (no event store)
 - Enterprise settings (no API)
 
+**What was fixed (commit b12a665ed6)**:
+- init_learning_stores() -- Mutex<Option<Arc<...>>> refactor, lazy init in reply(), &self signature
+- Core dispatch in reply() -- non-Freeform cores dispatch through core.execute(), auto-fallback
+- CoreSelector auto-invocation -- runs before dispatch, switches core when confidence > 0.7
+- SuperGoosePanel route -- `/super` route added to App.tsx
+
 **Total test count summary**:
-- Rust: 435+ test markers in agents/ directory alone
-- Vitest: 100+ test files
+- Rust: 139/139 verified passing for core + learning modules (435+ total markers in agents/)
+- Vitest: 2086/2086 frontend tests passing across 100+ test files
 - Playwright: 27 spec files (not yet run against built app)
 - TypeScript: `tsc --noEmit` clean

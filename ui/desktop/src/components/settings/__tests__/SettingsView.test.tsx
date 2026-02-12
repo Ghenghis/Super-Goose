@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 
 // ── Mocks ──────────────────────────────────────────────────────────────────────
 
@@ -33,7 +33,7 @@ vi.mock('../../ui/tabs', () => ({
   Tabs: ({
     children,
     value,
-    onValueChange,
+    onValueChange: _onValueChange,
   }: {
     children: React.ReactNode;
     value: string;

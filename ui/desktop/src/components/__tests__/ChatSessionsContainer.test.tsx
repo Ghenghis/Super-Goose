@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import ChatSessionsContainer from '../ChatSessionsContainer';
-import type { ChatType } from '../../types/chat';
+// ChatType used implicitly by mock typing
 
 // Mock BaseChat entirely since it's a heavy component
 vi.mock('../BaseChat', () => ({

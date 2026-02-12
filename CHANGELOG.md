@@ -5,31 +5,64 @@ All notable changes to Super-Goose will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] - Super-Goose Enhancements (feat/comprehensive-testing)
 
 ### Added
-- 🔄 Complete infrastructure rebranding from block/goose to Ghenghis/Super-Goose
-- ✨ Super-Goose Evolution (EvoAgentX) - Self-improving agent system
-- ✨ Super-Goose Adversarial (Coach/Player) - Dual-agent training system
-- ✨ Super-Goose Team (ALMAS) - Multi-agent collaboration framework
-- 📚 Comprehensive documentation for all new agent systems
-- 🐛 Bug report and feature request issue templates
-- 📖 Contributing guide for fork development
-- 🔐 GitHub Secrets documentation
+- Agentic Core System: 6 swappable execution strategies (Freeform, Structured, Orchestrator, Swarm, Workflow, Adversarial)
+- AgentCoreRegistry with hot-swap via `/core` and `/cores` commands
+- CoreSelector: Auto-selects best core per task using ExperienceStore history + suitability scoring
+- Learning Engine: ExperienceStore (SQLite cross-session learning), InsightExtractor (ExpeL-style), SkillLibrary (Voyager-style)
+- Reflexion persistence: SqliteReflectionStore for cross-session verbal reinforcement learning
+- LLM-powered planning with CriticManager auto-critique after plan creation
+- Pipeline Visualization: Real-time SVG pipeline with quantum particle effects (reads ChatState)
+- Super-Goose 8-Panel Sidebar: Dashboard, Studios, Agents, Marketplace, GPU, Connections, Monitor, Settings
+- sg-* Design Tokens: 60 `--sg-*` CSS custom properties with dual color system scoped to Super-Goose panels
+- `/experience`, `/experience stats`, `/skills`, `/insights` slash commands
+- Core dispatch in Agent::reply() with automatic fallback to FreeformCore on failure
+- CoreSelector auto-invocation before dispatch (switches core when confidence > 0.7)
+- Lazy initialization of learning stores via init_learning_stores() in first reply()
+- Experience data recording for both success and failure paths (learning loop closed)
+- SuperGoosePanel routed at `/super` in App.tsx
+- 87 core unit tests, 52 learning engine tests, 58 pipeline vitest tests, 11 panel vitest tests
 
 ### Changed
-- 🏗️ All GitHub Actions workflows updated to use Ghenghis/Super-Goose
-- 🐳 Container images moved to ghcr.io/ghenghis/super-goose
-- 📦 Desktop app branding updated in package.json and forge.config.ts
-- 🔧 Code signing disabled temporarily (certificate pending approval)
-- 📝 README and documentation links updated to Ghenghis organization
+- Agent struct uses `Mutex<Option<Arc<...>>>` for interior mutability on learning stores
+- `init_learning_stores()` changed from `&mut self` to `&self` with lazy initialization
+- Agent::reply() now dispatches through active core's execute() when non-Freeform core is selected
+- CoreSelector runs before dispatch, auto-switching core based on task categorization
 
 ### Fixed
-- 🐛 21 Rust Clippy warnings across agent modules
-- 🐛 TypeScript type error in autoUpdater.ts
-- 🔄 Upstream sync workflow (now properly syncs from block/goose)
-- 🗑️ Removed SonarQube artifacts (.scannerwork directory)
-- 📋 Git repository cleanup (removed garbage files, committed all changes)
+- 4 critical wiring gaps: init never called, core dispatch missing, CoreSelector not invoked, panel not routed
+- Experience data now recorded for both success and failure paths
+- StructuredCore uses `use_done_gate: false` to prevent test environment hangs
+
+---
+
+## [Unreleased] - Previous Enhancements
+
+### Added
+- Complete infrastructure rebranding from block/goose to Ghenghis/Super-Goose
+- Super-Goose Evolution (EvoAgentX) - Self-improving agent system
+- Super-Goose Adversarial (Coach/Player) - Dual-agent training system
+- Super-Goose Team (ALMAS) - Multi-agent collaboration framework
+- Comprehensive documentation for all new agent systems
+- Bug report and feature request issue templates
+- Contributing guide for fork development
+- GitHub Secrets documentation
+
+### Changed
+- All GitHub Actions workflows updated to use Ghenghis/Super-Goose
+- Container images moved to ghcr.io/ghenghis/super-goose
+- Desktop app branding updated in package.json and forge.config.ts
+- Code signing disabled temporarily (certificate pending approval)
+- README and documentation links updated to Ghenghis organization
+
+### Fixed
+- 21 Rust Clippy warnings across agent modules
+- TypeScript type error in autoUpdater.ts
+- Upstream sync workflow (now properly syncs from block/goose)
+- Removed SonarQube artifacts (.scannerwork directory)
+- Git repository cleanup (removed garbage files, committed all changes)
 
 ### Merged from Upstream (block/goose)
 - Remove clippy too_many_lines lint (b18120bec)

@@ -6,9 +6,6 @@ import {
   trackErrorWithContext,
   trackOnboardingStarted,
   trackOnboardingCompleted,
-  trackOnboardingAbandoned,
-  trackOnboardingProviderSelected,
-  trackOnboardingSetupFailed,
   trackModelChanged,
   trackSettingsTabViewed,
   trackSettingToggled,
@@ -16,18 +13,6 @@ import {
   getErrorType,
   getStackSummary,
   trackExtensionAdded,
-  trackExtensionEnabled,
-  trackExtensionDisabled,
-  trackExtensionDeleted,
-  trackScheduleCreated,
-  trackRecipeCreated,
-  trackFileAttached,
-  trackVoiceDictation,
-  trackModeChanged,
-  trackUpdateCheckStarted,
-  trackUpdateDownloadStarted,
-  trackUpdateDownloadProgress,
-  trackUpdateDownloadCompleted,
 } from '../analytics';
 
 vi.mock('../../api', () => ({

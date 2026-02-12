@@ -156,7 +156,7 @@ describe('ProgressiveMessageList', () => {
 
   it('uses custom renderMessage when provided', () => {
     const messages = [makeUserMessage('u1')];
-    const customRender = (message: Message, index: number) => (
+    const customRender = (message: Message, _index: number) => (
       <div key={message.id} data-testid="custom-render">
         Custom: {message.id}
       </div>

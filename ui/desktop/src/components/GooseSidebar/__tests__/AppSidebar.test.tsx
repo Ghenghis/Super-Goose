@@ -19,7 +19,7 @@ vi.mock('../../ui/collapsible', () => ({
   CollapsibleTrigger: ({ children }: any) => <div>{children}</div>,
 }));
 vi.mock('../../icons', () => ({
-  Gear: ({ className }: any) => <span data-testid="gear-icon" />,
+  Gear: ({ className: _className }: any) => <span data-testid="gear-icon" />,
 }));
 vi.mock('../../../contexts/ChatContext', () => ({
   DEFAULT_CHAT_TITLE: 'New Chat',

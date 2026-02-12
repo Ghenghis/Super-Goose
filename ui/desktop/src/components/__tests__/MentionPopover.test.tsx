@@ -85,7 +85,7 @@ describe('MentionPopover', () => {
   });
 
   it('shows item count when items are found', async () => {
-    const { getSlashCommands } = await import('../../api');
+    const { getSlashCommands: _getSlashCommands } = await import('../../api');
 
     render(<MentionPopover {...defaultProps} isSlashCommand={true} />);
 

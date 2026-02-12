@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { lucideReactMock } from './helpers';
 import { TaskCard, TaskCardGroup } from '../TaskCard';
 import type { TaskCardProps, TaskLog } from '../TaskCard';

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import ChatInput from '../ChatInput';
 import { ChatState } from '../../types/chatState';
 
@@ -154,7 +154,7 @@ beforeEach(() => {
     (f: File) => `/path/${f.name}`
   );
   (window.electron as Record<string, unknown>).logInfo = vi.fn();
-  (window as Record<string, unknown>).appConfig = {
+  (window as unknown as Record<string, unknown>).appConfig = {
     get: vi.fn(() => undefined),
   };
 });
@@ -162,14 +162,10 @@ beforeEach(() => {
 // Tooltip mock
 vi.mock('../ui/Tooltip', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  TooltipTrigger: ({
-    children,
-    asChild,
-    ...props
-  }: {
+  TooltipTrigger: (props: {
     children: React.ReactNode;
     asChild?: boolean;
-  }) => <>{children}</>,
+  }) => <>{props.children}</>,
   TooltipContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="tooltip-content">{children}</div>
   ),

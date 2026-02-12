@@ -13,12 +13,14 @@ import BlockLogoBlack from './icons/block-lockup_black.png';
 import BlockLogoWhite from './icons/block-lockup_white.png';
 import TelemetrySettings from './TelemetrySettings';
 import { trackSettingToggled } from '../../../utils/analytics';
+import { usePipeline } from '../../pipeline';
 
 interface AppSettingsSectionProps {
   scrollToSection?: string;
 }
 
 export default function AppSettingsSection({ scrollToSection }: AppSettingsSectionProps) {
+  const { isVisible: pipelineVisible, setIsVisible: setPipelineVisible } = usePipeline();
   const [menuBarIconEnabled, setMenuBarIconEnabled] = useState(true);
   const [dockIconEnabled, setDockIconEnabled] = useState(true);
   const [wakelockEnabled, setWakelockEnabled] = useState(true);
@@ -266,6 +268,27 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
           <CardDescription>Configure advanced AI agent capabilities</CardDescription>
         </CardHeader>
         <CardContent className="pt-4 space-y-4 px-4">
+          {/* Pipeline Visualization */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-text-default text-xs">Pipeline Visualization</h3>
+              <p className="text-xs text-text-muted max-w-md mt-[2px]">
+                Show real-time agent pipeline with quantum particles and stage tracking
+              </p>
+            </div>
+            <div className="flex items-center">
+              <Switch
+                checked={pipelineVisible}
+                onCheckedChange={(checked: boolean) => {
+                  setPipelineVisible(checked);
+                  trackSettingToggled('pipeline_visualization', checked);
+                }}
+                variant="mono"
+                data-testid="pipeline-toggle"
+              />
+            </div>
+          </div>
+
           {/* Budget Limit */}
           <div className="flex items-center justify-between">
             <div>

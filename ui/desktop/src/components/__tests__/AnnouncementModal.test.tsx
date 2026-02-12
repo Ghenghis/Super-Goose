@@ -1,5 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render } from '@testing-library/react';
 
 // Mock dependencies before importing component
 vi.mock('../ui/BaseModal', () => ({

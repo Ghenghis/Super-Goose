@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { lucideReactMock } from './helpers';
 import { SkillCard } from '../SkillCard';
 import type { SkillToolCall } from '../SkillCard';

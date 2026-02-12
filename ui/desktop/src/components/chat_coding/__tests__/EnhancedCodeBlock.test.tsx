@@ -15,11 +15,11 @@ vi.mock('react-syntax-highlighter/dist/esm/styles/prism', () => ({
 // Mock sub-components to avoid deep dependency issues
 vi.mock('../ContentTypeIndicator', () => ({
   default: (props: any) => <span data-testid="content-type">{props.type}</span>,
-  detectContentType: (path: string) => 'code',
+  detectContentType: (_path: string) => 'code',
 }));
 
 vi.mock('../CodeSearch', () => ({
-  default: (props: any) => <div data-testid="code-search" />,
+  default: (_props: any) => <div data-testid="code-search" />,
 }));
 
 vi.mock('../CodeMinimap', () => ({

@@ -43,7 +43,7 @@ import { Goose } from './icons';
 import EnvironmentBadge from './GooseSidebar/EnvironmentBadge';
 import { SwarmOverview, SwarmProgress, CompactionIndicator, BatchProgressPanel, TaskCardGroup, SkillCard, AgentCommunication, BatchProgress, ChatCodingErrorBoundary } from './chat_coding';
 import type { AgentInfo, TaskCardProps, SkillToolCall, AgentMessage, BatchItem } from './chat_coding';
-import { AnimatedPipeline, usePipelineBridge } from './pipeline';
+import { AnimatedPipeline, usePipelineBridge, usePipeline } from './pipeline';
 
 const CurrentModelContext = createContext<{ model: string; mode: string } | null>(null);
 export const useCurrentModelInfo = () => useContext(CurrentModelContext);
@@ -124,6 +124,7 @@ export default function BaseChat({
   });
 
   // Wire real-time pipeline visualization to actual chat state
+  const { isVisible: pipelineVisible } = usePipeline();
   const latestMsg = messages.length > 0 ? messages[messages.length - 1] : undefined;
   const latestContent = latestMsg?.role === 'assistant'
     ? (typeof latestMsg.content === 'string' ? latestMsg.content : '')
@@ -750,9 +751,11 @@ export default function BaseChat({
         </div>
 
         {/* Real-time pipeline visualization — reads actual ChatState, not mocked */}
-        <div className="px-4 pb-1">
-          <AnimatedPipeline />
-        </div>
+        {pipelineVisible && (
+          <div className="px-4 pb-1">
+            <AnimatedPipeline />
+          </div>
+        )}
 
         <div
           className={`relative z-10 ${disableAnimation ? '' : 'animate-[fadein_400ms_ease-in_forwards]'}`}

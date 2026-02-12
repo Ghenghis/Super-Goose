@@ -6,7 +6,7 @@ import type { FileChange } from '../FileChangeGroup';
 vi.mock('lucide-react', () => lucideReactMock);
 
 vi.mock('../ContentTypeIndicator', () => ({
-  default: (props: any) => <span data-testid="content-type-indicator" />,
+  default: (_props: any) => <span data-testid="content-type-indicator" />,
   detectContentType: () => 'code',
 }));
 

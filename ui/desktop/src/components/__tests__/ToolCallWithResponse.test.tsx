@@ -8,7 +8,7 @@ vi.mock('../ToolCallStatusIndicator', () => ({
   ToolCallStatusIndicator: ({ status }: any) => <div>{status}</div>,
 }));
 vi.mock('../../utils/toolIconMapping', () => ({
-  getToolCallIcon: () => ({ className }: any) => <span data-testid="tool-icon" />,
+  getToolCallIcon: () => ({ className: _className }: any) => <span data-testid="tool-icon" />,
 }));
 vi.mock('../ToolCallArguments', () => ({
   ToolCallArguments: ({ args }: any) => (

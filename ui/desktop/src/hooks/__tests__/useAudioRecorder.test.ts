@@ -62,7 +62,7 @@ describe('useAudioRecorder', () => {
 
   it('calls onError if startRecording fails without enabled', async () => {
     // Disable dictation by making read return null
-    vi.mocked(await import('../../components/ConfigContext')).useConfig = () => ({
+    (vi.mocked(await import('../../components/ConfigContext')) as any).useConfig = () => ({
       read: vi.fn(() => Promise.resolve(null)),
       config: {},
     }) as any;

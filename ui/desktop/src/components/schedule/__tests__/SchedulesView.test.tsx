@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 // ── Mock data ──────────────────────────────────────────────────────────────────
 
@@ -147,7 +147,7 @@ vi.mock('../ScheduleDetailView', () => ({
 }));
 
 vi.mock('../../icons/TrashIcon', () => ({
-  TrashIcon: ({ className }: { className?: string }) => <span data-testid="trash-icon" />,
+  TrashIcon: ({ className: _className }: { className?: string }) => <span data-testid="trash-icon" />,
 }));
 
 vi.mock('lucide-react', () => ({

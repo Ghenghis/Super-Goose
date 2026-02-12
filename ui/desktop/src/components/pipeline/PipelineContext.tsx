@@ -73,7 +73,13 @@ interface PipelineContextValue extends PipelineState {
   syncTokens: (input: number, output: number) => void;
   /** Signal a tool call was made */
   recordToolCall: (toolName: string, stage?: PipelineStage) => void;
+  /** Whether the pipeline visualization is visible */
+  isVisible: boolean;
+  /** Toggle pipeline visibility (persists to localStorage) */
+  setIsVisible: (visible: boolean) => void;
 }
+
+const PIPELINE_VISIBLE_KEY = 'pipeline_visible';
 
 const defaultMetrics = (): Record<PipelineStage, StageMetrics> => ({
   plan: { tokensUsed: 0, toolCalls: 0, duration: 0, status: 'idle' },
@@ -102,6 +108,8 @@ const PipelineCtx = createContext<PipelineContextValue>({
   syncChatState: () => {},
   syncTokens: () => {},
   recordToolCall: () => {},
+  isVisible: true,
+  setIsVisible: () => {},
 });
 
 export const usePipeline = () => useContext(PipelineCtx);
@@ -171,9 +179,30 @@ function spawnParticles(from: PipelineStage, to: PipelineStage, count: number): 
   return particles;
 }
 
+/** Read initial visibility from localStorage (defaults to true) */
+function getInitialVisibility(): boolean {
+  try {
+    const stored = localStorage.getItem(PIPELINE_VISIBLE_KEY);
+    if (stored === 'false') return false;
+    return true;
+  } catch {
+    return true;
+  }
+}
+
 export function PipelineProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<PipelineState>(defaultState);
+  const [isVisible, setIsVisibleState] = useState<boolean>(getInitialVisibility);
   const startTimeRef = useRef<number | null>(null);
+
+  const setIsVisible = useCallback((visible: boolean) => {
+    setIsVisibleState(visible);
+    try {
+      localStorage.setItem(PIPELINE_VISIBLE_KEY, String(visible));
+    } catch {
+      // localStorage may be unavailable in some environments
+    }
+  }, []);
 
   // Animation loop for particles and elapsed time
   useEffect(() => {
@@ -361,6 +390,8 @@ export function PipelineProvider({ children }: { children: React.ReactNode }) {
         syncChatState,
         syncTokens,
         recordToolCall,
+        isVisible,
+        setIsVisible,
       }}
     >
       {children}
