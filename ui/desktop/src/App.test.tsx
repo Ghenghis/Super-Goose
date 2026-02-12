@@ -151,6 +151,52 @@ vi.mock('./components/AnnouncementModal', () => ({
   default: () => null,
 }));
 
+// Mock panel system to avoid rendering real ResizableLayout
+vi.mock('./components/Layout/PanelSystem', () => ({
+  PanelSystemProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  usePanelSystem: () => ({
+    layout: {
+      zones: {
+        left: { panels: ['sidebar'], sizePercent: 15, collapsed: false, visible: true },
+        center: { panels: ['chat'], sizePercent: 85, collapsed: false, visible: true },
+        right: { panels: [], sizePercent: 0, collapsed: true, visible: false },
+        bottom: { panels: ['pipeline'], sizePercent: 25, collapsed: false, visible: true },
+      },
+      presetId: 'standard',
+      locked: true,
+    },
+    isLocked: true,
+    panels: {},
+    presets: [],
+    isPanelVisible: () => true,
+    getPanelZone: () => null,
+    updateZone: vi.fn(),
+    toggleZoneCollapsed: vi.fn(),
+    toggleZoneVisible: vi.fn(),
+    setActivePanel: vi.fn(),
+    movePanel: vi.fn(),
+    togglePanel: vi.fn(),
+    applyPreset: vi.fn(),
+    toggleLocked: vi.fn(),
+    setLocked: vi.fn(),
+    resetLayout: vi.fn(),
+    saveCustomLayout: vi.fn(),
+    handlePanelResize: vi.fn(),
+  }),
+}));
+
+vi.mock('./components/Layout/ResizableLayout', () => ({
+  ResizableLayout: ({ centerContent }: { leftContent?: React.ReactNode; centerContent?: React.ReactNode; bottomPanelComponents?: Record<string, React.ReactNode> }) => (
+    <div data-testid="resizable-layout">{centerContent}</div>
+  ),
+}));
+
+vi.mock('./components/pipeline', () => ({
+  AnimatedPipeline: () => null,
+  usePipeline: () => ({ isVisible: false, isExpanded: false, toggleExpanded: vi.fn() }),
+  PipelineProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 // Create mocks that we can track and configure per test
 const mockNavigate = vi.fn();
 const mockSearchParams = new URLSearchParams();

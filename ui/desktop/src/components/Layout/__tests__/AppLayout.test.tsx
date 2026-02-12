@@ -83,6 +83,66 @@ vi.mock('../../cli/CLIContext', () => ({
   ),
 }));
 
+vi.mock('../PanelSystem', () => ({
+  PanelSystemProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="panel-system-provider">{children}</div>
+  ),
+  usePanelSystem: () => ({
+    layout: {
+      zones: {
+        left: { panels: ['sidebar'], sizePercent: 15, collapsed: false, visible: true },
+        center: { panels: ['chat'], sizePercent: 85, collapsed: false, visible: true },
+        right: { panels: [], sizePercent: 0, collapsed: true, visible: false },
+        bottom: { panels: ['pipeline'], sizePercent: 25, collapsed: false, visible: true },
+      },
+      presetId: 'standard',
+      locked: true,
+    },
+    isLocked: true,
+    panels: {},
+    presets: [],
+    isPanelVisible: () => true,
+    getPanelZone: () => null,
+    updateZone: vi.fn(),
+    toggleZoneCollapsed: vi.fn(),
+    toggleZoneVisible: vi.fn(),
+    setActivePanel: vi.fn(),
+    movePanel: vi.fn(),
+    togglePanel: vi.fn(),
+    applyPreset: vi.fn(),
+    toggleLocked: vi.fn(),
+    setLocked: vi.fn(),
+    resetLayout: vi.fn(),
+    saveCustomLayout: vi.fn(),
+    handlePanelResize: vi.fn(),
+  }),
+}));
+
+vi.mock('../ResizableLayout', () => ({
+  ResizableLayout: ({
+    leftContent,
+    centerContent,
+  }: {
+    leftContent: React.ReactNode;
+    centerContent: React.ReactNode;
+    bottomPanelComponents?: Record<string, React.ReactNode>;
+  }) => (
+    <div data-testid="resizable-layout">
+      <div data-testid="left-zone">{leftContent}</div>
+      <div data-testid="center-zone">{centerContent}</div>
+    </div>
+  ),
+}));
+
+vi.mock('../../pipeline', () => ({
+  AnimatedPipeline: () => <div data-testid="animated-pipeline">Pipeline</div>,
+  usePipeline: () => ({
+    isVisible: true,
+    isExpanded: false,
+    toggleExpanded: vi.fn(),
+  }),
+}));
+
 vi.mock('../../ui/button', () => ({
   Button: ({
     children,
@@ -103,6 +163,34 @@ vi.mock('../../ui/button', () => ({
 vi.mock('lucide-react', () => ({
   AppWindowMac: () => <span data-testid="icon-mac-window" />,
   AppWindow: () => <span data-testid="icon-window" />,
+  // Icons used by PanelRegistry (imported transitively via PanelSystemProvider)
+  PanelLeft: () => <span data-testid="icon-panel-left" />,
+  MessageSquare: () => <span data-testid="icon-message-square" />,
+  Workflow: () => <span data-testid="icon-workflow" />,
+  TerminalSquare: () => <span data-testid="icon-terminal" />,
+  Bot: () => <span data-testid="icon-bot" />,
+  Sparkles: () => <span data-testid="icon-sparkles" />,
+  ScrollText: () => <span data-testid="icon-scroll-text" />,
+  Search: () => <span data-testid="icon-search" />,
+  Bookmark: () => <span data-testid="icon-bookmark" />,
+  // Icons used by PanelLayoutPresets
+  Maximize: () => <span data-testid="icon-maximize" />,
+  Layout: () => <span data-testid="icon-layout" />,
+  LayoutDashboard: () => <span data-testid="icon-layout-dashboard" />,
+  Settings2: () => <span data-testid="icon-settings2" />,
+  // Icons used by PanelToolbar
+  Lock: () => <span data-testid="icon-lock" />,
+  Unlock: () => <span data-testid="icon-unlock" />,
+  ChevronDown: () => <span data-testid="icon-chevron-down" />,
+  Eye: () => <span data-testid="icon-eye" />,
+  EyeOff: () => <span data-testid="icon-eye-off" />,
+  // Icons used by PanelContainer
+  GripVertical: () => <span data-testid="icon-grip-vertical" />,
+  Minimize2: () => <span data-testid="icon-minimize2" />,
+  Maximize2: () => <span data-testid="icon-maximize2" />,
+  X: () => <span data-testid="icon-x" />,
+  // Icons used by BottomZone
+  ChevronUp: () => <span data-testid="icon-chevron-up" />,
 }));
 
 // ── Import component (after mocks) ────────────────────────────────────────────
@@ -145,17 +233,19 @@ describe('AppLayout', () => {
     expect(screen.getByTestId('timewarp-provider')).toBeInTheDocument();
     expect(screen.getByTestId('agent-panel-provider')).toBeInTheDocument();
     expect(screen.getByTestId('cli-provider')).toBeInTheDocument();
+    expect(screen.getByTestId('panel-system-provider')).toBeInTheDocument();
     expect(screen.getByTestId('sidebar-provider')).toBeInTheDocument();
   });
 
-  it('renders the sidebar', () => {
+  it('renders the resizable layout', () => {
     render(<AppLayout {...defaultProps} />);
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('resizable-layout')).toBeInTheDocument();
   });
 
-  it('renders AppSidebar inside the sidebar', () => {
+  it('renders AppSidebar in the left zone', () => {
     render(<AppLayout {...defaultProps} />);
     expect(screen.getByTestId('app-sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('left-zone')).toBeInTheDocument();
   });
 
   it('renders the Outlet for routed content', () => {

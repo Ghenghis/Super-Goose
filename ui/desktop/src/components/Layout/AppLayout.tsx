@@ -4,13 +4,16 @@ import AppSidebar from '../GooseSidebar/AppSidebar';
 import { View, ViewOptions } from '../../utils/navigationUtils';
 import { AppWindowMac, AppWindow } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from '../ui/sidebar';
+import { SidebarProvider, SidebarTrigger, useSidebar } from '../ui/sidebar';
 import ChatSessionsContainer from '../ChatSessionsContainer';
 import { useChatContext } from '../../contexts/ChatContext';
 import { UserInput } from '../../types/message';
 import { TimeWarpProvider, TimeWarpBar } from '../timewarp';
 import { AgentPanelProvider } from '../GooseSidebar/AgentPanelContext';
 import { CLIProvider } from '../cli/CLIContext';
+import { PanelSystemProvider } from './PanelSystem';
+import { ResizableLayout } from './ResizableLayout';
+import { AnimatedPipeline, usePipeline } from '../pipeline';
 
 interface AppLayoutContentProps {
   activeSessions: Array<{
@@ -26,6 +29,7 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
   const { isMobile, openMobile } = useSidebar();
   const chatContext = useChatContext();
   const isOnPairRoute = location.pathname === '/pair';
+  const { isVisible: pipelineVisible } = usePipeline();
 
   if (!chatContext) {
     throw new Error('AppLayoutContent must be used within ChatProvider');
@@ -35,13 +39,11 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
 
   // Calculate padding based on sidebar state and macOS
   const headerPadding = safeIsMacOS ? 'pl-21' : 'pl-4';
-  // const headerPadding = '';
 
   // Hide buttons when mobile sheet is showing
   const shouldHideButtons = isMobile && openMobile;
 
   const setView = (view: View, viewOptions?: ViewOptions) => {
-    // Convert view-based navigation to route-based navigation
     switch (view) {
       case 'chat':
         navigate('/');
@@ -82,7 +84,6 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
   };
 
   const handleSelectSession = async (sessionId: string) => {
-    // Navigate to chat with session data
     navigate('/', { state: { sessionId } });
   };
 
@@ -93,12 +94,13 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
     );
   };
 
-  return (
-    <div className="flex flex-1 w-full min-h-0 relative animate-fade-in">
+  // ── Left zone content (sidebar) ──────────────────────────────────────
+  const leftContent = (
+    <>
       {!shouldHideButtons && (
         <div className={`${headerPadding} absolute top-3 z-100 flex items-center`}>
           <SidebarTrigger
-            className={`no-drag hover:border-border-strong hover:text-text-default hover:!bg-background-medium hover:scale-105`}
+            className="no-drag hover:border-border-strong hover:text-text-default hover:!bg-background-medium hover:scale-105"
           />
           <Button
             onClick={handleNewWindow}
@@ -111,24 +113,47 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
           </Button>
         </div>
       )}
-      <Sidebar variant="inset" collapsible="offcanvas">
-        <AppSidebar
-          onSelectSession={handleSelectSession}
-          setView={setView}
-          currentPath={location.pathname}
-        />
-      </Sidebar>
-      <SidebarInset className="flex flex-col min-h-0">
-        <div className="flex-1 min-h-0 overflow-auto">
-          <Outlet />
-          {/* Always render ChatSessionsContainer to keep SSE connections alive.
-              When navigating away from /pair */}
-          <div className={isOnPairRoute ? 'contents' : 'hidden'}>
-            <ChatSessionsContainer setChat={setChat} activeSessions={activeSessions} />
-          </div>
+      <AppSidebar
+        onSelectSession={handleSelectSession}
+        setView={setView}
+        currentPath={location.pathname}
+      />
+    </>
+  );
+
+  // ── Center zone content (outlet + sessions) ──────────────────────────
+  const centerContent = (
+    <div className="flex flex-col min-h-0 flex-1">
+      <div className="flex-1 min-h-0 overflow-auto">
+        <Outlet />
+        <div className={isOnPairRoute ? 'contents' : 'hidden'}>
+          <ChatSessionsContainer setChat={setChat} activeSessions={activeSessions} />
         </div>
-        <TimeWarpBar />
-      </SidebarInset>
+      </div>
+      <TimeWarpBar />
+    </div>
+  );
+
+  // ── Bottom zone panel components ─────────────────────────────────────
+  const bottomPanelComponents = {
+    pipeline: pipelineVisible ? (
+      <div className="px-4 py-2 h-full">
+        <AnimatedPipeline />
+      </div>
+    ) : (
+      <div className="flex items-center justify-center h-full text-xs text-text-muted">
+        Pipeline hidden — enable in Settings &gt; App
+      </div>
+    ),
+  };
+
+  return (
+    <div className="flex flex-1 w-full min-h-0 relative animate-fade-in">
+      <ResizableLayout
+        leftContent={leftContent}
+        centerContent={centerContent}
+        bottomPanelComponents={bottomPanelComponents}
+      />
     </div>
   );
 };
@@ -145,9 +170,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeSessions }) => {
     <TimeWarpProvider>
       <AgentPanelProvider>
         <CLIProvider>
-          <SidebarProvider>
-            <AppLayoutContent activeSessions={activeSessions} />
-          </SidebarProvider>
+          <PanelSystemProvider>
+            <SidebarProvider>
+              <AppLayoutContent activeSessions={activeSessions} />
+            </SidebarProvider>
+          </PanelSystemProvider>
         </CLIProvider>
       </AgentPanelProvider>
     </TimeWarpProvider>

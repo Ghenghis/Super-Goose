@@ -2,7 +2,7 @@
  * Tests for usePipelineBridge — syncs real ChatState, tokens, tool calls,
  * and message content into the PipelineContext.
  */
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { PipelineProvider, usePipeline } from '../PipelineContext';
 import { usePipelineBridge } from '../usePipelineBridge';
 import { ChatState } from '../../../types/chatState';

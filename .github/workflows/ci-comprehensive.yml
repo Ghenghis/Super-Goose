@@ -228,7 +228,8 @@ jobs:
           cache-dependency-path: ui/desktop/package-lock.json
 
       - name: Install Dependencies
-        run: npm ci
+        # --force: skip platform checks for Windows-only rollup binaries in lockfile
+        run: npm ci --force
         working-directory: ui/desktop
 
       - name: TypeScript strict check (tsc --noEmit)
@@ -269,7 +270,8 @@ jobs:
           cache-dependency-path: ui/desktop/package-lock.json
 
       - name: Install Dependencies
-        run: npm ci
+        # --force: skip platform checks for Windows-only rollup binaries in lockfile
+        run: npm ci --force
         working-directory: ui/desktop
 
       - name: Run Vitest with verbose reporter
