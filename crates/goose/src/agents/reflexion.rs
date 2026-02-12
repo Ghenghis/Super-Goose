@@ -15,6 +15,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
+
+use crate::agents::persistence::SqliteReflectionStore;
 
 /// A single action taken during a task attempt
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -275,14 +278,21 @@ impl Default for ReflexionConfig {
     }
 }
 
-/// Memory store for reflections
+/// Memory store for reflections with optional SQLite persistence.
+///
+/// When a `SqliteReflectionStore` is attached, every `store()` call also
+/// writes to SQLite, and the in-memory indices stay in sync. On startup
+/// with persistence, call `load_from_store()` to rehydrate the in-memory
+/// cache from the database.
 pub struct ReflectionMemory {
-    /// All stored reflections
+    /// All stored reflections (in-memory cache)
     reflections: Vec<Reflection>,
     /// Index by task (for quick lookup)
     task_index: HashMap<String, Vec<usize>>,
     /// Index by tag
     tag_index: HashMap<String, Vec<usize>>,
+    /// Optional SQLite persistence backend
+    sqlite_store: Option<Arc<SqliteReflectionStore>>,
 }
 
 impl ReflectionMemory {
@@ -291,11 +301,67 @@ impl ReflectionMemory {
             reflections: Vec::new(),
             task_index: HashMap::new(),
             tag_index: HashMap::new(),
+            sqlite_store: None,
         }
     }
 
-    /// Store a reflection
+    /// Create with SQLite persistence attached.
+    pub fn with_store(store: Arc<SqliteReflectionStore>) -> Self {
+        Self {
+            reflections: Vec::new(),
+            task_index: HashMap::new(),
+            tag_index: HashMap::new(),
+            sqlite_store: Some(store),
+        }
+    }
+
+    /// Attach a SQLite store after construction.
+    pub fn set_store(&mut self, store: Arc<SqliteReflectionStore>) {
+        self.sqlite_store = Some(store);
+    }
+
+    /// Load all reflections from the SQLite store into memory.
+    /// Call this once on startup to rehydrate the in-memory cache.
+    pub async fn load_from_store(&mut self) -> anyhow::Result<usize> {
+        let store = match &self.sqlite_store {
+            Some(s) => s.clone(),
+            None => return Ok(0),
+        };
+
+        let persisted = store.load_all().await?;
+        let count = persisted.len();
+
+        // Clear and rebuild in-memory indices
+        self.reflections.clear();
+        self.task_index.clear();
+        self.tag_index.clear();
+
+        for reflection in persisted {
+            self.index_and_push(reflection);
+        }
+
+        tracing::info!("Loaded {} reflections from SQLite store", count);
+        Ok(count)
+    }
+
+    /// Store a reflection (in-memory + optional SQLite).
     pub fn store(&mut self, reflection: Reflection) {
+        // Persist to SQLite if available (fire-and-forget async via tokio::spawn)
+        if let Some(store) = &self.sqlite_store {
+            let store = store.clone();
+            let r = reflection.clone();
+            tokio::spawn(async move {
+                if let Err(e) = store.store(&r).await {
+                    tracing::warn!("Failed to persist reflection to SQLite: {}", e);
+                }
+            });
+        }
+
+        self.index_and_push(reflection);
+    }
+
+    /// Internal: add reflection to in-memory storage and build indices.
+    fn index_and_push(&mut self, reflection: Reflection) {
         let idx = self.reflections.len();
 
         // Index by task keywords
@@ -368,11 +434,26 @@ impl ReflectionMemory {
         self.reflections.is_empty()
     }
 
-    /// Clear all reflections
+    /// Clear all reflections (in-memory + SQLite if attached).
     pub fn clear(&mut self) {
         self.reflections.clear();
         self.task_index.clear();
         self.tag_index.clear();
+
+        // Also clear SQLite store if present
+        if let Some(store) = &self.sqlite_store {
+            let store = store.clone();
+            tokio::spawn(async move {
+                if let Err(e) = store.clear().await {
+                    tracing::warn!("Failed to clear SQLite reflection store: {}", e);
+                }
+            });
+        }
+    }
+
+    /// Returns whether SQLite persistence is attached.
+    pub fn has_persistence(&self) -> bool {
+        self.sqlite_store.is_some()
     }
 }
 

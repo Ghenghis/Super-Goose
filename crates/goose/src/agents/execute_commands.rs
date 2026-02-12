@@ -98,6 +98,9 @@ impl Agent {
             }
             "cores" => self.handle_cores_command(session_id).await,
             "core" => self.handle_core_command(&params, session_id).await,
+            "experience" | "exp" => self.handle_experience_command(&params, session_id).await,
+            "skills" => self.handle_skills_command(&params, session_id).await,
+            "insights" => self.handle_insights_command(session_id).await,
             _ => {
                 self.handle_recipe_command(command, params_str, session_id)
                     .await
@@ -546,6 +549,125 @@ impl Agent {
             Err(e) => Ok(Some(Message::assistant().with_text(e))),
         }
     }
+
+    /// Handle /experience command — show cross-session learning data
+    async fn handle_experience_command(
+        &self,
+        params: &[&str],
+        _session_id: &str,
+    ) -> Result<Option<Message>> {
+        let store = match &self.experience_store {
+            Some(s) => s,
+            None => {
+                return Ok(Some(Message::assistant().with_text(
+                    "ExperienceStore not initialized. Cross-session learning is not active.",
+                )));
+            }
+        };
+
+        if params.first() == Some(&"stats") {
+            // /experience stats — per-core aggregate stats
+            let stats = store.get_core_stats().await?;
+            if stats.is_empty() {
+                return Ok(Some(Message::assistant().with_text(
+                    "No experiences recorded yet. Complete some tasks to build experience.",
+                )));
+            }
+            let mut output = String::from("## Core Performance Stats\n\n");
+            output.push_str("| Core | Runs | Success | Avg Turns | Avg Cost | Avg Time |\n");
+            output.push_str("|------|------|---------|-----------|----------|----------|\n");
+            for s in &stats {
+                output.push_str(&format!(
+                    "| {} | {} | {:.0}% | {:.1} | ${:.3} | {:.0}ms |\n",
+                    s.core_type, s.total_executions, s.success_rate * 100.0,
+                    s.avg_turns, s.avg_cost, s.avg_time_ms,
+                ));
+            }
+            return Ok(Some(Message::assistant().with_text(output)));
+        }
+
+        // Default: show recent experiences
+        let recent = store.recent(10).await?;
+        if recent.is_empty() {
+            return Ok(Some(Message::assistant().with_text(
+                "No experiences recorded yet. Complete some tasks to build experience.\n\nUsage:\n  `/experience` — show recent\n  `/experience stats` — per-core stats",
+            )));
+        }
+
+        let mut output = String::from("## Recent Experiences\n\n");
+        for exp in &recent {
+            let status = if exp.succeeded { "OK" } else { "FAIL" };
+            output.push_str(&format!(
+                "- [{}] **{}** — {} core, {} turns, ${:.3}, {}ms\n",
+                status,
+                truncate_str(&exp.task, 60),
+                exp.core_type,
+                exp.turns_used,
+                exp.cost_dollars,
+                exp.time_ms,
+            ));
+        }
+        output.push_str(&format!("\nTotal: {} experiences stored", store.count().await?));
+        Ok(Some(Message::assistant().with_text(output)))
+    }
+
+    /// Handle /skills command — show learned skills
+    async fn handle_skills_command(
+        &self,
+        _params: &[&str],
+        _session_id: &str,
+    ) -> Result<Option<Message>> {
+        let lib = match &self.skill_library {
+            Some(l) => l,
+            None => {
+                return Ok(Some(Message::assistant().with_text(
+                    "SkillLibrary not initialized. Skill learning is not active.",
+                )));
+            }
+        };
+
+        let skills = lib.verified_skills().await?;
+        if skills.is_empty() {
+            return Ok(Some(Message::assistant().with_text(
+                "No verified skills yet. Skills are learned from successful task completions.\n\nUsage: `/skills`",
+            )));
+        }
+
+        let mut output = String::from("## Learned Skills\n\n");
+        for skill in &skills {
+            output.push_str(&format!(
+                "- **{}** ({}): {} — {}/{} uses ({:.0}%)\n",
+                skill.name,
+                skill.recommended_core,
+                truncate_str(&skill.description, 50),
+                skill.use_count,
+                skill.attempt_count,
+                skill.success_rate * 100.0,
+            ));
+        }
+        output.push_str(&format!("\nTotal: {} skills in library", lib.count().await?));
+        Ok(Some(Message::assistant().with_text(output)))
+    }
+
+    /// Handle /insights command — extract and show insights
+    async fn handle_insights_command(&self, _session_id: &str) -> Result<Option<Message>> {
+        let store = match &self.experience_store {
+            Some(s) => s,
+            None => {
+                return Ok(Some(Message::assistant().with_text(
+                    "ExperienceStore not initialized. Run `/experience` for more info.",
+                )));
+            }
+        };
+
+        let insights = super::insight_extractor::InsightExtractor::extract(store).await?;
+        let formatted = super::insight_extractor::InsightExtractor::format_insights(&insights);
+        Ok(Some(Message::assistant().with_text(formatted)))
+    }
+}
+
+fn truncate_str(s: &str, max: usize) -> &str {
+    if s.len() <= max { s } else { &s[..max] }
 }
 
 // ---------------------------------------------------------------------------

@@ -26,6 +26,7 @@ pub mod workflow_core;
 pub mod adversarial_core;
 pub mod registry;
 pub mod metrics;
+pub mod selector;
 
 pub use context::{AgentContext, TaskHint, TaskCategory};
 pub use freeform::FreeformCore;
@@ -36,6 +37,7 @@ pub use workflow_core::WorkflowCore;
 pub use adversarial_core::AdversarialCore;
 pub use registry::AgentCoreRegistry;
 pub use metrics::{CoreMetrics, CoreMetricsSnapshot};
+pub use selector::{CoreSelector, SelectionResult};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -104,6 +106,23 @@ impl CoreType {
             CoreType::Workflow,
             CoreType::Adversarial,
         ]
+    }
+
+    /// Return the lowercase string representation.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CoreType::Freeform => "freeform",
+            CoreType::Structured => "structured",
+            CoreType::Orchestrator => "orchestrator",
+            CoreType::Swarm => "swarm",
+            CoreType::Workflow => "workflow",
+            CoreType::Adversarial => "adversarial",
+        }
+    }
+
+    /// Parse from a string (lenient, lowercase).
+    pub fn from_str(s: &str) -> Self {
+        s.parse::<CoreType>().unwrap_or(CoreType::Freeform)
     }
 }
 

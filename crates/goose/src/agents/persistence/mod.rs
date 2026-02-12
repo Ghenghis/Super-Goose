@@ -15,9 +15,11 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub mod memory;
+pub mod reflection_store;
 pub mod sqlite;
 
 pub use memory::MemoryCheckpointer;
+pub use reflection_store::SqliteReflectionStore;
 pub use sqlite::SqliteCheckpointer;
 
 /// Unique identifier for a checkpoint

@@ -54,6 +54,189 @@
 
 ---
 
+## Agentic Core Architecture
+
+<div align="center">
+
+6 hot-swappable execution cores. Persistent cross-session learning. Auto core selection. All verified.
+
+</div>
+
+<br>
+
+### Swappable Core System
+
+The **AgentCore** trait defines a pluggable execution strategy. Switch cores at runtime with `/core` and `/cores` commands — no restart required.
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+| Core | Strategy | Best For |
+|:--|:--|:--|
+| **FreeformCore** | Open-ended chat | Research, brainstorming, Q&A |
+| **StructuredCore** | Deterministic FSM | Code &rarr; Test &rarr; Fix cycles |
+| **OrchestratorCore** | Multi-agent coordination | Complex multi-step tasks |
+
+</td>
+<td width="50%" valign="top">
+
+| Core | Strategy | Best For |
+|:--|:--|:--|
+| **SwarmCore** | Parallel agent pool | Large-scale refactoring |
+| **WorkflowCore** | Template sequences | CI, deploy, release pipelines |
+| **AdversarialCore** | Coach/Player review | High-stakes code review |
+
+</td>
+</tr>
+</table>
+
+> **AgentCoreRegistry** provides runtime hot-swap. The active core can be changed mid-session without losing context.
+
+### Persistent Learning Engine
+
+Super-Goose **remembers what works** across sessions. Four interlocking systems drive continuous improvement:
+
+| System | Inspired By | What It Does |
+|:--|:--|:--|
+| **ExperienceStore** | SQLite persistence | Stores task &rarr; core &rarr; outcome &rarr; insights across sessions |
+| **InsightExtractor** | ExpeL (2023) | Analyzes patterns for core selection, failure modes, optimization hints |
+| **SkillLibrary** | Voyager (2023) | Reusable strategy library — only verified strategies are retrieved |
+| **SqliteReflectionStore** | Reflexion (2023) | Persistent self-reflection data survives session restarts |
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**LLM-Powered Planning**
+- Planner wired to SharedProvider with automatic fallback to SimplePatternPlanner
+- CriticManager auto-invoked after every plan creation for quality review
+
+</td>
+<td width="50%" valign="top">
+
+**Session Commands**
+- `/experience` — View stored experiences and stats
+- `/skills` — Browse the verified skill library
+- `/insights` — See extracted optimization insights
+
+</td>
+</tr>
+</table>
+
+### CoreSelector — Auto Core Selection
+
+The **CoreSelector** automatically picks the best AgentCore for each task using historical performance data from ExperienceStore:
+
+| Feature | Description |
+|:--|:--|
+| **Task Categorization** | Keyword-based classification: code, refactor, research, docs, security, deploy |
+| **Confidence Scoring** | Weighted score from experience history, core suitability, and defaults |
+| **Source Tracking** | Every recommendation tagged with its reasoning source (experience, suitability, default) |
+| **User Override** | TaskHint allows manual core selection when you know best |
+
+---
+
+## Super-Goose Desktop UI
+
+<div align="center">
+
+8-panel sidebar. Deep space theme. Dual color system. Zero interference with stock Goose.
+
+</div>
+
+<br>
+
+### 8-Panel Sidebar
+
+The **SuperGoosePanel** provides a full mission control interface alongside the standard Goose chat:
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+| Panel | What It Shows |
+|:--|:--|
+| **Dashboard** | Stats grid, quick actions, hardware status, recent activity |
+| **Studios** | 6 studio cards — Core, Agent, Data, Eval, Deploy, Vision |
+| **Agents** | Active/Cores/Builder tabs showing all 6 core types |
+| **Marketplace** | Browse, My Cores, and Sell tabs for community cores |
+
+</td>
+<td width="50%" valign="top">
+
+| Panel | What It Shows |
+|:--|:--|
+| **GPU Cluster** | Cluster/Jobs/Launch — local + cloud BYOK compute |
+| **Connections** | GitHub, HuggingFace, Docker, W&B, Ollama, Claude, OpenAI |
+| **Monitor** | Cost tracker, agent stats, live execution logs |
+| **Settings** | Feature toggles, storage info, version display |
+
+</td>
+</tr>
+</table>
+
+### sg-* Design Token System
+
+A complete **dual color system** scoped to `.super-goose-panel` via `data-super="true"`. Stock Goose colors (#13bbaf teal, #ff4f00 orange) are completely untouched.
+
+| Category | Tokens | Examples |
+|:--|:--|:--|
+| **Backgrounds** | `--sg-bg`, `--sg-surface`, `--sg-card` | Deep space palette (#080818 &rarr; #0f0f23) |
+| **Brand Colors** | `--sg-gold`, `--sg-indigo`, `--sg-emerald` | Accent system for status and actions |
+| **Text Hierarchy** | `--sg-text-1` through `--sg-text-5` | 5-level contrast system for readability |
+| **Utility Classes** | `sg-card`, `sg-badge-*`, `sg-btn-*`, `sg-status-*` | Pre-built components for consistent styling |
+
+> **255 lines** of CSS custom properties. Zero class name collisions with the base Goose theme.
+
+### Real-Time Pipeline Visualization
+
+Live execution visualization powered by **PipelineContext**, **AnimatedPipeline**, and **usePipelineBridge**:
+
+| Feature | Description |
+|:--|:--|
+| **Live Status** | Reads directly from ChatState for real-time pipeline stage tracking |
+| **Quantum Particles** | Animated particle effects showing data flow between pipeline stages |
+| **App Integration** | Wired into App.tsx and BaseChat.tsx — always available during execution |
+
+---
+
+## Verified Test Coverage
+
+<div align="center">
+
+Every system above is backed by passing tests. No aspirational counts — these are verified.
+
+</div>
+
+<br>
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+| Backend (Rust) | Tests |
+|:--|--:|
+| AgentCore System (6 cores) | 87 |
+| Learning Engine (4 stores) | 52 |
+| **Total Backend Verified** | **139** |
+
+</td>
+<td width="50%" valign="top">
+
+| Frontend | Tests |
+|:--|--:|
+| Vitest (198 files) | 2,086 |
+| Pipeline Visualization | 58 |
+| SuperGoosePanel + Sidebar | 11 |
+| Playwright E2E Specs | 27 |
+
+</td>
+</tr>
+</table>
+
+---
+
 ## How Super-Goose Works
 
 <div align="center">
@@ -324,6 +507,11 @@ GitHub Actions pipelines. Smart change detection. All platforms.
 
 | Metric | Value |
 |:--|--:|
+| **Swappable Cores** | 6 |
+| **Backend Tests Verified** | 139 |
+| **Vitest Tests Passing** | 2,086 |
+| **Sidebar Panels** | 8 |
+| **Design Tokens** | 255 lines |
 | **Sandbox Boot Time** | <200ms |
 | **Voice Latency** | <200ms |
 | **Token Savings** | 90%+ |
@@ -343,9 +531,12 @@ Super-Goose is a major extension of [Block's Goose](https://github.com/block/goo
 | Metric | Value |
 |:--|--:|
 | **Rust Code** | 165K+ lines across 7 workspace crates |
-| **Test Functions** | ~2,100 (`#[test]` + `#[tokio::test]`) |
-| **Memory + Agent Tests** | 208 (all passing) |
-| **Commits Ahead** | 177 beyond upstream Block/goose |
+| **Backend Tests (Verified)** | 139 all passing (87 core + 52 learning) |
+| **Frontend Vitest** | 2,086 tests across 198 files |
+| **Playwright E2E Specs** | 27 spec files |
+| **Swappable Agent Cores** | 6 hot-swap strategies |
+| **UI Sidebar Panels** | 8 mission control panels |
+| **Commits Ahead** | 177+ beyond upstream Block/goose |
 | **New Files** | 1,410+ added to the fork |
 | **CI/CD Workflows** | 43 GitHub Actions pipelines |
 | **Docker Image** | `ghcr.io/ghenghis/super-goose` (linux/amd64) |

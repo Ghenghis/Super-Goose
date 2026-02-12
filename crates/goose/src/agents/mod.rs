@@ -8,6 +8,9 @@ pub(crate) mod code_execution_extension;
 pub mod container;
 pub mod core;
 pub mod critic;
+pub mod experience_store;
+pub mod insight_extractor;
+pub mod skill_library;
 pub mod done_gate;
 pub mod dspy_loader;
 pub mod evolution;
@@ -91,6 +94,9 @@ pub use orchestrator::{
     AgentOrchestrator, AgentRole, OrchestratorConfig, TaskPriority, TaskResult, TaskStatus,
     Workflow, WorkflowStatus, WorkflowTask,
 };
+pub use experience_store::{CategoryCoreStats, CoreStats, Experience, ExperienceStore};
+pub use insight_extractor::{Insight, InsightCategory, InsightExtractor};
+pub use skill_library::{Skill, SkillLibrary};
 pub use persistence::{
     Checkpoint, CheckpointConfig, CheckpointId, CheckpointManager, CheckpointMetadata,
     CheckpointSummary, Checkpointer, MemoryCheckpointer, SqliteCheckpointer, ThreadId,
@@ -123,6 +129,7 @@ pub use workflow_engine::{
 };
 pub use core::{
     AdversarialCore, AgentContext, AgentCore, AgentCoreRegistry, CoreCapabilities,
-    CoreMetrics, CoreMetricsSnapshot, CoreOutput, CoreType, FreeformCore,
-    OrchestratorCore, StructuredCore, SwarmCore, TaskCategory, TaskHint, WorkflowCore,
+    CoreMetrics, CoreMetricsSnapshot, CoreOutput, CoreSelector, CoreType, FreeformCore,
+    OrchestratorCore, SelectionResult, StructuredCore, SwarmCore, TaskCategory, TaskHint,
+    WorkflowCore,
 };

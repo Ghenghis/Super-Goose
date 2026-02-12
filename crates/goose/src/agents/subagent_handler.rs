@@ -155,7 +155,11 @@ fn get_agent_messages_with_notifications(
             .clone()
             .unwrap_or_else(|| "Begin.".to_string());
 
-        let agent = Arc::new(Agent::with_config(config));
+        let mut agent = Agent::with_config(config);
+        // Propagate the nesting depth from the parent's task config
+        // so this subagent knows how deep it is in the spawning tree
+        agent.nesting_depth = task_config.nesting_depth;
+        let agent = Arc::new(agent);
 
         agent
             .update_provider(task_config.provider.clone(), &session_id)

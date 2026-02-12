@@ -7,6 +7,10 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
+
+use crate::agents::types::SharedProvider;
+use crate::conversation::message::Message;
 
 /// Status of a plan
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -699,12 +703,15 @@ impl Planner for SimplePatternPlanner {
 pub struct LlmPlanner {
     /// System prompt for plan generation
     system_prompt: String,
+    /// Provider for LLM calls
+    provider: SharedProvider,
 }
 
 impl LlmPlanner {
-    pub fn new() -> Self {
+    pub fn new(provider: SharedProvider) -> Self {
         Self {
             system_prompt: Self::default_system_prompt(),
+            provider,
         }
     }
 
@@ -750,7 +757,6 @@ Output ONLY the JSON, no additional text."#.to_string()
     }
 
     /// Parse the LLM response into a Plan
-    #[cfg(test)]
     fn parse_plan_response(response: &str, goal: &str) -> Result<Plan> {
         // Try to extract JSON from the response
         let json_str = Self::extract_json(response)?;
@@ -802,7 +808,6 @@ Output ONLY the JSON, no additional text."#.to_string()
     }
 
     /// Extract JSON from a response that might contain markdown or other text
-    #[cfg(test)]
     fn extract_json(response: &str) -> Result<String> {
         // First, try to parse the whole response as JSON
         if serde_json::from_str::<serde_json::Value>(response).is_ok() {
@@ -916,34 +921,126 @@ Output the refined plan in the same JSON format."#,
     }
 }
 
-impl Default for LlmPlanner {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[async_trait::async_trait]
 impl Planner for LlmPlanner {
     async fn create_plan(&self, context: &PlanContext) -> Result<Plan> {
-        // This is a placeholder - actual LLM call would happen in the agent
-        // For now, fall back to simple pattern planner
-        let simple = SimplePatternPlanner::new();
-        simple.create_plan(context).await
+        // Try to get the provider for an actual LLM call
+        let provider_guard = self.provider.lock().await;
+        let provider = match provider_guard.as_ref() {
+            Some(p) => Arc::clone(p),
+            None => {
+                tracing::debug!("LlmPlanner: no provider available, falling back to SimplePatternPlanner");
+                drop(provider_guard);
+                let simple = SimplePatternPlanner::new();
+                return simple.create_plan(context).await;
+            }
+        };
+        drop(provider_guard);
+
+        let prompt = self.generate_planning_prompt(context);
+        let user_message = Message::user().with_text(prompt);
+
+        match provider
+            .complete("planning", &self.system_prompt, &[user_message], &[])
+            .await
+        {
+            Ok((response, _usage)) => {
+                // Extract text from the response
+                let response_text = response.as_concat_text();
+                if response_text.is_empty() {
+                    tracing::warn!("LlmPlanner: empty LLM response, falling back to SimplePatternPlanner");
+                    let simple = SimplePatternPlanner::new();
+                    return simple.create_plan(context).await;
+                }
+
+                match Self::parse_plan_response(&response_text, &context.task) {
+                    Ok(plan) => {
+                        tracing::info!(
+                            "LlmPlanner: created plan with {} steps for '{}'",
+                            plan.steps.len(),
+                            truncate_for_log(&context.task, 80)
+                        );
+                        Ok(plan)
+                    }
+                    Err(e) => {
+                        tracing::warn!("LlmPlanner: failed to parse LLM plan response: {}, falling back", e);
+                        let simple = SimplePatternPlanner::new();
+                        simple.create_plan(context).await
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("LlmPlanner: LLM call failed: {}, falling back to SimplePatternPlanner", e);
+                let simple = SimplePatternPlanner::new();
+                simple.create_plan(context).await
+            }
+        }
     }
 
     async fn refine_plan(&self, plan: &Plan, feedback: &str) -> Result<Plan> {
-        // Placeholder - would use LLM in actual implementation
-        let mut refined = plan.clone();
-        refined.notes = Some(format!(
-            "{}. Refined based on: {}",
-            refined.notes.as_deref().unwrap_or(""),
-            feedback
-        ));
-        Ok(refined)
+        // Try to get the provider for an actual LLM call
+        let provider_guard = self.provider.lock().await;
+        let provider = match provider_guard.as_ref() {
+            Some(p) => Arc::clone(p),
+            None => {
+                // Fallback: just add a note
+                let mut refined = plan.clone();
+                refined.notes = Some(format!(
+                    "{}. Refined based on: {}",
+                    refined.notes.as_deref().unwrap_or(""),
+                    feedback
+                ));
+                return Ok(refined);
+            }
+        };
+        drop(provider_guard);
+
+        let prompt = self.generate_refinement_prompt(plan, feedback);
+        let user_message = Message::user().with_text(prompt);
+
+        match provider
+            .complete("planning", &self.system_prompt, &[user_message], &[])
+            .await
+        {
+            Ok((response, _usage)) => {
+                let response_text = response.as_concat_text();
+                match Self::parse_plan_response(&response_text, &plan.goal) {
+                    Ok(refined) => Ok(refined),
+                    Err(_) => {
+                        // Fallback: keep original with note
+                        let mut refined = plan.clone();
+                        refined.notes = Some(format!(
+                            "{}. Refined based on: {}",
+                            refined.notes.as_deref().unwrap_or(""),
+                            feedback
+                        ));
+                        Ok(refined)
+                    }
+                }
+            }
+            Err(_) => {
+                let mut refined = plan.clone();
+                refined.notes = Some(format!(
+                    "{}. Refined based on: {}",
+                    refined.notes.as_deref().unwrap_or(""),
+                    feedback
+                ));
+                Ok(refined)
+            }
+        }
     }
 
     fn name(&self) -> &str {
         "llm_planner"
+    }
+}
+
+/// Truncate string for log output
+fn truncate_for_log(s: &str, max: usize) -> String {
+    if s.len() <= max {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max])
     }
 }
 
@@ -964,6 +1061,16 @@ impl PlanManager {
         Self {
             current_plan: None,
             planner: Box::new(SimplePatternPlanner::new()),
+            enabled: false,
+            require_approval: false,
+        }
+    }
+
+    /// Create with LLM-backed planner that falls back to pattern planner when provider unavailable
+    pub fn with_llm(provider: SharedProvider) -> Self {
+        Self {
+            current_plan: None,
+            planner: Box::new(LlmPlanner::new(provider)),
             enabled: false,
             require_approval: false,
         }
@@ -1254,6 +1361,33 @@ mod tests {
 
         let plan = manager.current_plan().unwrap();
         assert_eq!(plan.status, PlanStatus::Ready);
+    }
+
+    #[tokio::test]
+    async fn test_llm_planner_falls_back_without_provider() {
+        // LlmPlanner with an empty provider should fall back to SimplePatternPlanner
+        let provider: SharedProvider = Arc::new(tokio::sync::Mutex::new(None));
+        let planner = LlmPlanner::new(provider);
+        let context = PlanContext::new("Fix the login bug");
+
+        let plan = planner.create_plan(&context).await.unwrap();
+        assert_eq!(plan.status, PlanStatus::Ready);
+        assert!(!plan.steps.is_empty());
+        // Should get a bug-fix plan from SimplePatternPlanner fallback
+        assert!(plan.steps.iter().any(|s| s.description.contains("bug") || s.description.contains("Understand")));
+    }
+
+    #[tokio::test]
+    async fn test_plan_manager_with_llm() {
+        // PlanManager::with_llm should use LlmPlanner, falling back to pattern planner
+        let provider: SharedProvider = Arc::new(tokio::sync::Mutex::new(None));
+        let mut manager = PlanManager::with_llm(provider);
+        let context = PlanContext::new("Add user authentication");
+        manager.create_plan(&context).await.unwrap();
+        assert!(manager.has_plan());
+        let plan = manager.current_plan().unwrap();
+        assert_eq!(plan.status, PlanStatus::Ready);
+        assert!(!plan.steps.is_empty());
     }
 
     #[test]

@@ -274,6 +274,12 @@ pub struct Agent {
     tool_call_counts: Mutex<HashMap<String, (u32, std::time::Instant)>>,
     /// Swappable agent core registry for hot-swap execution strategies
     pub(crate) core_registry: super::core::AgentCoreRegistry,
+    /// Current nesting depth for subagent spawning (0 = top-level agent)
+    pub(crate) nesting_depth: u32,
+    /// Cross-session experience store for learning which cores work best
+    pub(crate) experience_store: Option<Arc<super::experience_store::ExperienceStore>>,
+    /// Voyager-style skill library for reusable strategies
+    pub(crate) skill_library: Option<Arc<super::skill_library::SkillLibrary>>,
 }
 
 #[derive(Clone, Debug)]
@@ -364,7 +370,7 @@ impl Agent {
             container: Mutex::new(None),
             shell_guard: Mutex::new(None),
             execution_mode: Mutex::new(ExecutionMode::default()),
-            plan_manager: Mutex::new(PlanManager::new()),
+            plan_manager: Mutex::new(PlanManager::with_llm(provider.clone())),
             critic_manager: Mutex::new(CriticManager::with_defaults()),
             last_critique: Mutex::new(None),
             guardrails_engine: Mutex::new(GuardrailsEngine::with_default_detectors()),
@@ -389,6 +395,9 @@ impl Agent {
             )),
             tool_call_counts: Mutex::new(HashMap::new()),
             core_registry: super::core::AgentCoreRegistry::new(),
+            nesting_depth: 0,
+            experience_store: None,
+            skill_library: None,
         }
     }
 
@@ -400,6 +409,72 @@ impl Agent {
     /// Get compaction statistics
     pub async fn compaction_stats(&self) -> crate::compaction::CompactionStats {
         self.compaction_manager.lock().await.stats()
+    }
+
+    /// Initialize the cross-session learning stores (ExperienceStore + SkillLibrary).
+    ///
+    /// This must be called after construction since `with_config()` is synchronous
+    /// but SQLite initialization requires async. Call early in the agent lifecycle
+    /// (e.g., at session start or first reply).
+    ///
+    /// Safe to call multiple times — subsequent calls are no-ops if already initialized.
+    pub async fn init_learning_stores(&mut self) -> Result<()> {
+        // Skip if already initialized
+        if self.experience_store.is_some() && self.skill_library.is_some() {
+            return Ok(());
+        }
+
+        let data_dir = dirs::data_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("super-goose");
+
+        std::fs::create_dir_all(&data_dir).context("Failed to create super-goose data directory")?;
+
+        if self.experience_store.is_none() {
+            let exp_path = data_dir.join("experience.db");
+            match super::experience_store::ExperienceStore::new(&exp_path).await {
+                Ok(store) => {
+                    info!("ExperienceStore initialized at {:?}", exp_path);
+                    self.experience_store = Some(Arc::new(store));
+                }
+                Err(e) => {
+                    warn!("Failed to initialize ExperienceStore at {:?}: {}", exp_path, e);
+                    // Non-fatal: agent works without learning stores
+                }
+            }
+        }
+
+        if self.skill_library.is_none() {
+            let skill_path = data_dir.join("skills.db");
+            match super::skill_library::SkillLibrary::new(&skill_path).await {
+                Ok(lib) => {
+                    info!("SkillLibrary initialized at {:?}", skill_path);
+                    self.skill_library = Some(Arc::new(lib));
+                }
+                Err(e) => {
+                    warn!("Failed to initialize SkillLibrary at {:?}: {}", skill_path, e);
+                    // Non-fatal: agent works without learning stores
+                }
+            }
+        }
+
+        info!("Learning stores initialized at {:?}", data_dir);
+        Ok(())
+    }
+
+    /// Get a reference to the experience store (if initialized).
+    pub fn experience_store(&self) -> Option<&Arc<super::experience_store::ExperienceStore>> {
+        self.experience_store.as_ref()
+    }
+
+    /// Get a reference to the skill library (if initialized).
+    pub fn skill_library(&self) -> Option<&Arc<super::skill_library::SkillLibrary>> {
+        self.skill_library.as_ref()
+    }
+
+    /// Create a CoreSelector wired to the current experience store.
+    pub fn core_selector(&self) -> super::core::selector::CoreSelector {
+        super::core::selector::CoreSelector::with_defaults(self.experience_store.clone())
     }
 
     /// Create a tool inspection manager with default inspectors
@@ -812,7 +887,7 @@ impl Agent {
         self.plan_manager.lock().await.has_plan()
     }
 
-    /// Create a plan for the given task
+    /// Create a plan for the given task, with automatic critic review
     pub async fn create_plan(
         &self,
         task: &str,
@@ -825,6 +900,35 @@ impl Agent {
 
         let mut manager = self.plan_manager.lock().await;
         manager.create_plan(&context).await?;
+
+        // Auto-invoke CriticManager to review the plan quality
+        if let Some(plan) = manager.current_plan() {
+            let plan_summary = plan.format_for_llm();
+            drop(manager); // Release plan_manager lock before acquiring critic lock
+
+            let critique_context = CritiqueContext::new(format!("Plan review for: {}", task))
+                .with_additional_context(plan_summary);
+            let critic = self.critic_manager.lock().await;
+            match critic.critique(&critique_context).await {
+                Ok(result) => {
+                    if result.passed {
+                        tracing::info!("Plan critique passed ({} issues)", result.total_issues);
+                    } else {
+                        tracing::warn!(
+                            "Plan critique found issues: {} total, {} blocking",
+                            result.total_issues,
+                            result.blocking_issues
+                        );
+                    }
+                    *self.last_critique.lock().await = Some(result);
+                }
+                Err(e) => {
+                    tracing::debug!("Plan critique skipped: {}", e);
+                }
+            }
+        } else {
+            drop(manager);
+        }
 
         tracing::info!("Created plan for task: {}", task);
         Ok(())
@@ -1082,16 +1186,32 @@ impl Agent {
         session: &Session,
     ) -> (String, Result<ToolCallResult, ErrorData>) {
         let _tool_start = std::time::Instant::now();
-        // Prevent subagents from creating other subagents
-        if session.session_type == SessionType::SubAgent && tool_call.name == SUBAGENT_TOOL_NAME {
-            return (
-                request_id,
-                Err(ErrorData::new(
-                    ErrorCode::INVALID_REQUEST,
-                    "Subagents cannot create other subagents".to_string(),
-                    None,
-                )),
-            );
+        // Prevent subagent nesting beyond the configured max depth.
+        // The nesting_depth on this agent tracks how deep we are in the subagent tree.
+        // A value of 0 means top-level agent, 1 means first subagent, etc.
+        if tool_call.name == SUBAGENT_TOOL_NAME {
+            let max_depth = std::env::var(
+                crate::agents::subagent_task_config::GOOSE_MAX_NESTING_DEPTH_ENV_VAR,
+            )
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(crate::agents::subagent_task_config::DEFAULT_MAX_NESTING_DEPTH);
+
+            if self.nesting_depth >= max_depth {
+                return (
+                    request_id,
+                    Err(ErrorData::new(
+                        ErrorCode::INVALID_REQUEST,
+                        format!(
+                            "Maximum subagent nesting depth ({}) reached. \
+                             Cannot spawn deeper subagents. \
+                             Set GOOSE_MAX_NESTING_DEPTH to increase the limit.",
+                            max_depth
+                        ),
+                        None,
+                    )),
+                );
+            }
         }
 
         if tool_call.name == PLATFORM_MANAGE_SCHEDULE_TOOL_NAME {
@@ -1151,9 +1271,12 @@ impl Agent {
                 .and_then(|r| r.settings.as_ref())
                 .and_then(|s| s.max_turns);
 
-            let task_config =
+            let mut task_config =
                 TaskConfig::new(provider, &session.id, &session.working_dir, extensions)
                     .with_max_turns(max_turns_from_recipe);
+            // Pass the child's nesting depth (current + 1) so the spawned
+            // subagent knows how deep it is and can enforce the limit.
+            task_config.nesting_depth = self.nesting_depth + 1;
             let sub_recipes = self.sub_recipes.lock().await.clone();
 
             let arguments = tool_call

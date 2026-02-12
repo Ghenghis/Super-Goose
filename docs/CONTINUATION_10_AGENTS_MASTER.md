@@ -52,7 +52,7 @@
 | 1.4 | Wire SwarmCore → parallel agent pool | `agents/core/swarm_core.rs`, `agents/swarm.rs`, `agents/team.rs` | **DONE** (8 tests) |
 | 1.5 | Wire WorkflowCore → template task sequences | `agents/core/workflow_core.rs`, `agents/workflow_engine.rs` | **DONE** (9 tests) |
 | 1.6 | Wire AdversarialCore → Coach/Player review cycle | `agents/core/adversarial_core.rs`, `agents/adversarial/mod.rs` | **DONE** (12 tests) |
-| 1.7 | Remove 1-level subagent nesting limit | `agents/subagent_tool.rs` | TODO |
+| 1.7 | Remove 1-level subagent nesting limit | `agents/subagent_tool.rs`, `agent.rs`, `subagent_handler.rs` | **DONE** (configurable depth, default 10) |
 | 1.8 | Integration tests for each core | NEW: `tests/core_integration_tests.rs` | TODO |
 
 ### Checkpoint Protocol
@@ -78,13 +78,13 @@ Verify: cargo test --lib -p goose -- core::
 
 | # | Task | Files | Status |
 |---|------|-------|--------|
-| 2.1 | Persist Reflexion HashMap → SQLite | `agents/reflexion.rs` | TODO |
-| 2.2 | ExperienceStore (task→core→outcome→insights) | NEW: `agents/experience_store.rs` | TODO |
-| 2.3 | ExpeL-style insight extraction | NEW: `agents/insight_extractor.rs` | TODO |
-| 2.4 | Voyager-style skill library | NEW: `agents/skill_library.rs` | TODO |
-| 2.5 | Wire LLM planner (replace regex fallback) | `agents/planner.rs` | TODO |
-| 2.6 | Auto-invoke CriticManager after plans | `agents/agent.rs` | TODO |
-| 2.7 | `/experience` and `/skills` commands | `agents/execute_commands.rs` | TODO |
+| 2.1 | Persist Reflexion HashMap → SQLite | `agents/reflexion.rs` | **DONE** (7/7 tests) |
+| 2.2 | ExperienceStore (task→core→outcome→insights) | NEW: `agents/experience_store.rs` | **DONE** (11/11 tests) |
+| 2.3 | ExpeL-style insight extraction | NEW: `agents/insight_extractor.rs` | **DONE** (7/7 tests) |
+| 2.4 | Voyager-style skill library | NEW: `agents/skill_library.rs` | **DONE** (7/7 tests) |
+| 2.5 | Wire LLM planner (replace regex fallback) | `agents/planner.rs` | **DONE** (13/13 tests) |
+| 2.6 | Auto-invoke CriticManager after plans | `agents/agent.rs` | **DONE** |
+| 2.7 | `/experience`, `/skills`, `/insights` commands | `agents/execute_commands.rs` | **DONE** |
 | 3.1 | CoreSelector using ExperienceStore | NEW: `agents/core/selector.rs` | TODO |
 | 3.2 | Per-core metrics with SQLite persistence | `agents/core/metrics.rs` | TODO |
 | 3.3 | Auto-select core on task start | `agents/agent.rs` | TODO |

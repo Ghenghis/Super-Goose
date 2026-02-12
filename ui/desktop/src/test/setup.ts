@@ -2,6 +2,9 @@ import '@testing-library/jest-dom';
 import { vi, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
+// Polyfill scrollIntoView for jsdom (not implemented, used by AnimatedPipeline etc.)
+Element.prototype.scrollIntoView = vi.fn();
+
 // Polyfill ResizeObserver for jsdom (required by Radix ScrollArea, etc.)
 globalThis.ResizeObserver = globalThis.ResizeObserver ?? class ResizeObserver {
   observe() {}
