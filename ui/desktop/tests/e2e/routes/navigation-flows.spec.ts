@@ -255,33 +255,27 @@ test.describe('Navigation Flows', () => {
     });
 
     test('sidebar active state updates correctly after rapid navigation', async () => {
-      await navigateToRoute(mainWindow, '#/');
+      // Navigate rapidly between routes using hash navigation
+      // (sidebar buttons may be outside viewport in small windows)
+      await navigateToRoute(mainWindow, '#/search');
+      await navigateToRoute(mainWindow, '#/bookmarks');
 
-      // Open sidebar
-      const trigger = mainWindow.locator('[data-slot="sidebar-trigger"]').first();
-      if (await trigger.isVisible().catch(() => false)) {
-        await trigger.click();
-        await mainWindow.waitForTimeout(500);
-      }
+      // After navigating to bookmarks, verify via hash
+      const hash = await mainWindow.evaluate(() => window.location.hash);
+      expect(hash).toContain('/bookmarks');
 
-      // Navigate to search via sidebar button
+      // The search sidebar button should not be active, bookmarks should be active
       const searchBtn = mainWindow.locator('[data-testid="sidebar-search-button"]');
+      const bookmarksBtn = mainWindow.locator('[data-testid="sidebar-bookmarks-button"]');
+
+      // Check data-active attributes if buttons are in viewport
       if (await searchBtn.isVisible().catch(() => false)) {
-        await searchBtn.click();
-        await mainWindow.waitForTimeout(800);
-
-        // Then navigate to bookmarks via sidebar
-        const bookmarksBtn = mainWindow.locator('[data-testid="sidebar-bookmarks-button"]');
-        if (await bookmarksBtn.isVisible().catch(() => false)) {
-          await bookmarksBtn.click();
-          await mainWindow.waitForTimeout(800);
-
-          // Search should NOT be active, bookmarks SHOULD be active
-          const searchActive = await searchBtn.getAttribute('data-active');
-          const bmActive = await bookmarksBtn.getAttribute('data-active');
-          expect(searchActive).not.toBe('true');
-          expect(bmActive).toBe('true');
-        }
+        const searchActive = await searchBtn.getAttribute('data-active');
+        expect(searchActive).not.toBe('true');
+      }
+      if (await bookmarksBtn.isVisible().catch(() => false)) {
+        const bmActive = await bookmarksBtn.getAttribute('data-active');
+        expect(bmActive).toBe('true');
       }
 
       await takeScreenshot(mainWindow, 'nav-flow-sidebar-active-rapid');

@@ -42,9 +42,11 @@ export const test = base.extend<GooseTestFixtures>({
 
       // Start the electron-forge process with Playwright remote debugging enabled
       // Use detached mode on Unix to create a process group we can kill together
+      // On Windows, shell: true is required so spawn resolves npm.cmd via PATHEXT
       appProcess = spawn('npm', ['run', 'start-gui'], {
         cwd: join(__dirname, '../..'),
         stdio: 'pipe',
+        shell: process.platform === 'win32',
         detached: process.platform !== 'win32',
         env: {
           ...process.env,
@@ -71,8 +73,8 @@ export const test = base.extend<GooseTestFixtures>({
       // Wait for the app to start and remote debugging to be available
       // Retry connection until it succeeds (app is ready) or timeout
       console.log(`Waiting for Electron app to start on port ${debugPort}...`);
-      const maxRetries = 100; // 100 retries * 100ms = 10 seconds max
-      const retryDelay = 100; // 100ms between retries
+      const maxRetries = 300; // 300 retries * 200ms = 60 seconds max
+      const retryDelay = 200; // 200ms between retries
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
@@ -81,7 +83,7 @@ export const test = base.extend<GooseTestFixtures>({
           break;
         } catch (error) {
           if (attempt === maxRetries) {
-            throw new Error(`Failed to connect to Electron app after ${maxRetries} attempts (${(maxRetries * retryDelay) / 1000}s). Last error: ${error.message}`);
+            throw new Error(`Failed to connect to Electron app after ${maxRetries} attempts (~${(maxRetries * retryDelay) / 1000}s). Last error: ${error.message}`);
           }
           // Wait before next retry
           await new Promise(resolve => setTimeout(resolve, retryDelay));

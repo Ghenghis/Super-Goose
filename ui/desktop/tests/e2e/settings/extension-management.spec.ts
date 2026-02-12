@@ -50,40 +50,18 @@ async function navigateToExtensions() {
   // Wait for app ready
   await waitForAppReady(mainWindow);
 
-  // Open Settings
-  await mainWindow.waitForSelector('[data-testid="sidebar-settings-button"]', {
-    timeout: 15000,
-    state: 'visible',
-  });
-  const settingsButton = await mainWindow.waitForSelector(
-    '[data-testid="sidebar-settings-button"]',
-    { timeout: 5000, state: 'visible' },
-  );
-  await settingsButton.click();
-  await mainWindow.waitForSelector('h1:has-text("Settings")', {
-    timeout: 10000,
-    state: 'visible',
-  });
+  // The extensions section lives at its own route /extensions (sidebar nav item)
+  // Try the sidebar button first, then fall back to hash navigation
+  const extButton = mainWindow.locator('[data-testid="sidebar-extensions-button"]');
+  const extBtnVisible = await extButton.isVisible().catch(() => false);
 
-  // The extensions section may live under the Chat tab or be its own route.
-  // First check if there's an "extensions" section visible already; if not,
-  // navigate to the chat tab or try the hash route.
-  let extensionsVisible = await mainWindow.locator('section#extensions').isVisible().catch(() => false);
-
-  if (!extensionsVisible) {
-    // Try the Chat tab (which includes ExtensionsSection in ChatSettingsSection)
-    const chatTab = mainWindow.locator('[data-testid="settings-chat-tab"]');
-    if (await chatTab.isVisible().catch(() => false)) {
-      await chatTab.click();
-      await mainWindow.waitForTimeout(1000);
-      extensionsVisible = await mainWindow.locator('section#extensions').isVisible().catch(() => false);
-    }
-  }
-
-  if (!extensionsVisible) {
-    // Fallback: try direct hash route
+  if (extBtnVisible) {
+    await extButton.click();
+    await mainWindow.waitForTimeout(1500);
+  } else {
+    // Fallback: direct hash navigation
     await mainWindow.evaluate(() => {
-      window.location.hash = '#/settings/extensions';
+      window.location.hash = '#/extensions';
     });
     await mainWindow.waitForTimeout(1500);
   }

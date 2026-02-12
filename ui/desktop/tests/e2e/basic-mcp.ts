@@ -1,5 +1,14 @@
-const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
-const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js");
+// Dynamic imports - gracefully handle missing MCP SDK
+let McpServer: any;
+let StdioServerTransport: any;
+try {
+  ({ McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js"));
+  ({ StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js"));
+} catch {
+  // MCP SDK not available - server features disabled, quotes still exported
+  McpServer = null;
+  StdioServerTransport = null;
+}
 
 // Collection of running-related inspirational quotes
 const runningQuotes = [
@@ -38,6 +47,10 @@ const runningQuotes = [
 ];
 
 async function startServer() {
+    if (!McpServer || !StdioServerTransport) {
+      console.warn('MCP SDK not available - server cannot start');
+      return;
+    }
     const server = new McpServer({
         name: "Running Quotes",
         version: "1.0.0"

@@ -84,8 +84,8 @@ test.describe('CLI Integration Panel', () => {
       console.log(`CLI Integration collapsible trigger visible: ${triggerVisible}`);
 
       if (triggerVisible) {
-        // Click to collapse
-        await trigger.click();
+        // Click to collapse (use force: true to bypass titlebar-drag-region overlay)
+        await trigger.click({ force: true });
         await mainWindow.waitForTimeout(500);
         console.log('Clicked CLI Integration header to collapse');
 
@@ -94,8 +94,8 @@ test.describe('CLI Integration Panel', () => {
         const toggleVisible = await toggleArea.first().isVisible().catch(() => false);
         console.log(`Toggle text visible after collapse: ${toggleVisible}`);
 
-        // Click again to expand
-        await trigger.click();
+        // Click again to expand (use force: true to bypass titlebar-drag-region overlay)
+        await trigger.click({ force: true });
         await mainWindow.waitForTimeout(500);
         console.log('Clicked CLI Integration header to expand');
       }

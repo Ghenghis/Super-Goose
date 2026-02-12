@@ -106,8 +106,10 @@ async function sendMessageAndWait(message: string, timeoutMs = 30000): Promise<s
 test.describe('Chat Complete Workflow', () => {
   test.describe('Chat Input Rendering', () => {
     test('chat input is rendered and visible on main route', async () => {
-      const chatInput = await waitForChatReady();
-      await expect(chatInput).toBeVisible();
+      await waitForChatReady();
+      // Use Locator for toBeVisible() assertion (ElementHandle from waitForSelector doesn't support it)
+      const chatInputLocator = mainWindow.locator('[data-testid="chat-input"]');
+      await expect(chatInputLocator).toBeVisible();
       console.log('Chat input is rendered and visible');
 
       await mainWindow.screenshot({ path: 'test-results/chat-complete-input-visible.png' });

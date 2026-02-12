@@ -210,11 +210,13 @@ test.describe('Settings Sections', () => {
       await clickTab('settings-chat-tab');
       await mainWindow.waitForTimeout(500);
 
-      const responseStyles = mainWindow.locator('text=Response Styles');
+      // Use card-title selector to avoid strict mode collision with test overlay
+      const responseStyles = mainWindow.locator('[data-slot="card-title"]:has-text("Response Styles")');
       await expect(responseStyles).toBeVisible();
 
-      const detailed = mainWindow.locator('text=Detailed');
-      const concise = mainWindow.locator('text=Concise');
+      // Use heading locators to avoid strict mode collision with test overlay / descriptions
+      const detailed = mainWindow.locator('h3:has-text("Detailed")');
+      const concise = mainWindow.locator('h3:has-text("Concise")');
       await expect(detailed).toBeVisible();
       await expect(concise).toBeVisible();
     });
@@ -279,10 +281,12 @@ test.describe('Settings Sections', () => {
       await clickTab('settings-app-tab');
       await mainWindow.waitForTimeout(500);
 
-      const appearance = mainWindow.locator('text=Appearance');
+      // Use card-title selector to avoid strict mode collision with test overlay
+      const appearance = mainWindow.locator('[data-slot="card-title"]:has-text("Appearance")');
       await expect(appearance).toBeVisible();
 
-      const notifications = mainWindow.locator('text=Notifications');
+      // Use heading locator to avoid strict mode collision with description text
+      const notifications = mainWindow.locator('h3:has-text("Notifications")');
       await expect(notifications).toBeVisible();
 
       const menuBar = mainWindow.locator('text=Menu bar icon');
@@ -299,7 +303,8 @@ test.describe('Settings Sections', () => {
       await clickTab('settings-app-tab');
       await mainWindow.waitForTimeout(500);
 
-      const sgTitle = mainWindow.locator('text=Super-Goose Features');
+      // Use card-title selector to avoid strict mode collision with test overlay
+      const sgTitle = mainWindow.locator('[data-slot="card-title"]:has-text("Super-Goose Features")');
       await expect(sgTitle).toBeVisible();
 
       // Feature sub-items
@@ -430,8 +435,8 @@ test.describe('Settings Sections', () => {
       const agenticLabel = mainWindow.locator('text=Agentic Layer');
       await expect(agenticLabel).toBeVisible();
 
-      // Emotion engine
-      const emotionLabel = mainWindow.locator('text=Emotion Engine');
+      // Emotion engine - use h3 to avoid strict mode collision with status text
+      const emotionLabel = mainWindow.locator('h3:has-text("Emotion Engine")');
       await expect(emotionLabel).toBeVisible();
 
       // UI Bridge

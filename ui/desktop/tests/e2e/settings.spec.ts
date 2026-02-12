@@ -385,8 +385,8 @@ test.describe('Settings', () => {
       await mainWindow.waitForTimeout(500);
       await mainWindow.screenshot({ path: 'test-results/settings-app-tab.png' });
 
-      // Should show Appearance card
-      const appearanceTitle = mainWindow.locator('text=Appearance');
+      // Should show Appearance card — CardTitle renders as <div data-slot="card-title">
+      const appearanceTitle = mainWindow.locator('[data-slot="card-title"]:has-text("Appearance")');
       await expect(appearanceTitle).toBeVisible();
       console.log('Appearance section is visible');
     });
@@ -454,7 +454,8 @@ test.describe('Settings', () => {
 
       await mainWindow.waitForTimeout(500);
 
-      const menuBarLabel = mainWindow.locator('text=Menu bar icon');
+      // Use heading role to avoid matching the test overlay text
+      const menuBarLabel = mainWindow.getByRole('heading', { name: 'Menu bar icon' });
       await expect(menuBarLabel).toBeVisible();
       console.log('Menu bar icon toggle is visible');
     });
@@ -465,7 +466,8 @@ test.describe('Settings', () => {
 
       await mainWindow.waitForTimeout(500);
 
-      const preventSleepLabel = mainWindow.locator('text=Prevent Sleep');
+      // Use heading role to avoid matching the test overlay text
+      const preventSleepLabel = mainWindow.getByRole('heading', { name: 'Prevent Sleep' });
       await expect(preventSleepLabel).toBeVisible();
       console.log('Prevent Sleep toggle is visible');
     });
@@ -493,7 +495,8 @@ test.describe('Settings', () => {
 
       await mainWindow.waitForTimeout(500);
 
-      const notificationsLabel = mainWindow.locator('text=Notifications');
+      // Use heading role to avoid matching the test overlay text
+      const notificationsLabel = mainWindow.getByRole('heading', { name: 'Notifications' });
       await expect(notificationsLabel).toBeVisible();
 
       const openSettingsButton = mainWindow.locator('button:has-text("Open Settings")');
