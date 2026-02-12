@@ -33,6 +33,14 @@ static COMMANDS: &[CommandDef] = &[
         name: "clear",
         description: "Clear the conversation history",
     },
+    CommandDef {
+        name: "cores",
+        description: "List all available agent cores with status",
+    },
+    CommandDef {
+        name: "core",
+        description: "Switch active core: /core <name> (freeform, structured, orchestrator, swarm, workflow, adversarial)",
+    },
 ];
 
 pub fn list_commands() -> &'static [CommandDef] {
@@ -88,6 +96,8 @@ impl Agent {
             "bookmark" | "bm" | "checkpoint" => {
                 self.handle_bookmark_command(&params, session_id).await
             }
+            "cores" => self.handle_cores_command(session_id).await,
+            "core" => self.handle_core_command(&params, session_id).await,
             _ => {
                 self.handle_recipe_command(command, params_str, session_id)
                     .await
@@ -491,6 +501,49 @@ impl Agent {
                  - `/memory save` — Persist memories to disk",
                 other
             )))),
+        }
+    }
+
+    /// Handle /cores command — list all available cores with status
+    async fn handle_cores_command(&self, _session_id: &str) -> Result<Option<Message>> {
+        let cores = self.core_registry.list_cores();
+        let active = self.core_registry.active_core_type().await;
+        let output = super::core::registry::format_cores_list(&cores, active);
+        Ok(Some(Message::assistant().with_text(output)))
+    }
+
+    /// Handle /core <name> command — switch active execution core
+    async fn handle_core_command(
+        &self,
+        params: &[&str],
+        _session_id: &str,
+    ) -> Result<Option<Message>> {
+        if params.is_empty() {
+            // No argument: show current core
+            let active = self.core_registry.active_core_type().await;
+            let core = self.core_registry.active_core().await;
+            return Ok(Some(Message::assistant().with_text(format!(
+                "Active core: **{}** — {}\n\nSwitch with: `/core <name>`\nAvailable: freeform, structured, orchestrator, swarm, workflow, adversarial",
+                active, core.description()
+            ))));
+        }
+
+        let core_name = params[0];
+        match core_name.parse::<super::core::CoreType>() {
+            Ok(core_type) => {
+                match self.core_registry.switch_core(core_type).await {
+                    Ok(core) => {
+                        Ok(Some(Message::assistant().with_system_notification(
+                            SystemNotificationType::InlineMessage,
+                            &format!("Switched to **{}** core — {}", core.name(), core.description()),
+                        )))
+                    }
+                    Err(e) => Ok(Some(Message::assistant().with_text(format!(
+                        "Failed to switch core: {}", e
+                    )))),
+                }
+            }
+            Err(e) => Ok(Some(Message::assistant().with_text(e))),
         }
     }
 }

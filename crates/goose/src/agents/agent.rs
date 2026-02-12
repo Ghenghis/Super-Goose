@@ -272,6 +272,8 @@ pub struct Agent {
     compaction_manager: Mutex<crate::compaction::CompactionManager>,
     /// Per-tool rate limiter for runaway loop prevention
     tool_call_counts: Mutex<HashMap<String, (u32, std::time::Instant)>>,
+    /// Swappable agent core registry for hot-swap execution strategies
+    pub(crate) core_registry: super::core::AgentCoreRegistry,
 }
 
 #[derive(Clone, Debug)]
@@ -386,6 +388,7 @@ impl Agent {
                 crate::compaction::CompactionConfig::default(),
             )),
             tool_call_counts: Mutex::new(HashMap::new()),
+            core_registry: super::core::AgentCoreRegistry::new(),
         }
     }
 

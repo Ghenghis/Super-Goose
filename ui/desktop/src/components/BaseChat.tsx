@@ -43,6 +43,7 @@ import { Goose } from './icons';
 import EnvironmentBadge from './GooseSidebar/EnvironmentBadge';
 import { SwarmOverview, SwarmProgress, CompactionIndicator, BatchProgressPanel, TaskCardGroup, SkillCard, AgentCommunication, BatchProgress, ChatCodingErrorBoundary } from './chat_coding';
 import type { AgentInfo, TaskCardProps, SkillToolCall, AgentMessage, BatchItem } from './chat_coding';
+import { AnimatedPipeline, usePipelineBridge } from './pipeline';
 
 const CurrentModelContext = createContext<{ model: string; mode: string } | null>(null);
 export const useCurrentModelInfo = () => useContext(CurrentModelContext);
@@ -120,6 +121,18 @@ export default function BaseChat({
     chatState,
     initialMessage,
     handleSubmit,
+  });
+
+  // Wire real-time pipeline visualization to actual chat state
+  const latestMsg = messages.length > 0 ? messages[messages.length - 1] : undefined;
+  const latestContent = latestMsg?.role === 'assistant'
+    ? (typeof latestMsg.content === 'string' ? latestMsg.content : '')
+    : '';
+  usePipelineBridge({
+    chatState,
+    inputTokens: tokenState?.accumulatedInputTokens ?? 0,
+    outputTokens: tokenState?.accumulatedOutputTokens ?? 0,
+    latestMessageContent: latestContent,
   });
 
   useEffect(() => {
@@ -734,6 +747,11 @@ export default function BaseChat({
               />
             </div>
           )}
+        </div>
+
+        {/* Real-time pipeline visualization — reads actual ChatState, not mocked */}
+        <div className="px-4 pb-1">
+          <AnimatedPipeline />
         </div>
 
         <div

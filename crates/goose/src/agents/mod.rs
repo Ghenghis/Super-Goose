@@ -6,6 +6,7 @@ pub mod capabilities;
 pub(crate) mod chatrecall_extension;
 pub(crate) mod code_execution_extension;
 pub mod container;
+pub mod core;
 pub mod critic;
 pub mod done_gate;
 pub mod dspy_loader;
@@ -119,4 +120,9 @@ pub use workflow_engine::{
     WorkflowArtifact, WorkflowCategory, WorkflowComplexity, WorkflowEngine,
     WorkflowExecutionConfig, WorkflowExecutionStatus, WorkflowResult, WorkflowTaskInfo,
     WorkflowTemplate,
+};
+pub use core::{
+    AdversarialCore, AgentContext, AgentCore, AgentCoreRegistry, CoreCapabilities,
+    CoreMetrics, CoreMetricsSnapshot, CoreOutput, CoreType, FreeformCore,
+    OrchestratorCore, StructuredCore, SwarmCore, TaskCategory, TaskHint, WorkflowCore,
 };
