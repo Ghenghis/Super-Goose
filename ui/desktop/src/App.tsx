@@ -60,6 +60,7 @@ import { CLIIntegrationPanel } from './components/cli';
 import FeatureStatusDashboard from './components/settings/features/FeatureStatusDashboard';
 import ConsciousPanel from './components/conscious/ConsciousPanel';
 import EnterpriseRoutePanel from './components/settings/enterprise/EnterpriseRoutePanel';
+import SuperGoosePanel from './components/super/SuperGoosePanel';
 
 import { useNavigation } from './hooks/useNavigation';
 import { errorMessage } from './utils/conversionUtils';
@@ -718,6 +719,7 @@ export function AppInner() {
               <Route path="features-dashboard" element={<FeatureStatusDashboard />} />
               <Route path="conscious" element={<ConsciousPanel />} />
               <Route path="enterprise" element={<EnterpriseRoutePanel />} />
+              <Route path="super" element={<SuperGoosePanel />} />
             </Route>
           </Routes>
         </div>

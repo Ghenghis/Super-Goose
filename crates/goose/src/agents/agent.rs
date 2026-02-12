@@ -277,9 +277,9 @@ pub struct Agent {
     /// Current nesting depth for subagent spawning (0 = top-level agent)
     pub(crate) nesting_depth: u32,
     /// Cross-session experience store for learning which cores work best
-    pub(crate) experience_store: Option<Arc<super::experience_store::ExperienceStore>>,
+    pub(crate) experience_store: Mutex<Option<Arc<super::experience_store::ExperienceStore>>>,
     /// Voyager-style skill library for reusable strategies
-    pub(crate) skill_library: Option<Arc<super::skill_library::SkillLibrary>>,
+    pub(crate) skill_library: Mutex<Option<Arc<super::skill_library::SkillLibrary>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -396,8 +396,8 @@ impl Agent {
             tool_call_counts: Mutex::new(HashMap::new()),
             core_registry: super::core::AgentCoreRegistry::new(),
             nesting_depth: 0,
-            experience_store: None,
-            skill_library: None,
+            experience_store: Mutex::new(None),
+            skill_library: Mutex::new(None),
         }
     }
 
@@ -418,10 +418,14 @@ impl Agent {
     /// (e.g., at session start or first reply).
     ///
     /// Safe to call multiple times — subsequent calls are no-ops if already initialized.
-    pub async fn init_learning_stores(&mut self) -> Result<()> {
-        // Skip if already initialized
-        if self.experience_store.is_some() && self.skill_library.is_some() {
-            return Ok(());
+    pub async fn init_learning_stores(&self) -> Result<()> {
+        // Skip if already initialized (check via Mutex)
+        {
+            let exp_guard = self.experience_store.lock().await;
+            let skill_guard = self.skill_library.lock().await;
+            if exp_guard.is_some() && skill_guard.is_some() {
+                return Ok(());
+            }
         }
 
         let data_dir = dirs::data_dir()
@@ -430,30 +434,36 @@ impl Agent {
 
         std::fs::create_dir_all(&data_dir).context("Failed to create super-goose data directory")?;
 
-        if self.experience_store.is_none() {
-            let exp_path = data_dir.join("experience.db");
-            match super::experience_store::ExperienceStore::new(&exp_path).await {
-                Ok(store) => {
-                    info!("ExperienceStore initialized at {:?}", exp_path);
-                    self.experience_store = Some(Arc::new(store));
-                }
-                Err(e) => {
-                    warn!("Failed to initialize ExperienceStore at {:?}: {}", exp_path, e);
-                    // Non-fatal: agent works without learning stores
+        {
+            let mut exp_guard = self.experience_store.lock().await;
+            if exp_guard.is_none() {
+                let exp_path = data_dir.join("experience.db");
+                match super::experience_store::ExperienceStore::new(&exp_path).await {
+                    Ok(store) => {
+                        info!("ExperienceStore initialized at {:?}", exp_path);
+                        *exp_guard = Some(Arc::new(store));
+                    }
+                    Err(e) => {
+                        warn!("Failed to initialize ExperienceStore at {:?}: {}", exp_path, e);
+                        // Non-fatal: agent works without learning stores
+                    }
                 }
             }
         }
 
-        if self.skill_library.is_none() {
-            let skill_path = data_dir.join("skills.db");
-            match super::skill_library::SkillLibrary::new(&skill_path).await {
-                Ok(lib) => {
-                    info!("SkillLibrary initialized at {:?}", skill_path);
-                    self.skill_library = Some(Arc::new(lib));
-                }
-                Err(e) => {
-                    warn!("Failed to initialize SkillLibrary at {:?}: {}", skill_path, e);
-                    // Non-fatal: agent works without learning stores
+        {
+            let mut skill_guard = self.skill_library.lock().await;
+            if skill_guard.is_none() {
+                let skill_path = data_dir.join("skills.db");
+                match super::skill_library::SkillLibrary::new(&skill_path).await {
+                    Ok(lib) => {
+                        info!("SkillLibrary initialized at {:?}", skill_path);
+                        *skill_guard = Some(Arc::new(lib));
+                    }
+                    Err(e) => {
+                        warn!("Failed to initialize SkillLibrary at {:?}: {}", skill_path, e);
+                        // Non-fatal: agent works without learning stores
+                    }
                 }
             }
         }
@@ -462,19 +472,20 @@ impl Agent {
         Ok(())
     }
 
-    /// Get a reference to the experience store (if initialized).
-    pub fn experience_store(&self) -> Option<&Arc<super::experience_store::ExperienceStore>> {
-        self.experience_store.as_ref()
+    /// Get a clone of the experience store Arc (if initialized).
+    pub async fn experience_store(&self) -> Option<Arc<super::experience_store::ExperienceStore>> {
+        self.experience_store.lock().await.clone()
     }
 
-    /// Get a reference to the skill library (if initialized).
-    pub fn skill_library(&self) -> Option<&Arc<super::skill_library::SkillLibrary>> {
-        self.skill_library.as_ref()
+    /// Get a clone of the skill library Arc (if initialized).
+    pub async fn skill_library(&self) -> Option<Arc<super::skill_library::SkillLibrary>> {
+        self.skill_library.lock().await.clone()
     }
 
     /// Create a CoreSelector wired to the current experience store.
-    pub fn core_selector(&self) -> super::core::selector::CoreSelector {
-        super::core::selector::CoreSelector::with_defaults(self.experience_store.clone())
+    pub async fn core_selector(&self) -> super::core::selector::CoreSelector {
+        let store = self.experience_store.lock().await.clone();
+        super::core::selector::CoreSelector::with_defaults(store)
     }
 
     /// Create a tool inspection manager with default inspectors
@@ -1657,6 +1668,11 @@ impl Agent {
             }
         }
 
+        // Lazily initialize learning stores on first reply (non-fatal)
+        if let Err(e) = self.init_learning_stores().await {
+            warn!("Failed to initialize learning stores: {}", e);
+        }
+
         let message_text = user_message.as_concat_text();
 
         // Track custom slash command usage (don't track command name for privacy)
@@ -1818,9 +1834,124 @@ impl Agent {
                 }
             };
 
-            let mut reply_stream = self.reply_internal(final_conversation, session_config, session, cancel_token).await?;
-            while let Some(event) = reply_stream.next().await {
-                yield event?;
+            // === Gap 3: Auto-select best core via CoreSelector ===
+            // Only auto-select if the user hasn't explicitly set a core this turn
+            let message_text_for_selection = final_conversation.messages().last()
+                .map(|m: &Message| m.as_concat_text())
+                .unwrap_or_default();
+            let active_core_type = self.core_registry.active_core_type().await;
+
+            // Auto-select core if we have an experience store and task isn't a command
+            if !message_text_for_selection.starts_with('/') {
+                let selector = self.core_selector().await;
+                let hint = super::core::TaskHint::from_message(&message_text_for_selection);
+                let selection = selector.select_with_hint(&hint, Some(&self.core_registry)).await;
+
+                // Only auto-switch if confidence is high enough and it's different from current
+                if selection.confidence > 0.7 && selection.core_type != active_core_type {
+                    if let Ok(_) = self.core_registry.switch_core(selection.core_type).await {
+                        tracing::info!(
+                            "CoreSelector auto-switched: {} → {} (confidence: {:.2}, reason: {})",
+                            active_core_type, selection.core_type, selection.confidence, selection.rationale
+                        );
+                    }
+                }
+            }
+
+            // === Gap 2: Core dispatch — route through active core ===
+            let active_core_type = self.core_registry.active_core_type().await;
+
+            if active_core_type != super::core::CoreType::Freeform {
+                // Non-freeform core: dispatch through core.execute()
+                let core = self.core_registry.active_core().await;
+                tracing::info!("Dispatching through {} core", core.name());
+
+                // Build AgentContext from current Agent state
+                let mut ctx = super::core::AgentContext::new(
+                    self.provider.clone(),
+                    self.extension_manager.clone(),
+                    self.cost_tracker.clone(),
+                    final_conversation.clone(),
+                    session_config.id.clone(),
+                )
+                .with_working_dir(session.working_dir.clone());
+
+                if let Some(ref token) = cancel_token {
+                    ctx = ctx.with_cancel_token(token.clone());
+                }
+
+                let task = message_text_for_selection;
+
+                match core.execute(&mut ctx, &task).await {
+                    Ok(output) => {
+                        // Record experience for learning
+                        if let Some(store) = self.experience_store.lock().await.as_ref() {
+                            let category = super::core::selector::CoreSelector::categorize_task(&task);
+                            if let Err(e) = store.record(
+                                &task,
+                                active_core_type,
+                                output.completed,
+                                &output.metrics,
+                                &category,
+                            ).await {
+                                tracing::warn!("Failed to record experience: {}", e);
+                            }
+                        }
+
+                        // Build response message with core output
+                        let mut response_parts = Vec::new();
+                        response_parts.push(format!("**[{}]** ", core.name()));
+                        response_parts.push(output.summary.clone());
+
+                        if !output.artifacts.is_empty() {
+                            response_parts.push(format!(
+                                "\n\n**Artifacts:** {}",
+                                output.artifacts.join(", ")
+                            ));
+                        }
+
+                        let response_text = response_parts.join("");
+                        let response_message = Message::assistant().with_text(response_text);
+
+                        // Save to session
+                        let session_manager = self.config.session_manager.clone();
+                        session_manager.add_message(&session_config.id, &response_message).await?;
+
+                        yield AgentEvent::Message(response_message);
+                    }
+                    Err(e) => {
+                        // Core execution failed — fall back to FreeformCore (reply_internal)
+                        tracing::warn!(
+                            "{} core failed ({}), falling back to FreeformCore",
+                            core.name(), e
+                        );
+
+                        // Record failure for learning
+                        if let Some(store) = self.experience_store.lock().await.as_ref() {
+                            let category = super::core::selector::CoreSelector::categorize_task(&task);
+                            let failure_metrics = super::core::CoreMetricsSnapshot::default();
+                            let _ = store.record(
+                                &task,
+                                active_core_type,
+                                false,
+                                &failure_metrics,
+                                &category,
+                            ).await;
+                        }
+
+                        // Fall back to reply_internal
+                        let mut reply_stream = self.reply_internal(final_conversation, session_config, session, cancel_token).await?;
+                        while let Some(event) = reply_stream.next().await {
+                            yield event?;
+                        }
+                    }
+                }
+            } else {
+                // FreeformCore (default): use existing reply_internal path
+                let mut reply_stream = self.reply_internal(final_conversation, session_config, session, cancel_token).await?;
+                while let Some(event) = reply_stream.next().await {
+                    yield event?;
+                }
             }
         }))
     }

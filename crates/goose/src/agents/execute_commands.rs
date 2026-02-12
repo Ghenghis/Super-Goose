@@ -556,7 +556,7 @@ impl Agent {
         params: &[&str],
         _session_id: &str,
     ) -> Result<Option<Message>> {
-        let store = match &self.experience_store {
+        let store = match self.experience_store.lock().await.clone() {
             Some(s) => s,
             None => {
                 return Ok(Some(Message::assistant().with_text(
@@ -617,7 +617,7 @@ impl Agent {
         _params: &[&str],
         _session_id: &str,
     ) -> Result<Option<Message>> {
-        let lib = match &self.skill_library {
+        let lib = match self.skill_library.lock().await.clone() {
             Some(l) => l,
             None => {
                 return Ok(Some(Message::assistant().with_text(
@@ -651,7 +651,7 @@ impl Agent {
 
     /// Handle /insights command — extract and show insights
     async fn handle_insights_command(&self, _session_id: &str) -> Result<Option<Message>> {
-        let store = match &self.experience_store {
+        let store = match self.experience_store.lock().await.clone() {
             Some(s) => s,
             None => {
                 return Ok(Some(Message::assistant().with_text(
@@ -660,7 +660,7 @@ impl Agent {
             }
         };
 
-        let insights = super::insight_extractor::InsightExtractor::extract(store).await?;
+        let insights = super::insight_extractor::InsightExtractor::extract(&store).await?;
         let formatted = super::insight_extractor::InsightExtractor::format_insights(&insights);
         Ok(Some(Message::assistant().with_text(formatted)))
     }
