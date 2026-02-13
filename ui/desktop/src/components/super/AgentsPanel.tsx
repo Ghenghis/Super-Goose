@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAgentStream } from '../../hooks/useAgentStream';
 import { SGStatusDot, SGEmptyState } from './shared';
 import { backendApi } from '../../utils/backendApi';
@@ -23,6 +23,41 @@ export default function AgentsPanel() {
     preferredCore: 'freeform',
     priorities: CORE_TYPES.map(c => c.id),
   });
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configMessage, setConfigMessage] = useState<string | null>(null);
+
+  // Load persisted core config on mount
+  useEffect(() => {
+    backendApi.getCoreConfig().then(config => {
+      if (config) {
+        setBuilderConfig({
+          autoSelect: config.auto_select,
+          threshold: config.threshold,
+          preferredCore: config.preferred_core,
+          priorities: config.priorities.length > 0 ? config.priorities : CORE_TYPES.map(c => c.id),
+        });
+      }
+    });
+  }, []);
+
+  const handleSaveConfig = useCallback(async () => {
+    setConfigSaving(true);
+    setConfigMessage(null);
+    const result = await backendApi.setCoreConfig({
+      auto_select: builderConfig.autoSelect,
+      threshold: builderConfig.threshold,
+      preferred_core: builderConfig.preferredCore,
+      priorities: builderConfig.priorities,
+    });
+    if (result?.success) {
+      setConfigMessage('Configuration saved');
+    } else {
+      setConfigMessage(result?.message ?? 'Failed to save configuration');
+    }
+    setConfigSaving(false);
+    // Clear message after 3s
+    setTimeout(() => setConfigMessage(null), 3000);
+  }, [builderConfig]);
 
   const handleSelectCore = useCallback(async (coreId: string) => {
     setSwitching(true);
@@ -246,13 +281,24 @@ export default function AgentsPanel() {
           <button
             className="sg-btn sg-btn-primary w-full"
             style={{ fontSize: '0.8125rem' }}
-            onClick={() => {
-              // TODO: Wire to backend API
-              console.log('Builder config saved:', builderConfig);
-            }}
+            disabled={configSaving}
+            onClick={handleSaveConfig}
           >
-            Save Configuration
+            {configSaving ? 'Saving...' : 'Save Configuration'}
           </button>
+
+          {configMessage && (
+            <div
+              className="text-center"
+              style={{
+                fontSize: '0.75rem',
+                color: configMessage.includes('Failed') ? 'var(--sg-red, #ef4444)' : 'var(--sg-emerald, #34d399)',
+                marginTop: '4px',
+              }}
+            >
+              {configMessage}
+            </div>
+          )}
         </div>
       )}
     </div>

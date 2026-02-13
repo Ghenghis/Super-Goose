@@ -110,6 +110,14 @@ export interface ExtensionInfo {
   description: string;
 }
 
+/** Matches backend `ota_api.rs` CoreAutoConfig. */
+export interface CoreAutoConfig {
+  auto_select: boolean;
+  threshold: number;
+  preferred_core: string;
+  priorities: string[];
+}
+
 export interface SessionSearchResult {
   sessionId: string;
   title: string;
@@ -815,6 +823,34 @@ export const backendApi = {
     } catch (err) {
       console.warn('[backendApi] listCores failed:', err);
       return [];
+    }
+  },
+
+  /** Get the saved core auto-selection configuration. */
+  getCoreConfig: async (): Promise<CoreAutoConfig | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/agent/core-config`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (err) {
+      console.warn('[backendApi] getCoreConfig failed:', err);
+      return null;
+    }
+  },
+
+  /** Save core auto-selection configuration. */
+  setCoreConfig: async (config: CoreAutoConfig): Promise<{ success: boolean; message: string } | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/agent/core-config`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(config),
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (err) {
+      console.warn('[backendApi] setCoreConfig failed:', err);
+      return null;
     }
   },
 

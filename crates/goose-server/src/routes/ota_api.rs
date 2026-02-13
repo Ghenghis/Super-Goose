@@ -579,6 +579,120 @@ async fn list_cores(
 }
 
 // ---------------------------------------------------------------------------
+// Agent Core Configuration (Builder tab persistence)
+// ---------------------------------------------------------------------------
+
+/// Configuration for automatic core selection — persisted to disk.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CoreAutoConfig {
+    /// Whether the system automatically selects the best core for each task.
+    #[serde(default = "default_auto_select")]
+    pub auto_select: bool,
+    /// Confidence threshold (0.1–1.0) for auto-selection.
+    #[serde(default = "default_threshold")]
+    pub threshold: f64,
+    /// Preferred core type when confidence is below threshold.
+    #[serde(default = "default_preferred_core")]
+    pub preferred_core: String,
+    /// Priority ordering of core IDs for selection.
+    #[serde(default = "default_priorities")]
+    pub priorities: Vec<String>,
+}
+
+fn default_auto_select() -> bool { true }
+fn default_threshold() -> f64 { 0.7 }
+fn default_preferred_core() -> String { "freeform".to_string() }
+fn default_priorities() -> Vec<String> {
+    vec![
+        "freeform".to_string(),
+        "structured".to_string(),
+        "orchestrator".to_string(),
+        "swarm".to_string(),
+        "workflow".to_string(),
+        "adversarial".to_string(),
+    ]
+}
+
+impl Default for CoreAutoConfig {
+    fn default() -> Self {
+        Self {
+            auto_select: default_auto_select(),
+            threshold: default_threshold(),
+            preferred_core: default_preferred_core(),
+            priorities: default_priorities(),
+        }
+    }
+}
+
+/// Returns the path to the core-config JSON file.
+fn core_config_path() -> Option<std::path::PathBuf> {
+    dirs::config_dir().map(|d| d.join("goose").join("core-config.json"))
+}
+
+/// GET /api/agent/core-config — load saved core auto-selection config.
+async fn get_core_config() -> Json<CoreAutoConfig> {
+    if let Some(path) = core_config_path() {
+        if path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Ok(config) = serde_json::from_str::<CoreAutoConfig>(&content) {
+                    return Json(config);
+                }
+            }
+        }
+    }
+    Json(CoreAutoConfig::default())
+}
+
+/// POST /api/agent/core-config — save core auto-selection config.
+async fn set_core_config(
+    Json(config): Json<CoreAutoConfig>,
+) -> Json<serde_json::Value> {
+    // Validate threshold range
+    if config.threshold < 0.1 || config.threshold > 1.0 {
+        return Json(serde_json::json!({
+            "success": false,
+            "message": "threshold must be between 0.1 and 1.0",
+        }));
+    }
+
+    if let Some(path) = core_config_path() {
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match serde_json::to_string_pretty(&config) {
+            Ok(json) => match std::fs::write(&path, json) {
+                Ok(_) => {
+                    tracing::info!("Core config saved to {}", path.display());
+                    return Json(serde_json::json!({
+                        "success": true,
+                        "message": "Configuration saved",
+                    }));
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to write core config: {}", e);
+                    return Json(serde_json::json!({
+                        "success": false,
+                        "message": format!("Failed to write config: {}", e),
+                    }));
+                }
+            },
+            Err(e) => {
+                return Json(serde_json::json!({
+                    "success": false,
+                    "message": format!("Serialization error: {}", e),
+                }));
+            }
+        }
+    }
+
+    Json(serde_json::json!({
+        "success": false,
+        "message": "Could not determine config directory",
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -600,6 +714,7 @@ pub fn routes(state: Arc<AppState>) -> Router {
         // Agent core management
         .route("/api/agent/switch-core", post(switch_core))
         .route("/api/agent/cores", get(list_cores))
+        .route("/api/agent/core-config", get(get_core_config).post(set_core_config))
         .with_state(state)
 }
 
@@ -765,5 +880,37 @@ mod tests {
         assert_eq!(json["state"], "half_open");
         assert_eq!(json["consecutive_failures"], 2);
         assert_eq!(json["last_failure"], "2026-02-12T10:50:00Z");
+    }
+
+    #[test]
+    fn test_core_auto_config_serialization() {
+        let config = CoreAutoConfig::default();
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["auto_select"], true);
+        assert_eq!(json["threshold"], 0.7);
+        assert_eq!(json["preferred_core"], "freeform");
+        assert_eq!(json["priorities"].as_array().unwrap().len(), 6);
+        assert_eq!(json["priorities"][0], "freeform");
+        assert_eq!(json["priorities"][5], "adversarial");
+    }
+
+    #[test]
+    fn test_core_auto_config_deserialization() {
+        let input = r#"{"auto_select":false,"threshold":0.3,"preferred_core":"structured","priorities":["structured","freeform"]}"#;
+        let config: CoreAutoConfig = serde_json::from_str(input).unwrap();
+        assert!(!config.auto_select);
+        assert!((config.threshold - 0.3).abs() < 0.01);
+        assert_eq!(config.preferred_core, "structured");
+        assert_eq!(config.priorities.len(), 2);
+    }
+
+    #[test]
+    fn test_core_auto_config_defaults_on_missing_fields() {
+        let input = "{}";
+        let config: CoreAutoConfig = serde_json::from_str(input).unwrap();
+        assert!(config.auto_select);
+        assert!((config.threshold - 0.7).abs() < 0.01);
+        assert_eq!(config.preferred_core, "freeform");
+        assert_eq!(config.priorities.len(), 6);
     }
 }

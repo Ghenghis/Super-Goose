@@ -11,10 +11,14 @@ vi.mock('../../../hooks/useAgentStream', () => ({
 
 const mockSwitchCore = vi.fn();
 const mockListCores = vi.fn();
+const mockGetCoreConfig = vi.fn();
+const mockSetCoreConfig = vi.fn();
 vi.mock('../../../utils/backendApi', () => ({
   backendApi: {
     switchCore: (...args: unknown[]) => mockSwitchCore(...args),
     listCores: (...args: unknown[]) => mockListCores(...args),
+    getCoreConfig: (...args: unknown[]) => mockGetCoreConfig(...args),
+    setCoreConfig: (...args: unknown[]) => mockSetCoreConfig(...args),
   },
 }));
 
@@ -33,6 +37,8 @@ beforeEach(() => {
   defaults();
   mockSwitchCore.mockResolvedValue({ success: true, active_core: 'structured', message: 'Switched' });
   mockListCores.mockResolvedValue([]);
+  mockGetCoreConfig.mockResolvedValue(null); // Default: no saved config
+  mockSetCoreConfig.mockResolvedValue({ success: true, message: 'Configuration saved' });
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -357,5 +363,87 @@ describe('AgentsPanel', () => {
     render(<AgentsPanel />);
 
     expect(screen.getByRole('log', { name: 'Agent events' })).toBeDefined();
+  });
+
+  // -- Builder tab: Config persistence ----------------------------------------
+
+  it('loads saved core config on mount', async () => {
+    mockGetCoreConfig.mockResolvedValue({
+      auto_select: false,
+      threshold: 0.3,
+      preferred_core: 'structured',
+      priorities: ['structured', 'freeform', 'orchestrator', 'swarm', 'workflow', 'adversarial'],
+    });
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Builder' }));
+
+    await waitFor(() => {
+      const slider = screen.getByLabelText('Confidence threshold') as HTMLInputElement;
+      expect(slider.value).toBe('0.3');
+    });
+  });
+
+  it('calls getCoreConfig on mount', () => {
+    render(<AgentsPanel />);
+    expect(mockGetCoreConfig).toHaveBeenCalled();
+  });
+
+  it('calls setCoreConfig when Save is clicked', async () => {
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Builder' }));
+    fireEvent.click(screen.getByText('Save Configuration'));
+
+    await waitFor(() => {
+      expect(mockSetCoreConfig).toHaveBeenCalledTimes(1);
+      expect(mockSetCoreConfig).toHaveBeenCalledWith({
+        auto_select: true,
+        threshold: 0.7,
+        preferred_core: 'freeform',
+        priorities: ['freeform', 'structured', 'orchestrator', 'swarm', 'workflow', 'adversarial'],
+      });
+    });
+  });
+
+  it('shows success message after save', async () => {
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Builder' }));
+    fireEvent.click(screen.getByText('Save Configuration'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Configuration saved')).toBeDefined();
+    });
+  });
+
+  it('shows error message on save failure', async () => {
+    mockSetCoreConfig.mockResolvedValue({ success: false, message: 'Failed to write config' });
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Builder' }));
+    fireEvent.click(screen.getByText('Save Configuration'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to write config')).toBeDefined();
+    });
+  });
+
+  it('disables Save button while saving', async () => {
+    // Make setCoreConfig hang
+    mockSetCoreConfig.mockImplementation(() => new Promise(() => {}));
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Builder' }));
+    fireEvent.click(screen.getByText('Save Configuration'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Saving...')).toBeDefined();
+    });
+  });
+
+  it('uses default config when getCoreConfig returns null', async () => {
+    mockGetCoreConfig.mockResolvedValue(null);
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Builder' }));
+
+    // Default threshold is 0.7
+    const slider = screen.getByLabelText('Confidence threshold') as HTMLInputElement;
+    expect(slider.value).toBe('0.7');
   });
 });

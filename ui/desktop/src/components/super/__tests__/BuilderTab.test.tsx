@@ -12,6 +12,8 @@ vi.mock('../../../utils/backendApi', () => ({
   backendApi: {
     switchCore: vi.fn().mockResolvedValue({ success: true, active_core: 'freeform', message: 'ok' }),
     listCores: vi.fn().mockResolvedValue([]),
+    getCoreConfig: vi.fn().mockResolvedValue(null),
+    setCoreConfig: vi.fn().mockResolvedValue({ success: true, message: 'Configuration saved' }),
   },
 }));
 
