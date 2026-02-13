@@ -297,7 +297,101 @@ jobs:
         working-directory: ui/desktop
 
   # ──────────────────────────────────────────────────────────────────
-  # STAGE 4: Final Status Gate
+  # STAGE 4: Backend E2E Tests (Real Server)
+  # ──────────────────────────────────────────────────────────────────
+  backend-e2e-tests:
+    name: Backend E2E - Real Server
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.rust-changed == 'true' ||
+      needs.detect-changes.outputs.typescript-changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ui/desktop/package-lock.json
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@1780873c7b576612439a134613cc4cc74ce5538c  # v1
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y libdbus-1-dev gnome-keyring libxcb1-dev
+
+      - name: Build goosed backend
+        run: |
+          gnome-keyring-daemon --components=secrets --daemonize --unlock <<< 'test'
+          cargo build --release -p goose-server 2>&1 | tail -5
+          mkdir -p ui/desktop/bin
+          cp target/release/goosed ui/desktop/bin/goosed
+          chmod +x ui/desktop/bin/goosed
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Install Playwright
+        working-directory: ui/desktop
+        run: |
+          npm ci --force
+          npx playwright install --with-deps chromium
+
+      - name: Run backend E2E tests
+        working-directory: ui/desktop
+        run: |
+          # Start goosed in background
+          ../bin/goosed &
+          GOOSED_PID=$!
+          sleep 8
+
+          # Verify backend is up
+          curl --retry 5 --retry-delay 2 --retry-connrefused http://localhost:3284/api/version || true
+
+          # Run backend-dependent E2E tests
+          GOOSE_BACKEND=1 npx playwright test tests/e2e/backend-*.spec.ts \
+            --reporter=list \
+            --max-failures=5 2>&1 | tee backend-e2e-output.txt
+
+          TEST_EXIT=${PIPESTATUS[0]}
+
+          # Cleanup
+          kill $GOOSED_PID 2>/dev/null || true
+          wait $GOOSED_PID 2>/dev/null || true
+
+          exit $TEST_EXIT
+        env:
+          CI: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-e2e-results
+          path: |
+            ui/desktop/test-results/
+            ui/desktop/playwright-report/
+          retention-days: 7
+
+      - name: Summarize results
+        if: always()
+        run: |
+          echo "### Backend E2E Tests (Real Server)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E '(passed|failed|skipped|Running)' ui/desktop/backend-e2e-output.txt | tail -10 >> $GITHUB_STEP_SUMMARY || echo "No test results found" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ──────────────────────────────────────────────────────────────────
+  # STAGE 5: Final Status Gate
   # ──────────────────────────────────────────────────────────────────
   comprehensive-status:
     name: Comprehensive CI Status
@@ -310,6 +404,7 @@ jobs:
       - rust-all-lib-tests
       - typescript-typecheck
       - typescript-vitest
+      - backend-e2e-tests
     if: always()
     steps:
       - name: Check CI Result
@@ -328,6 +423,7 @@ jobs:
           echo "  rust-all-lib-tests:    ${{ needs.rust-all-lib-tests.result }}"
           echo "  typescript-typecheck:  ${{ needs.typescript-typecheck.result }}"
           echo "  typescript-vitest:     ${{ needs.typescript-vitest.result }}"
+          echo "  backend-e2e-tests:    ${{ needs.backend-e2e-tests.result }}"
           echo ""
 
           FAILED=0
@@ -355,6 +451,12 @@ jobs:
                 FAILED=1
               fi
             done
+          fi
+
+          # Check Backend E2E (non-blocking warning only — new job)
+          BE2E="${{ needs.backend-e2e-tests.result }}"
+          if [[ "$BE2E" != "success" && "$BE2E" != "skipped" ]]; then
+            echo "::warning::Backend E2E tests: $BE2E (non-blocking)"
           fi
 
           if [[ "$FAILED" == "1" ]]; then

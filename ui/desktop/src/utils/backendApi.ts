@@ -787,6 +787,38 @@ export const backendApi = {
   },
 
   // -----------------------------------------------------------------------
+  // Agent Core Management
+  // -----------------------------------------------------------------------
+
+  /** Switch the active agent core. */
+  switchCore: async (coreType: string, sessionId = 'default'): Promise<{ success: boolean; active_core: string; message: string } | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/agent/switch-core`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ core_type: coreType, session_id: sessionId }),
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (err) {
+      console.warn('[backendApi] switchCore failed:', err);
+      return null;
+    }
+  },
+
+  /** Get the list of available cores with active status. */
+  listCores: async (): Promise<Array<{ id: string; name: string; description: string; active: boolean }>> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/agent/cores`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (err) {
+      console.warn('[backendApi] listCores failed:', err);
+      return [];
+    }
+  },
+
+  // -----------------------------------------------------------------------
   // Settings
   // -----------------------------------------------------------------------
 

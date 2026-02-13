@@ -447,6 +447,85 @@ async fn ota_restart() -> Json<serde_json::Value> {
 }
 
 // ---------------------------------------------------------------------------
+// Agent Core Management
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct SwitchCoreRequest {
+    pub session_id: Option<String>,
+    pub core_type: String,
+}
+
+#[derive(Serialize)]
+pub struct SwitchCoreResponse {
+    pub success: bool,
+    pub active_core: String,
+    pub message: String,
+}
+
+#[derive(Serialize)]
+pub struct CoreListEntry {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub active: bool,
+}
+
+/// POST /api/agent/switch-core
+async fn switch_core(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<SwitchCoreRequest>,
+) -> Json<SwitchCoreResponse> {
+    let session_id = req.session_id.unwrap_or_else(|| "default".to_string());
+    let agent = get_agent(&state, Some(&session_id)).await;
+
+    if let Some(agent) = agent {
+        match agent.switch_core(&req.core_type).await {
+            Ok((name, desc)) => {
+                return Json(SwitchCoreResponse {
+                    success: true,
+                    active_core: req.core_type.clone(),
+                    message: format!("Switched to {} — {}", name, desc),
+                });
+            }
+            Err(e) => {
+                return Json(SwitchCoreResponse {
+                    success: false,
+                    active_core: agent.active_core_type().await,
+                    message: format!("Failed to switch core: {}", e),
+                });
+            }
+        }
+    }
+
+    Json(SwitchCoreResponse {
+        success: false,
+        active_core: "unknown".to_string(),
+        message: "Agent not available".to_string(),
+    })
+}
+
+/// GET /api/agent/cores
+async fn list_cores(
+    State(state): State<Arc<AppState>>,
+) -> Json<Vec<CoreListEntry>> {
+    let agent = get_agent(&state, None).await;
+
+    if let Some(agent) = agent {
+        let active = agent.active_core_type().await;
+        let cores = agent.list_cores();
+        return Json(cores.into_iter().map(|c| CoreListEntry {
+            active: c.core_type.to_string() == active,
+            id: c.core_type.to_string(),
+            name: c.name.clone(),
+            description: c.description.clone(),
+        }).collect());
+    }
+
+    Json(vec![])
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -464,6 +543,9 @@ pub fn routes(state: Arc<AppState>) -> Router {
         .route("/api/autonomous/start", post(autonomous_start))
         .route("/api/autonomous/stop", post(autonomous_stop))
         .route("/api/autonomous/audit-log", get(autonomous_audit_log))
+        // Agent core management
+        .route("/api/agent/switch-core", post(switch_core))
+        .route("/api/agent/cores", get(list_cores))
         .with_state(state)
 }
 

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAgentStream } from '../../hooks/useAgentStream';
 import { SGStatusDot, SGEmptyState } from './shared';
+import { backendApi } from '../../utils/backendApi';
 
 const CORE_TYPES = [
   { id: 'freeform', name: 'FreeformCore', desc: 'Chat, research, open tasks', color: 'var(--sg-emerald)' },
@@ -14,6 +15,20 @@ const CORE_TYPES = [
 export default function AgentsPanel() {
   const [tab, setTab] = useState<'active' | 'cores' | 'builder'>('active');
   const { events, connected, latestStatus } = useAgentStream();
+  const [activeCore, setActiveCore] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
+
+  const handleSelectCore = useCallback(async (coreId: string) => {
+    setSwitching(true);
+    const result = await backendApi.switchCore(coreId);
+    if (result?.success) {
+      setActiveCore(result.active_core);
+    }
+    setSwitching(false);
+  }, []);
+
+  // Derive active core from SSE stream or local state
+  const currentCore = activeCore ?? (latestStatus?.core_type != null ? String(latestStatus.core_type) : null);
 
   const recentEvents = events.slice(-10).reverse();
 
@@ -51,9 +66,9 @@ export default function AgentsPanel() {
           {/* SSE status indicator */}
           <div className="flex items-center justify-between" aria-label={`Agent stream ${connected ? 'connected' : 'disconnected'}`}>
             <SGStatusDot status={connected ? 'connected' : 'disconnected'} />
-            {latestStatus?.core_type != null && (
+            {currentCore != null && (
               <span className="sg-badge sg-badge-indigo" style={{ fontSize: '0.75rem' }}>
-                {String(latestStatus.core_type)}
+                {currentCore}
               </span>
             )}
           </div>
@@ -87,15 +102,34 @@ export default function AgentsPanel() {
       {tab === 'cores' && (
         <div className="space-y-3" role="tabpanel" id="agents-tabpanel-cores" aria-labelledby="agents-tab-cores">
           <h2 className="sr-only">Available Agent Cores</h2>
-          {CORE_TYPES.map(core => (
-            <div key={core.id} className="sg-card flex items-center justify-between" role="listitem">
-              <div>
-                <div className="font-medium" style={{ color: 'var(--sg-text-1)', fontSize: '0.875rem' }}>{core.name}</div>
-                <div style={{ color: 'var(--sg-text-3)', fontSize: '0.8125rem' }}>{core.desc}</div>
+          {CORE_TYPES.map(core => {
+            const isActive = currentCore === core.id;
+            return (
+              <div
+                key={core.id}
+                className={`sg-card flex items-center justify-between ${isActive ? 'ring-1 ring-emerald-500/50' : ''}`}
+                role="listitem"
+              >
+                <div>
+                  <div className="font-medium flex items-center gap-2" style={{ color: 'var(--sg-text-1)', fontSize: '0.875rem' }}>
+                    {core.name}
+                    {isActive && <span className="text-xs text-emerald-400">(active)</span>}
+                  </div>
+                  <div style={{ color: 'var(--sg-text-3)', fontSize: '0.8125rem' }}>{core.desc}</div>
+                </div>
+                <button
+                  data-testid={`select-core-${core.id}`}
+                  className={`sg-btn ${isActive ? 'sg-btn-ghost opacity-50' : 'sg-btn-ghost'}`}
+                  aria-label={`Select ${core.name}`}
+                  style={{ fontSize: '0.75rem' }}
+                  disabled={isActive || switching}
+                  onClick={() => handleSelectCore(core.id)}
+                >
+                  {isActive ? 'Active' : 'Select'}
+                </button>
               </div>
-              <button className="sg-btn sg-btn-ghost" aria-label={`Select ${core.name}`} style={{ fontSize: '0.75rem' }}>Select</button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

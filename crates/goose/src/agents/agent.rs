@@ -706,6 +706,26 @@ impl Agent {
         super::core::selector::CoreSelector::with_defaults(store)
     }
 
+    /// Switch to a different agent core by type name.
+    ///
+    /// Returns `Ok((name, description))` on success.
+    pub async fn switch_core(&self, core_type_str: &str) -> anyhow::Result<(String, String)> {
+        let core_type: super::core::CoreType = core_type_str.parse()
+            .map_err(|_| anyhow::anyhow!("Unknown core type: {}", core_type_str))?;
+        let core = self.core_registry.switch_core(core_type).await?;
+        Ok((core.name().to_string(), core.description().to_string()))
+    }
+
+    /// Get the currently active core type name.
+    pub async fn active_core_type(&self) -> String {
+        self.core_registry.active_core_type().await.to_string()
+    }
+
+    /// List all available cores with info.
+    pub fn list_cores(&self) -> Vec<super::core::CoreInfo> {
+        self.core_registry.list_cores()
+    }
+
     /// Create a tool inspection manager with default inspectors
     fn create_tool_inspection_manager(
         permission_manager: Arc<PermissionManager>,

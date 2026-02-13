@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AgentsPanel from '../AgentsPanel';
 
 // --- Mocks ----------------------------------------------------------------
@@ -7,6 +7,15 @@ import AgentsPanel from '../AgentsPanel';
 const mockUseAgentStream = vi.fn();
 vi.mock('../../../hooks/useAgentStream', () => ({
   useAgentStream: (...args: unknown[]) => mockUseAgentStream(...args),
+}));
+
+const mockSwitchCore = vi.fn();
+const mockListCores = vi.fn();
+vi.mock('../../../utils/backendApi', () => ({
+  backendApi: {
+    switchCore: (...args: unknown[]) => mockSwitchCore(...args),
+    listCores: (...args: unknown[]) => mockListCores(...args),
+  },
 }));
 
 // --- Helpers ---------------------------------------------------------------
@@ -20,7 +29,11 @@ function defaults() {
   });
 }
 
-beforeEach(() => defaults());
+beforeEach(() => {
+  defaults();
+  mockSwitchCore.mockResolvedValue({ success: true, active_core: 'structured', message: 'Switched' });
+  mockListCores.mockResolvedValue([]);
+});
 afterEach(() => vi.restoreAllMocks());
 
 // --- Tests -----------------------------------------------------------------
@@ -195,6 +208,97 @@ describe('AgentsPanel', () => {
     expect(screen.getByRole('button', { name: 'Select SwarmCore' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'Select WorkflowCore' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'Select AdversarialCore' })).toBeDefined();
+  });
+
+  // -- Core selection (wiring) -----------------------------------------------
+  it('calls switchCore when Select button is clicked', async () => {
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select StructuredCore' }));
+
+    await waitFor(() => {
+      expect(mockSwitchCore).toHaveBeenCalledWith('structured');
+    });
+  });
+
+  it('updates active core after successful switch', async () => {
+    mockSwitchCore.mockResolvedValue({ success: true, active_core: 'structured', message: 'Switched' });
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select StructuredCore' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('(active)')).toBeDefined();
+    });
+  });
+
+  it('shows Active label on button after core is selected', async () => {
+    mockSwitchCore.mockResolvedValue({ success: true, active_core: 'freeform', message: 'Switched' });
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select FreeformCore' }));
+
+    await waitFor(() => {
+      const btn = screen.getByTestId('select-core-freeform');
+      expect(btn.textContent).toBe('Active');
+    });
+  });
+
+  it('does not update core on failed switch', async () => {
+    mockSwitchCore.mockResolvedValue({ success: false, active_core: 'unknown', message: 'Error' });
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select SwarmCore' }));
+
+    await waitFor(() => {
+      expect(mockSwitchCore).toHaveBeenCalledWith('swarm');
+    });
+
+    // All buttons should still say Select (no active core)
+    const selectButtons = screen.getAllByRole('button', { name: /Select/ });
+    expect(selectButtons.length).toBe(6);
+  });
+
+  it('does not update core when switchCore returns null', async () => {
+    mockSwitchCore.mockResolvedValue(null);
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select OrchestratorCore' }));
+
+    await waitFor(() => {
+      expect(mockSwitchCore).toHaveBeenCalledWith('orchestrator');
+    });
+
+    // All buttons should still say Select
+    const selectButtons = screen.getAllByRole('button', { name: /Select/ });
+    expect(selectButtons.length).toBe(6);
+  });
+
+  it('disables selected core button after activation', async () => {
+    mockSwitchCore.mockResolvedValue({ success: true, active_core: 'adversarial', message: 'Switched' });
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select AdversarialCore' }));
+
+    await waitFor(() => {
+      const btn = screen.getByTestId('select-core-adversarial');
+      expect(btn).toHaveProperty('disabled', true);
+    });
+  });
+
+  it('derives active core from SSE latestStatus on Cores tab', () => {
+    mockUseAgentStream.mockReturnValue({
+      events: [],
+      connected: true,
+      latestStatus: { type: 'AgentStatus', core_type: 'workflow' },
+      clearEvents: vi.fn(),
+    });
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }));
+
+    const btn = screen.getByTestId('select-core-workflow');
+    expect(btn.textContent).toBe('Active');
+    expect(btn).toHaveProperty('disabled', true);
   });
 
   // -- Builder tab ----------------------------------------------------------
