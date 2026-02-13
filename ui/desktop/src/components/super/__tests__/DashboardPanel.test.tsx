@@ -4,32 +4,22 @@ import DashboardPanel from '../DashboardPanel';
 
 // --- Mocks ----------------------------------------------------------------
 
-const mockUseSuperGooseData = vi.fn();
-vi.mock('../../../hooks/useSuperGooseData', () => ({
-  useSuperGooseData: (...args: unknown[]) => mockUseSuperGooseData(...args),
-}));
-
-const mockUseAgentStream = vi.fn();
-vi.mock('../../../hooks/useAgentStream', () => ({
-  useAgentStream: (...args: unknown[]) => mockUseAgentStream(...args),
+const mockUseAgUi = vi.fn();
+vi.mock('../../../ag-ui/useAgUi', () => ({
+  useAgUi: (...args: unknown[]) => mockUseAgUi(...args),
 }));
 
 // --- Helpers ---------------------------------------------------------------
 
 function defaults() {
-  mockUseSuperGooseData.mockReturnValue({
-    learningStats: null,
-    costSummary: null,
-    autonomousStatus: null,
-    otaStatus: null,
-    loading: false,
-    refresh: vi.fn(),
-  });
-  mockUseAgentStream.mockReturnValue({
-    events: [],
+  mockUseAgUi.mockReturnValue({
     connected: false,
-    latestStatus: null,
-    clearEvents: vi.fn(),
+    isRunning: false,
+    agentState: {},
+    pendingApprovals: [],
+    activities: [],
+    approveToolCall: vi.fn(),
+    rejectToolCall: vi.fn(),
   });
 }
 
@@ -41,40 +31,48 @@ afterEach(() => vi.restoreAllMocks());
 describe('DashboardPanel', () => {
   // -- Loading state --------------------------------------------------------
   it('shows loading placeholders when data is loading', () => {
-    mockUseSuperGooseData.mockReturnValue({
-      learningStats: null,
-      costSummary: null,
-      autonomousStatus: null,
-      otaStatus: null,
-      loading: true,
-      refresh: vi.fn(),
-    });
+    // connected=false → loading=true → all metrics show "..."
     render(<DashboardPanel />);
 
-    // All four metric cards should display "..."
     const dots = screen.getAllByText('...');
     expect(dots.length).toBe(4);
   });
 
   // -- Populated data -------------------------------------------------------
-  it('renders metric values from useSuperGooseData when loaded', () => {
-    mockUseSuperGooseData.mockReturnValue({
-      learningStats: { success_rate: 0.85, total_experiences: 10, total_skills: 5, verified_skills: 2, total_insights: 3, experiences_by_core: {} },
-      costSummary: { session_spend: 1.23, total_spend: 4.56, budget_limit: null, budget_remaining: null, budget_warning_threshold: 0.8, is_over_budget: false, model_breakdown: [] },
-      autonomousStatus: { running: true, uptime_seconds: 3600, tasks_completed: 5, tasks_failed: 2, circuit_breaker: { state: 'closed', consecutive_failures: 0, max_failures: 5, last_failure: null }, current_task: null },
-      otaStatus: null,
-      loading: false,
-      refresh: vi.fn(),
+  it('renders metric values from agentState when connected', () => {
+    mockUseAgUi.mockReturnValue({
+      connected: true,
+      isRunning: false,
+      agentState: {
+        autonomous_running: true,
+        tasks_completed: 5,
+        tasks_failed: 2,
+        session_spend: 1.23,
+        success_rate: 0.85,
+      },
+      pendingApprovals: [],
+      activities: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
     });
     render(<DashboardPanel />);
 
     expect(screen.getByText('1')).toBeDefined();      // Active Agents (running=true)
-    expect(screen.getByText('7')).toBeDefined();       // Tasks Today
+    expect(screen.getByText('7')).toBeDefined();       // Tasks Today (5+2)
     expect(screen.getByText('$1.23')).toBeDefined();   // Session Cost
     expect(screen.getByText('85%')).toBeDefined();     // Success Rate
   });
 
   it('displays N/A for metrics when backend data is null', () => {
+    mockUseAgUi.mockReturnValue({
+      connected: true,
+      isRunning: false,
+      agentState: {},
+      pendingApprovals: [],
+      activities: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
+    });
     render(<DashboardPanel />);
 
     const naElements = screen.getAllByText('N/A');
@@ -111,31 +109,36 @@ describe('DashboardPanel', () => {
     expect(screen.getByText('No recent activity')).toBeDefined();
   });
 
-  // -- Recent Activity (with events) ----------------------------------------
-  it('renders recent events from useAgentStream', () => {
-    mockUseAgentStream.mockReturnValue({
-      events: [
-        { type: 'ToolCalled', tool_name: 'developer' },
-        { type: 'AgentStatus', core_type: 'FreeformCore' },
-      ],
+  // -- Recent Activity (with activities) ------------------------------------
+  it('renders recent activities from useAgUi', () => {
+    mockUseAgUi.mockReturnValue({
       connected: true,
-      latestStatus: null,
-      clearEvents: vi.fn(),
+      isRunning: false,
+      agentState: {},
+      pendingApprovals: [],
+      activities: [
+        { id: 'a-1', message: 'Task started', level: 'info', timestamp: Date.now() - 2000 },
+        { id: 'a-2', message: 'Core switched to StructuredCore', level: 'info', timestamp: Date.now() - 1000 },
+      ],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
     });
     render(<DashboardPanel />);
 
-    expect(screen.getByText('tool called')).toBeDefined();
-    expect(screen.getByText('agent status')).toBeDefined();
-    expect(screen.getByText('FreeformCore')).toBeDefined();
+    expect(screen.getByText('Task started')).toBeDefined();
+    expect(screen.getByText('Core switched to StructuredCore')).toBeDefined();
   });
 
   // -- LIVE badge -----------------------------------------------------------
   it('shows LIVE badge when SSE is connected', () => {
-    mockUseAgentStream.mockReturnValue({
-      events: [],
+    mockUseAgUi.mockReturnValue({
       connected: true,
-      latestStatus: null,
-      clearEvents: vi.fn(),
+      isRunning: false,
+      agentState: {},
+      pendingApprovals: [],
+      activities: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
     });
     render(<DashboardPanel />);
 
@@ -146,6 +149,42 @@ describe('DashboardPanel', () => {
     render(<DashboardPanel />);
 
     expect(screen.queryByText('LIVE')).toBeNull();
+  });
+
+  // -- Pending Approvals ----------------------------------------------------
+  it('renders pending approvals from useAgUi', () => {
+    const mockApprove = vi.fn();
+    const mockReject = vi.fn();
+    mockUseAgUi.mockReturnValue({
+      connected: true,
+      isRunning: false,
+      agentState: {},
+      pendingApprovals: [
+        { toolCallId: 'tc-1', toolCallName: 'delete_files', args: '{"path":"/tmp/old"}', timestamp: Date.now() },
+      ],
+      activities: [],
+      approveToolCall: mockApprove,
+      rejectToolCall: mockReject,
+    });
+    render(<DashboardPanel />);
+
+    expect(screen.getByText('Delete Files')).toBeDefined();
+    expect(screen.queryByText('No pending approvals')).toBeNull();
+  });
+
+  it('shows empty approvals state when none pending', () => {
+    mockUseAgUi.mockReturnValue({
+      connected: true,
+      isRunning: false,
+      agentState: {},
+      pendingApprovals: [],
+      activities: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
+    });
+    render(<DashboardPanel />);
+
+    expect(screen.getByText('No pending approvals')).toBeDefined();
   });
 
   // -- Accessibility --------------------------------------------------------

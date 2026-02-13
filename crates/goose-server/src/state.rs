@@ -3,14 +3,37 @@ use goose::builtin_extension::register_builtin_extensions;
 use goose::execution::manager::AgentManager;
 use goose::scheduler_trait::SchedulerTrait;
 use goose::session::SessionManager;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use tokio::task::JoinHandle;
 
 use crate::tunnel::TunnelManager;
 use goose::agents::ExtensionLoadResult;
+
+/// Tracks the progress of an OTA build in real-time.
+/// Shared between the background build task and the polling endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OtaBuildProgress {
+    /// Unique cycle identifier
+    pub cycle_id: String,
+    /// Current phase: "building" | "testing" | "swapping" | "deploying" | "completed" | "failed"
+    pub phase: String,
+    /// ISO timestamp when the build started
+    pub started_at: String,
+    /// Elapsed seconds since build started
+    pub elapsed_secs: f64,
+    /// Human-readable status message
+    pub message: String,
+    /// Whether the build cycle has finished (success or failure)
+    pub completed: bool,
+    /// Whether the build succeeded (None = still running)
+    pub success: Option<bool>,
+    /// Whether a restart is required to apply the update
+    pub restart_required: bool,
+}
 
 type ExtensionLoadingTasks =
     Arc<Mutex<HashMap<String, Arc<Mutex<Option<JoinHandle<Vec<ExtensionLoadResult>>>>>>>>;
@@ -23,6 +46,8 @@ pub struct AppState {
     recipe_session_tracker: Arc<Mutex<HashSet<String>>>,
     pub tunnel_manager: Arc<TunnelManager>,
     pub extension_loading_tasks: ExtensionLoadingTasks,
+    /// Shared OTA build progress — written by background build task, read by polling endpoint.
+    pub ota_build_progress: Arc<RwLock<Option<OtaBuildProgress>>>,
 }
 
 impl AppState {
@@ -38,6 +63,7 @@ impl AppState {
             recipe_session_tracker: Arc::new(Mutex::new(HashSet::new())),
             tunnel_manager,
             extension_loading_tasks: Arc::new(Mutex::new(HashMap::new())),
+            ota_build_progress: Arc::new(RwLock::new(None)),
         }))
     }
 

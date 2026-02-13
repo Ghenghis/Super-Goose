@@ -105,7 +105,7 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
   const leftContent = (
     <>
       {!shouldHideButtons && (
-        <div className={`${headerPadding} absolute top-3 z-100 flex items-center`}>
+        <div className={`${headerPadding} absolute top-3 z-50 flex items-center`}>
           <SidebarTrigger
             className="no-drag hover:border-border-strong hover:text-text-default hover:!bg-background-medium hover:scale-105"
           />
@@ -159,7 +159,7 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
   // ── Bottom zone panel components ─────────────────────────────────────
   const bottomPanelComponents = {
     pipeline: pipelineVisible ? (
-      <div className="px-4 py-2 h-full">
+      <div className="px-2 py-1 h-full">
         <AnimatedPipeline />
       </div>
     ) : (

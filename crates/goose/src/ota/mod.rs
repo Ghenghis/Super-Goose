@@ -53,9 +53,9 @@ pub use safety_envelope::{SafetyEnvelope, SafetyReport, InvariantResult, Invaria
 pub use sandbox_runner::{SandboxRunner, SandboxConfig, SandboxResult, CodeChangeRef};
 pub use auto_improve::{AutoImproveScheduler, AutoImproveConfig, ImproveCycle, CycleStatus, TestSummary};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
 
 /// Overall status of an OTA update attempt.
@@ -113,6 +113,12 @@ pub struct UpdateResult {
     pub rollback_record: Option<RollbackRecord>,
     /// Human-readable summary
     pub summary: String,
+    /// Whether the server needs to restart for the update to take effect
+    #[serde(default)]
+    pub restart_required: bool,
+    /// Path where the binary was deployed (if deploy step succeeded)
+    #[serde(default)]
+    pub deployed_path: Option<PathBuf>,
 }
 
 /// Configuration for the OTA manager.
@@ -130,16 +136,27 @@ pub struct OtaConfig {
     pub max_snapshots: usize,
     /// Maximum binary backups to retain
     pub max_backups: usize,
+    /// Optional path where the built binary should be deployed (copied) after a successful build.
+    /// For Electron desktop builds, this is typically `ui/desktop/src/bin/goosed.exe`.
+    pub deploy_path: Option<PathBuf>,
 }
 
 impl OtaConfig {
     /// Create a default OTA config for the goose project.
+    ///
+    /// Automatically detects the deploy path for Electron desktop builds
+    /// (`ui/desktop/src/bin/goosed[.exe]`) relative to the workspace root.
+    /// Falls back to `GOOSE_DEPLOY_PATH` env var if the directory doesn't exist.
     pub fn default_goose(workspace_root: PathBuf) -> Self {
         let data_dir = workspace_root.join(".ota");
+        let binary_name = if cfg!(windows) { "goosed.exe" } else { "goosed" };
         let binary_path = workspace_root
             .join("target")
             .join("release")
-            .join(if cfg!(windows) { "goose.exe" } else { "goose" });
+            .join(binary_name);
+
+        // Detect Electron deploy path: ui/desktop/src/bin/goosed[.exe]
+        let deploy_path = Self::detect_deploy_path(&workspace_root, binary_name);
 
         Self {
             data_dir: data_dir.clone(),
@@ -151,7 +168,37 @@ impl OtaConfig {
             scheduler_config: SchedulerConfig::default(),
             max_snapshots: 5,
             max_backups: 10,
+            deploy_path,
         }
+    }
+
+    /// Detect the Electron deploy path for the binary.
+    ///
+    /// Checks (in order):
+    /// 1. `GOOSE_DEPLOY_PATH` environment variable
+    /// 2. `ui/desktop/src/bin/` directory relative to workspace root
+    fn detect_deploy_path(workspace_root: &Path, binary_name: &str) -> Option<PathBuf> {
+        // Check env var first (allows override in production/Docker)
+        if let Ok(env_path) = std::env::var("GOOSE_DEPLOY_PATH") {
+            let p = PathBuf::from(&env_path);
+            if p.parent().map_or(false, |d| d.exists()) {
+                info!("Using GOOSE_DEPLOY_PATH: {}", p.display());
+                return Some(p);
+            }
+            warn!("GOOSE_DEPLOY_PATH set but parent dir missing: {}", env_path);
+        }
+
+        // Check for Electron desktop bin directory
+        let electron_bin_dir = workspace_root.join("ui").join("desktop").join("src").join("bin");
+        if electron_bin_dir.exists() {
+            let deploy = electron_bin_dir.join(binary_name);
+            info!("Detected Electron deploy path: {}", deploy.display());
+            return Some(deploy);
+        }
+
+        // No deploy path found — binary stays in target/release/
+        info!("No deploy path detected; binary will remain in target/release/");
+        None
     }
 }
 
@@ -168,6 +215,8 @@ pub struct OtaManager {
     cycle_history: Vec<UpdateResult>,
     /// Timestamp when the last update was attempted.
     last_update_time: Option<chrono::DateTime<chrono::Utc>>,
+    /// Where to copy the built binary for the Electron supervisor to find on restart.
+    deploy_path: Option<PathBuf>,
 }
 
 impl OtaManager {
@@ -187,6 +236,7 @@ impl OtaManager {
             status: UpdateStatus::Idle,
             cycle_history: Vec::new(),
             last_update_time: None,
+            deploy_path: config.deploy_path,
         }
     }
 
@@ -250,6 +300,8 @@ impl OtaManager {
                         health_report: None,
                         rollback_record: None,
                         summary: "Build failed".to_string(),
+                        restart_required: false,
+                        deployed_path: None,
                     });
                 }
                 result
@@ -262,6 +314,8 @@ impl OtaManager {
                     health_report: None,
                     rollback_record: None,
                     summary: format!("Build error: {}", e),
+                    restart_required: false,
+                    deployed_path: None,
                 });
             }
         };
@@ -287,6 +341,8 @@ impl OtaManager {
                     health_report: None,
                     rollback_record: None,
                     summary: format!("Binary swap failed: {}", e),
+                    restart_required: false,
+                    deployed_path: None,
                 });
             }
         };
@@ -296,7 +352,26 @@ impl OtaManager {
         let health_report = self.health_checker.run_all_checks().await?;
 
         let result = if health_report.healthy {
-            // Success!
+            // Success! Deploy binary if deploy_path is configured
+            let deployed_path = if let Some(ref deploy_target) = self.deploy_path {
+                if let Some(ref built_binary) = build_result.binary_path {
+                    match Self::deploy_binary(built_binary, deploy_target).await {
+                        Ok(()) => {
+                            info!("Binary deployed to: {}", deploy_target.display());
+                            Some(deploy_target.clone())
+                        }
+                        Err(e) => {
+                            warn!("Binary deploy failed (non-fatal): {}", e);
+                            None
+                        }
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
             self.status = UpdateStatus::Completed;
             self.update_scheduler.record_success().await;
             info!("OTA update completed successfully");
@@ -307,6 +382,8 @@ impl OtaManager {
                 health_report: Some(health_report),
                 rollback_record: None,
                 summary: "Update completed successfully".to_string(),
+                restart_required: true,
+                deployed_path,
             }
         } else {
             // Step 5: Rollback
@@ -327,6 +404,8 @@ impl OtaManager {
                     health_report: Some(health_report),
                     rollback_record: Some(rollback_record),
                     summary: "Health check failed, successfully rolled back".to_string(),
+                    restart_required: false,
+                    deployed_path: None,
                 }
             } else {
                 self.status = UpdateStatus::Failed;
@@ -336,6 +415,8 @@ impl OtaManager {
                     health_report: Some(health_report),
                     rollback_record: Some(rollback_record),
                     summary: "Health check failed AND rollback failed".to_string(),
+                    restart_required: false,
+                    deployed_path: None,
                 }
             }
         };
@@ -354,7 +435,48 @@ impl OtaManager {
             health_report: None,
             rollback_record: None,
             summary: "Dry run completed".to_string(),
+            restart_required: false,
+            deployed_path: None,
         }
+    }
+
+    /// Copy the built binary to the deploy target path.
+    async fn deploy_binary(source: &std::path::Path, target: &std::path::Path) -> Result<()> {
+        // Ensure parent directory exists
+        if let Some(parent) = target.parent() {
+            tokio::fs::create_dir_all(parent).await
+                .context("Failed to create deploy directory")?;
+        }
+
+        // Copy with retry (target might be locked briefly on Windows)
+        let mut last_err = None;
+        for attempt in 0..3 {
+            match tokio::fs::copy(source, target).await {
+                Ok(bytes) => {
+                    info!(
+                        "Deployed binary: {} → {} ({} bytes)",
+                        source.display(),
+                        target.display(),
+                        bytes
+                    );
+                    return Ok(());
+                }
+                Err(e) => {
+                    warn!("Deploy attempt {} failed: {}", attempt + 1, e);
+                    last_err = Some(e);
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                }
+            }
+        }
+
+        Err(last_err
+            .map(|e| anyhow::anyhow!("Deploy failed after 3 attempts: {}", e))
+            .unwrap_or_else(|| anyhow::anyhow!("Deploy failed")))
+    }
+
+    /// Get the configured deploy path.
+    pub fn deploy_path(&self) -> Option<&PathBuf> {
+        self.deploy_path.as_ref()
     }
 }
 
@@ -413,12 +535,16 @@ mod tests {
             health_report: None,
             rollback_record: None,
             summary: "Test update".to_string(),
+            restart_required: true,
+            deployed_path: Some(PathBuf::from("/deploy/goosed")),
         };
 
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: UpdateResult = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.status, UpdateStatus::Completed);
         assert_eq!(deserialized.summary, "Test update");
+        assert!(deserialized.restart_required);
+        assert_eq!(deserialized.deployed_path.unwrap().to_string_lossy(), "/deploy/goosed");
     }
 
     #[test]
@@ -441,6 +567,6 @@ mod tests {
 
         // Verify the data directory structure
         assert!(config.data_dir.to_string_lossy().contains(".ota"));
-        assert_eq!(config.build_config.package, "goose-cli");
+        assert_eq!(config.build_config.package, "goose-server");
     }
 }

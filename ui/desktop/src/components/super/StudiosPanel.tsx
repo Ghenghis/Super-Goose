@@ -30,7 +30,7 @@ export default function StudiosPanel() {
         <button className={`sg-tab ${filter === 'available' ? 'active' : ''}`} onClick={() => setFilter('available')}>Available</button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {filtered.map(studio => (
           <div key={studio.id} className="sg-card cursor-pointer" style={{ opacity: studio.status === 'coming-soon' ? 0.6 : 1 }}>
             <div className="flex items-center gap-3 mb-2">

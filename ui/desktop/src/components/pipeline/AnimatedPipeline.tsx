@@ -25,11 +25,11 @@ const STAGES: { id: PipelineStage; label: string; icon: string; sub: string }[] 
 ];
 
 /** Stage card X positions for a 900px wide SVG viewBox */
-const STAGE_X = [20, 160, 300, 440, 580, 720];
-const STAGE_Y = 100;
-const STAGE_W = 120;
-const STAGE_H = 160;
-const CARD_RX = 12;
+const STAGE_X = [10, 80, 150, 220, 290, 360];
+const STAGE_Y = 8;
+const STAGE_W = 40;
+const STAGE_H = 45;
+const CARD_RX = 4;
 
 /** Convert particle progress (0..1) to SVG x/y between two stage cards */
 function particlePosition(p: Particle): { x: number; y: number } {
@@ -160,9 +160,9 @@ export default function AnimatedPipeline() {
             {/* Stage icon */}
             <text
               x={STAGE_X[i] + STAGE_W / 2}
-              y={STAGE_Y + 35}
+              y={STAGE_Y + 8}
               textAnchor="middle"
-              fontSize="22"
+              fontSize="10"
               className="pipeline-icon"
             >
               {stage.icon}
@@ -171,10 +171,10 @@ export default function AnimatedPipeline() {
             {/* Stage label */}
             <text
               x={STAGE_X[i] + STAGE_W / 2}
-              y={STAGE_Y + 60}
+              y={STAGE_Y + 18}
               textAnchor="middle"
               fill={isActive ? color : '#94a3b8'}
-              fontSize="11"
+              fontSize="6"
               fontWeight="bold"
               letterSpacing="1.5"
             >
@@ -184,10 +184,10 @@ export default function AnimatedPipeline() {
             {/* Sub label */}
             <text
               x={STAGE_X[i] + STAGE_W / 2}
-              y={STAGE_Y + 78}
+              y={STAGE_Y + 24}
               textAnchor="middle"
               fill="#64748b"
-              fontSize="8"
+              fontSize="5"
             >
               {isActive ? stage.sub : ''}
             </text>
@@ -196,10 +196,10 @@ export default function AnimatedPipeline() {
             {m.tokensUsed > 0 && (
               <text
                 x={STAGE_X[i] + STAGE_W / 2}
-                y={STAGE_Y + 100}
+                y={STAGE_Y + 28}
                 textAnchor="middle"
                 fill="#475569"
-                fontSize="8"
+                fontSize="5"
               >
                 {m.tokensUsed.toLocaleString()} tok
               </text>
@@ -207,10 +207,10 @@ export default function AnimatedPipeline() {
             {m.toolCalls > 0 && (
               <text
                 x={STAGE_X[i] + STAGE_W / 2}
-                y={STAGE_Y + 115}
+                y={STAGE_Y + 32}
                 textAnchor="middle"
                 fill="#475569"
-                fontSize="8"
+                fontSize="5"
               >
                 {m.toolCalls} tools
               </text>
@@ -218,10 +218,10 @@ export default function AnimatedPipeline() {
             {m.duration > 0 && (
               <text
                 x={STAGE_X[i] + STAGE_W / 2}
-                y={STAGE_Y + 130}
+                y={STAGE_Y + 36}
                 textAnchor="middle"
                 fill="#475569"
-                fontSize="8"
+                fontSize="5"
               >
                 {formatDuration(m.duration)}
               </text>
@@ -231,20 +231,20 @@ export default function AnimatedPipeline() {
             {statusLabel && (
               <>
                 <rect
-                  x={STAGE_X[i] + STAGE_W / 2 - 18}
-                  y={STAGE_Y + 140}
-                  width="36"
-                  height="14"
-                  rx="7"
+                  x={STAGE_X[i] + STAGE_W / 2 - 9}
+                  y={STAGE_Y + 40}
+                  width="18"
+                  height="4"
+                  rx="2"
                   fill={m.status === 'active' ? color : m.status === 'complete' ? '#10b981' : '#ef4444'}
                   fillOpacity="0.2"
                 />
                 <text
                   x={STAGE_X[i] + STAGE_W / 2}
-                  y={STAGE_Y + 150}
+                  y={STAGE_Y + 43}
                   textAnchor="middle"
                   fill={m.status === 'active' ? color : m.status === 'complete' ? '#10b981' : '#ef4444'}
-                  fontSize="7"
+                  fontSize="4"
                   fontWeight="bold"
                 >
                   {statusLabel}
@@ -316,7 +316,7 @@ export default function AnimatedPipeline() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '8px 16px',
+          padding: '2px 8px',
           borderBottom: '1px solid #1e293b',
           background: '#0a0e1780',
         }}
@@ -346,7 +346,7 @@ export default function AnimatedPipeline() {
 
       {/* SVG Pipeline Visualization */}
       <svg
-        viewBox="0 0 880 310"
+        viewBox="0 0 420 65"
         width="100%"
         style={{ display: 'block' }}
       >
@@ -384,36 +384,21 @@ export default function AnimatedPipeline() {
         </defs>
 
         {/* Title */}
-        <text x="440" y="30" textAnchor="middle" fill="#f1f5f9" fontSize="12" fontWeight="bold" letterSpacing="3">
+        <text x="210" y="5" textAnchor="middle" fill="#f1f5f9" fontSize="7" fontWeight="bold" letterSpacing="2">
           SUPER-GOOSE END-TO-END PIPELINE
-        </text>
-
-        {/* Subtitle — shows current activity */}
-        <text x="440" y="50" textAnchor="middle" fill="#64748b" fontSize="9">
-          {isWaiting
-            ? 'Awaiting next task...'
-            : activeStage
-              ? `Active: ${STAGES.find((s) => s.id === activeStage)?.label} \u2014 ${STAGES.find((s) => s.id === activeStage)?.sub}`
-              : 'Processing...'}
         </text>
 
         {/* Input arrow */}
         <line x1="0" y1={STAGE_Y + STAGE_H / 2} x2={STAGE_X[0]} y2={STAGE_Y + STAGE_H / 2}
-          stroke="#FF6600" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="4 4" />
-        <text x="5" y={STAGE_Y + STAGE_H / 2 - 8} fill="#FF6600" fontSize="8" opacity="0.6">
-          INPUT
-        </text>
+          stroke="#FF6600" strokeWidth="0.5" strokeOpacity="0.4" strokeDasharray="2 2" />
 
         {/* Stage cards */}
         {stageNodes}
 
         {/* Output arrow */}
         <line x1={STAGE_X[5] + STAGE_W} y1={STAGE_Y + STAGE_H / 2}
-          x2="880" y2={STAGE_Y + STAGE_H / 2}
-          stroke="#00FF66" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="4 4" />
-        <text x="845" y={STAGE_Y + STAGE_H / 2 - 8} fill="#00FF66" fontSize="8" opacity="0.6" textAnchor="end">
-          OUTPUT
-        </text>
+          x2="420" y2={STAGE_Y + STAGE_H / 2}
+          stroke="#00FF66" strokeWidth="0.5" strokeOpacity="0.4" strokeDasharray="2 2" />
 
         {/* Quantum Particles — atom-like with orbital rings, electron trails, nucleus glow */}
         {particles.map((p) => {
@@ -552,37 +537,18 @@ export default function AnimatedPipeline() {
         {isWaiting && (
           <g className="pipeline-waiting-pulse">
             {/* Central quantum field */}
-            <circle cx="440" cy={STAGE_Y + STAGE_H + 35} r="18" fill="#64748b" opacity="0.03">
-              <animate attributeName="r" values="18;28;18" dur="4s" repeatCount="indefinite" />
+            <circle cx="210" cy={STAGE_Y + STAGE_H + 5} r="4" fill="#64748b" opacity="0.03">
+              <animate attributeName="r" values="4;7;4" dur="4s" repeatCount="indefinite" />
             </circle>
-            <circle cx="440" cy={STAGE_Y + STAGE_H + 35} r="12" fill="#64748b" opacity="0.05">
-              <animate attributeName="r" values="12;20;12" dur="3s" repeatCount="indefinite" />
+            <circle cx="210" cy={STAGE_Y + STAGE_H + 5} r="3" fill="#64748b" opacity="0.05">
+              <animate attributeName="r" values="3;5;3" dur="3s" repeatCount="indefinite" />
               <animate attributeName="opacity" values="0.05;0.1;0.05" dur="3s" repeatCount="indefinite" />
             </circle>
-            {/* Orbital ring */}
-            <ellipse cx="440" cy={STAGE_Y + STAGE_H + 35} rx="22" ry="6" fill="none"
-              stroke="#475569" strokeWidth="0.4" opacity="0.2">
-              <animateTransform attributeName="transform" type="rotate"
-                values={`0 440 ${STAGE_Y + STAGE_H + 35};360 440 ${STAGE_Y + STAGE_H + 35}`}
-                dur="8s" repeatCount="indefinite" />
-            </ellipse>
-            {/* Orbiting electron */}
-            <circle r="2" fill="#64748b" opacity="0.5">
-              <animateMotion dur="8s" repeatCount="indefinite"
-                path={`M418,${STAGE_Y + STAGE_H + 35} A22,6 0 1,1 462,${STAGE_Y + STAGE_H + 35} A22,6 0 1,1 418,${STAGE_Y + STAGE_H + 35}`} />
-              <animate attributeName="opacity" values="0.3;0.7;0.3" dur="2s" repeatCount="indefinite" />
-            </circle>
             {/* Core nucleus */}
-            <circle cx="440" cy={STAGE_Y + STAGE_H + 35} r="3" fill="#64748b" opacity="0.25">
-              <animate attributeName="r" values="3;5;3" dur="2.5s" repeatCount="indefinite" />
+            <circle cx="210" cy={STAGE_Y + STAGE_H + 5} r="1" fill="#64748b" opacity="0.25">
+              <animate attributeName="r" values="1;1.5;1" dur="2.5s" repeatCount="indefinite" />
               <animate attributeName="opacity" values="0.25;0.45;0.25" dur="2.5s" repeatCount="indefinite" />
             </circle>
-            <circle cx="440" cy={STAGE_Y + STAGE_H + 35} r="1.5" fill="#94a3b8" opacity="0.4">
-              <animate attributeName="opacity" values="0.4;0.7;0.4" dur="2s" repeatCount="indefinite" />
-            </circle>
-            <text x="440" y={STAGE_Y + STAGE_H + 58} textAnchor="middle" fill="#475569" fontSize="8" letterSpacing="2">
-              QUANTUM STANDBY
-            </text>
           </g>
         )}
       </svg>
@@ -590,7 +556,7 @@ export default function AnimatedPipeline() {
       {/* Activity Log — real-time scrolling feed */}
       <div
         style={{
-          maxHeight: '120px',
+          maxHeight: '40px',
           overflowY: 'auto',
           borderTop: '1px solid #1e293b',
           padding: '4px 12px',

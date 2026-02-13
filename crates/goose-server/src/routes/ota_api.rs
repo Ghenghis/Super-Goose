@@ -192,54 +192,297 @@ async fn ota_status(
 /// POST /api/ota/trigger
 ///
 /// Triggers a self-improvement cycle via the Agent's OtaManager.
+/// Dry-run: synchronous (fast). Real build: non-blocking — spawns background task
+/// and returns immediately with a `cycle_id`. Poll `GET /api/ota/build-status`
+/// for progress. When complete, call `POST /api/ota/restart` to apply the update.
 async fn ota_trigger(
     State(state): State<Arc<AppState>>,
     Json(req): Json<OtaTriggerRequest>,
 ) -> Json<OtaTriggerResponse> {
     let agent = get_agent(&state, Some(&req.session_id)).await;
 
-    if let Some(agent) = &agent {
-        let mut guard = agent.ota_manager_ref().await;
-        if let Some(mgr) = guard.as_mut() {
-            if req.dry_run {
-                let result = mgr.dry_run();
+    let agent = match agent {
+        Some(a) => a,
+        None => {
+            return Json(OtaTriggerResponse {
+                triggered: false,
+                cycle_id: None,
+                message: "Agent not available".to_string(),
+                restart_required: false,
+            });
+        }
+    };
+
+    // Bug 10 fix: Initialize OTA manager from API route (not just /self-improve command)
+    if let Err(e) = agent.init_ota_manager().await {
+        return Json(OtaTriggerResponse {
+            triggered: false,
+            cycle_id: None,
+            message: format!("Failed to init OTA manager: {}", e),
+            restart_required: false,
+        });
+    }
+
+    // Check if a build is already in progress
+    {
+        let progress = state.ota_build_progress.read().await;
+        if let Some(ref p) = *progress {
+            if !p.completed {
                 return Json(OtaTriggerResponse {
                     triggered: false,
-                    cycle_id: None,
-                    message: format!("Dry-run complete: {:?}", result.status),
+                    cycle_id: Some(p.cycle_id.clone()),
+                    message: format!("Build already in progress (phase: {})", p.phase),
                     restart_required: false,
                 });
             }
-            // Real trigger
-            let version = env!("CARGO_PKG_VERSION");
-            match mgr.perform_update(version, "{}").await {
-                Ok(result) => {
-                    let success = result.status == goose::ota::UpdateStatus::Completed;
-                    return Json(OtaTriggerResponse {
-                        triggered: true,
-                        cycle_id: Some(uuid::Uuid::new_v4().to_string()),
-                        message: result.summary,
-                        restart_required: success,
-                    });
+        }
+    }
+
+    // Dry-run: synchronous (fast, no build)
+    if req.dry_run {
+        let guard = agent.ota_manager_ref().await;
+        if let Some(mgr) = guard.as_ref() {
+            let result = mgr.dry_run();
+            return Json(OtaTriggerResponse {
+                triggered: false,
+                cycle_id: None,
+                message: format!("Dry-run complete: {:?}", result.status),
+                restart_required: false,
+            });
+        }
+        return Json(OtaTriggerResponse {
+            triggered: false,
+            cycle_id: None,
+            message: "OTA manager not initialized".to_string(),
+            restart_required: false,
+        });
+    }
+
+    // Real build: extract config from the OTA manager, then drop the mutex guard
+    // so the agent isn't locked for the entire 5+ minute build.
+    let (build_config, ota_config_deploy_path) = {
+        let guard = agent.ota_manager_ref().await;
+        match guard.as_ref() {
+            Some(mgr) => {
+                let bc = mgr.self_builder.config().clone();
+                let dp = mgr.deploy_path().cloned();
+                (bc, dp)
+            }
+            None => {
+                return Json(OtaTriggerResponse {
+                    triggered: false,
+                    cycle_id: None,
+                    message: "OTA manager not initialized".to_string(),
+                    restart_required: false,
+                });
+            }
+        }
+    };
+
+    let cycle_id = uuid::Uuid::new_v4().to_string();
+    let started_at = Utc::now();
+
+    // Set initial progress
+    {
+        let mut progress = state.ota_build_progress.write().await;
+        *progress = Some(crate::state::OtaBuildProgress {
+            cycle_id: cycle_id.clone(),
+            phase: "building".to_string(),
+            started_at: started_at.to_rfc3339(),
+            elapsed_secs: 0.0,
+            message: "Starting cargo build...".to_string(),
+            completed: false,
+            success: None,
+            restart_required: false,
+        });
+    }
+
+    // Spawn background build task (doesn't hold the agent mutex)
+    let progress_state = state.ota_build_progress.clone();
+    let bg_cycle_id = cycle_id.clone();
+
+    tokio::spawn(async move {
+        let builder = goose::ota::SelfBuilder::new(build_config.clone());
+
+        // Phase 1: Build (with streaming progress)
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(64);
+        let progress_for_stream = progress_state.clone();
+        let _stream_cycle_id = bg_cycle_id.clone();
+        let stream_started_at = started_at;
+
+        // Forward cargo output to shared progress state
+        let stream_handle = tokio::spawn(async move {
+            while let Some(line) = rx.recv().await {
+                let elapsed = chrono::Utc::now()
+                    .signed_duration_since(stream_started_at)
+                    .num_seconds() as f64;
+                let mut progress = progress_for_stream.write().await;
+                if let Some(ref mut p) = *progress {
+                    p.elapsed_secs = elapsed;
+                    p.message = line;
+                }
+            }
+        });
+
+        let build_result = builder.build_with_progress(tx).await;
+        let _ = stream_handle.await; // Ensure streamer finishes
+        let elapsed = Utc::now().signed_duration_since(started_at).num_seconds() as f64;
+
+        match build_result {
+            Ok(result) if result.success => {
+                // Phase 2: Deploy binary (if deploy path configured)
+                let mut deployed = false;
+                if let Some(ref deploy_target) = ota_config_deploy_path {
+                    let mut progress = progress_state.write().await;
+                    if let Some(ref mut p) = *progress {
+                        p.phase = "deploying".to_string();
+                        p.elapsed_secs = elapsed;
+                        p.message = format!("Deploying to {}...", deploy_target.display());
+                    }
+                    drop(progress);
+
+                    if let Some(ref built_path) = result.binary_path {
+                        // Ensure parent dir exists
+                        if let Some(parent) = deploy_target.parent() {
+                            let _ = tokio::fs::create_dir_all(parent).await;
+                        }
+                        match tokio::fs::copy(built_path, deploy_target).await {
+                            Ok(bytes) => {
+                                tracing::info!("Deployed {} bytes to {}", bytes, deploy_target.display());
+                                deployed = true;
+                            }
+                            Err(e) => {
+                                tracing::warn!("Deploy failed (non-fatal): {}", e);
+                            }
+                        }
+                    }
+                }
+
+                let final_elapsed = Utc::now().signed_duration_since(started_at).num_seconds() as f64;
+                let mut progress = progress_state.write().await;
+                *progress = Some(crate::state::OtaBuildProgress {
+                    cycle_id: bg_cycle_id,
+                    phase: "completed".to_string(),
+                    started_at: started_at.to_rfc3339(),
+                    elapsed_secs: final_elapsed,
+                    message: format!(
+                        "Build succeeded in {:.0}s{}",
+                        result.duration_secs,
+                        if deployed { " — binary deployed" } else { "" }
+                    ),
+                    completed: true,
+                    success: Some(true),
+                    restart_required: true,
+                });
+            }
+            Ok(result) => {
+                // Build completed but failed
+                let final_elapsed = Utc::now().signed_duration_since(started_at).num_seconds() as f64;
+                let mut progress = progress_state.write().await;
+                *progress = Some(crate::state::OtaBuildProgress {
+                    cycle_id: bg_cycle_id,
+                    phase: "failed".to_string(),
+                    started_at: started_at.to_rfc3339(),
+                    elapsed_secs: final_elapsed,
+                    message: format!("Build failed: {}", result.output.chars().take(500).collect::<String>()),
+                    completed: true,
+                    success: Some(false),
+                    restart_required: false,
+                });
+            }
+            Err(e) => {
+                let final_elapsed = Utc::now().signed_duration_since(started_at).num_seconds() as f64;
+                let mut progress = progress_state.write().await;
+                *progress = Some(crate::state::OtaBuildProgress {
+                    cycle_id: bg_cycle_id,
+                    phase: "failed".to_string(),
+                    started_at: started_at.to_rfc3339(),
+                    elapsed_secs: final_elapsed,
+                    message: format!("Build error: {}", e),
+                    completed: true,
+                    success: Some(false),
+                    restart_required: false,
+                });
+            }
+        }
+    });
+
+    Json(OtaTriggerResponse {
+        triggered: true,
+        cycle_id: Some(cycle_id),
+        message: "Build started in background — poll /api/ota/build-status for progress".to_string(),
+        restart_required: false, // Will be set in build-status when complete
+    })
+}
+
+/// GET /api/ota/build-status
+///
+/// Returns the current OTA build progress. Frontend polls this every 3 seconds
+/// after triggering a build. When `completed: true` and `restart_required: true`,
+/// the frontend should call `POST /api/ota/restart` to apply the update.
+async fn ota_build_status(
+    State(state): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    let progress = state.ota_build_progress.read().await;
+    match progress.as_ref() {
+        Some(p) => {
+            // Update elapsed_secs dynamically for in-progress builds
+            let mut p_clone = p.clone();
+            if !p_clone.completed {
+                if let Ok(started) = chrono::DateTime::parse_from_rfc3339(&p_clone.started_at) {
+                    p_clone.elapsed_secs = Utc::now()
+                        .signed_duration_since(started)
+                        .num_seconds() as f64;
+                }
+            }
+            Json(serde_json::to_value(&p_clone).unwrap_or_default())
+        }
+        None => Json(serde_json::json!({
+            "phase": "idle",
+            "completed": true,
+            "success": null,
+            "restart_required": false,
+            "message": "No build in progress"
+        })),
+    }
+}
+
+/// GET /api/ota/restart-completed
+///
+/// After a successful OTA restart, the frontend calls this to get version
+/// transition info. Reads `.restart-completed` marker, returns its contents,
+/// then deletes the marker.
+async fn ota_restart_completed() -> Json<serde_json::Value> {
+    let marker_path = dirs::config_dir()
+        .map(|d| d.join("goose").join("ota").join(".restart-completed"));
+
+    if let Some(path) = marker_path {
+        if path.exists() {
+            match std::fs::read_to_string(&path) {
+                Ok(content) => {
+                    // Delete marker after reading
+                    let _ = std::fs::remove_file(&path);
+                    if let Ok(data) = serde_json::from_str::<serde_json::Value>(&content) {
+                        return Json(data);
+                    }
+                    return Json(serde_json::json!({
+                        "found": true,
+                        "raw": content,
+                    }));
                 }
                 Err(e) => {
-                    return Json(OtaTriggerResponse {
-                        triggered: false,
-                        cycle_id: None,
-                        message: format!("OTA trigger failed: {}", e),
-                        restart_required: false,
-                    });
+                    return Json(serde_json::json!({
+                        "found": false,
+                        "error": format!("Failed to read marker: {}", e),
+                    }));
                 }
             }
         }
     }
 
-    Json(OtaTriggerResponse {
-        triggered: false,
-        cycle_id: None,
-        message: "OTA manager not initialized".to_string(),
-        restart_required: false,
-    })
+    Json(serde_json::json!({
+        "found": false,
+    }))
 }
 
 /// GET /api/ota/history
@@ -706,6 +949,8 @@ pub fn routes(state: Arc<AppState>) -> Router {
         .route("/api/ota/history", get(ota_history))
         .route("/api/ota/restart", post(ota_restart))
         .route("/api/ota/restart-status", get(ota_restart_status))
+        .route("/api/ota/build-status", get(ota_build_status))
+        .route("/api/ota/restart-completed", get(ota_restart_completed))
         // Autonomous endpoints
         .route("/api/autonomous/status", get(autonomous_status))
         .route("/api/autonomous/start", post(autonomous_start))

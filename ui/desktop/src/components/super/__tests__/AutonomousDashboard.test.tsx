@@ -333,6 +333,201 @@ describe('AutonomousDashboard', () => {
     });
   });
 
+  // -- Build Progress UI tests (Step 6) ----------------------------------------
+
+  it('shows build progress card when build is in progress', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const mockBuildProgress = {
+      cycle_id: 'cycle-progress',
+      phase: 'building',
+      started_at: new Date().toISOString(),
+      elapsed_secs: 42,
+      message: 'Compiling goose-server v1.25.0',
+      completed: false,
+      success: null,
+      restart_required: false,
+    };
+
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (opts?.method === 'POST' && url.includes('/api/ota/trigger')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            triggered: true,
+            cycle_id: 'cycle-progress',
+            message: 'Build started in background',
+            restart_required: false,
+          }),
+        });
+      }
+      if (url.includes('/api/ota/build-status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockBuildProgress),
+        });
+      }
+      if (url.includes('/api/ota/status')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockOta) });
+      }
+      if (url.includes('/api/autonomous/status')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockAuto) });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<AutonomousDashboard />);
+
+    // Wait for initial data load
+    await vi.advanceTimersByTimeAsync(100);
+    await waitFor(() => {
+      expect(screen.getByTestId('ota-trigger-btn')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByTestId('ota-trigger-btn'));
+
+    // Advance past trigger response and first build poll interval (3s)
+    await vi.advanceTimersByTimeAsync(4000);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ota-build-progress')).toBeDefined();
+      expect(screen.getByText('Building...')).toBeDefined();
+    });
+
+    vi.useRealTimers();
+  });
+
+  it('shows build result card on completion', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const mockBuildComplete = {
+      cycle_id: 'cycle-done',
+      phase: 'completed',
+      started_at: new Date().toISOString(),
+      elapsed_secs: 180,
+      message: 'Build succeeded in 180s',
+      completed: true,
+      success: true,
+      restart_required: true,
+    };
+
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (opts?.method === 'POST' && url.includes('/api/ota/trigger')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            triggered: true,
+            cycle_id: 'cycle-done',
+            message: 'Build started in background',
+            restart_required: false,
+          }),
+        });
+      }
+      if (url.includes('/api/ota/build-status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockBuildComplete),
+        });
+      }
+      if (url.includes('/api/ota/status')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockOta) });
+      }
+      if (url.includes('/api/autonomous/status')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockAuto) });
+      }
+      if (opts?.method === 'POST' && url.includes('/api/ota/restart')) {
+        return Promise.resolve({ ok: true });
+      }
+      if (url.includes('/api/version')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ version: '1.25.0' }),
+        });
+      }
+      if (url.includes('/api/ota/restart-completed')) {
+        return Promise.resolve({ ok: false, status: 404 });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<AutonomousDashboard />);
+    await vi.advanceTimersByTimeAsync(100);
+    await waitFor(() => {
+      expect(screen.getByTestId('ota-trigger-btn')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByTestId('ota-trigger-btn'));
+    await vi.advanceTimersByTimeAsync(4000);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ota-build-result')).toBeDefined();
+      expect(screen.getByText('Build Succeeded')).toBeDefined();
+    });
+
+    vi.useRealTimers();
+  });
+
+  it('shows build failure message', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const mockBuildFail = {
+      cycle_id: 'cycle-fail',
+      phase: 'failed',
+      started_at: new Date().toISOString(),
+      elapsed_secs: 30,
+      message: 'error[E0308]: mismatched types',
+      completed: true,
+      success: false,
+      restart_required: false,
+    };
+
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (opts?.method === 'POST' && url.includes('/api/ota/trigger')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            triggered: true,
+            cycle_id: 'cycle-fail',
+            message: 'Build started in background',
+            restart_required: false,
+          }),
+        });
+      }
+      if (url.includes('/api/ota/build-status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockBuildFail),
+        });
+      }
+      if (url.includes('/api/ota/status')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockOta) });
+      }
+      if (url.includes('/api/autonomous/status')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockAuto) });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<AutonomousDashboard />);
+    await vi.advanceTimersByTimeAsync(100);
+    await waitFor(() => {
+      expect(screen.getByTestId('ota-trigger-btn')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByTestId('ota-trigger-btn'));
+    await vi.advanceTimersByTimeAsync(4000);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ota-build-result')).toBeDefined();
+      expect(screen.getByText('Build Failed')).toBeDefined();
+    });
+
+    vi.useRealTimers();
+  });
+
   it('handles API failure gracefully', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 

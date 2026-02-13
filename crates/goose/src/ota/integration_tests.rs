@@ -54,8 +54,8 @@ version = "0.0.1"
             data_dir: data_dir.clone(),
             build_config: BuildConfig {
                 workspace_root: workspace.to_path_buf(),
-                package: "goose-cli".to_string(),
-                binary_name: "goose".to_string(),
+                package: "goose-server".to_string(),
+                binary_name: "goosed".to_string(),
                 profile: BuildProfile::Debug,
                 timeout: std::time::Duration::from_secs(30),
                 extra_args: Vec::new(),
@@ -64,6 +64,7 @@ version = "0.0.1"
             scheduler_config: SchedulerConfig::default(),
             max_snapshots: 3,
             max_backups: 5,
+            deploy_path: None,
         }
     }
 
@@ -140,7 +141,7 @@ version = "0.0.1"
         assert!(build.success);
         assert!(build.output.contains("DRY RUN"));
         assert!(build.output.contains("cargo"));
-        assert!(build.output.contains("goose-cli"));
+        assert!(build.output.contains("goose-server"));
         assert_eq!(build.duration_secs, 0.0);
     }
 
@@ -254,23 +255,23 @@ version = "0.0.1"
     fn test_self_builder_cargo_args_debug() {
         let config = BuildConfig {
             workspace_root: PathBuf::from("/workspace"),
-            package: "goose-cli".to_string(),
-            binary_name: "goose".to_string(),
+            package: "goose-server".to_string(),
+            binary_name: "goosed".to_string(),
             profile: BuildProfile::Debug,
             timeout: std::time::Duration::from_secs(60),
             extra_args: Vec::new(),
         };
         let builder = SelfBuilder::new(config);
         let args = builder.build_cargo_args();
-        assert_eq!(args, vec!["build", "-p", "goose-cli"]);
+        assert_eq!(args, vec!["build", "-p", "goose-server"]);
     }
 
     #[test]
     fn test_self_builder_cargo_args_release_with_features() {
         let config = BuildConfig {
             workspace_root: PathBuf::from("/workspace"),
-            package: "goose-cli".to_string(),
-            binary_name: "goose".to_string(),
+            package: "goose-server".to_string(),
+            binary_name: "goosed".to_string(),
             profile: BuildProfile::Release,
             timeout: std::time::Duration::from_secs(600),
             extra_args: vec!["--features".into(), "memory".into()],
@@ -279,7 +280,7 @@ version = "0.0.1"
         let args = builder.build_cargo_args();
         assert_eq!(
             args,
-            vec!["build", "-p", "goose-cli", "--release", "--features", "memory"]
+            vec!["build", "-p", "goose-server", "--release", "--features", "memory"]
         );
     }
 
@@ -611,6 +612,8 @@ version = "0.0.1"
             ])),
             rollback_record: None,
             summary: "Update completed".to_string(),
+            restart_required: true,
+            deployed_path: None,
         };
 
         let json = serde_json::to_string(&result).unwrap();
@@ -620,6 +623,7 @@ version = "0.0.1"
         assert!(deserialized.build_result.unwrap().success);
         assert!(deserialized.health_report.unwrap().healthy);
         assert!(deserialized.rollback_record.is_none());
+        assert!(deserialized.restart_required);
     }
 
     // ═══════════════════════════════════════════════════════════════

@@ -726,7 +726,6 @@ mod tests {
         // Edge case: many concurrent writes with unique IDs should all succeed
         let log = AuditLog::in_memory().await.unwrap();
 
-        let mut handles = Vec::new();
         // Prepare entries first (each with unique UUID)
         let entries: Vec<AuditEntry> = (0..20)
             .map(|i| {

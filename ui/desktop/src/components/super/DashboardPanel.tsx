@@ -1,16 +1,74 @@
-import { useSuperGooseData } from '../../hooks/useSuperGooseData';
-import { useAgentStream } from '../../hooks/useAgentStream';
-import { SGMetricCard, SGEmptyState } from './shared';
+import { useAgUi, type ToolCallApproval } from '../../ag-ui/useAgUi';
+import { SGMetricCard, SGEmptyState, SGApprovalGate } from './shared';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Derive a human-readable action label from the tool call name. */
+function actionLabel(toolCallName: string): string {
+  return toolCallName
+    .replace(/[_-]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Try to produce a readable description from the raw JSON args string. */
+function descriptionFromArgs(args: string): string {
+  try {
+    const parsed = JSON.parse(args);
+    if (typeof parsed === 'object' && parsed !== null) {
+      const entries = Object.entries(parsed)
+        .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+        .join(', ');
+      return entries || 'No parameters';
+    }
+    return String(parsed);
+  } catch {
+    return args || 'No parameters';
+  }
+}
+
+/** Heuristic risk level based on the tool call name. */
+function riskFromToolName(toolCallName: string): 'low' | 'medium' | 'high' {
+  const name = toolCallName.toLowerCase();
+  if (name.includes('delete') || name.includes('remove') || name.includes('drop') || name.includes('destroy')) {
+    return 'high';
+  }
+  if (name.includes('read') || name.includes('get') || name.includes('list') || name.includes('search')) {
+    return 'low';
+  }
+  return 'medium';
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function DashboardPanel() {
-  const { learningStats, costSummary, autonomousStatus, loading } = useSuperGooseData();
-  const { events, connected } = useAgentStream();
+  const {
+    connected,
+    isRunning,
+    agentState,
+    pendingApprovals,
+    activities,
+    approveToolCall,
+    rejectToolCall,
+  } = useAgUi();
 
-  const activeAgents = autonomousStatus?.running ? '1' : '0';
-  const totalTasks = (autonomousStatus?.tasks_completed ?? 0) + (autonomousStatus?.tasks_failed ?? 0);
-  const tasksToday = autonomousStatus != null ? String(totalTasks) : 'N/A';
-  const sessionCost = costSummary?.session_spend != null ? `$${costSummary.session_spend.toFixed(2)}` : 'N/A';
-  const successRate = learningStats?.success_rate != null ? `${Math.round(learningStats.success_rate * 100)}%` : 'N/A';
+  // -- Derive stats from agentState ------------------------------------------
+  const autonomousRunning = agentState.autonomous_running as boolean | undefined;
+  const tasksCompleted = (agentState.tasks_completed as number) ?? 0;
+  const tasksFailed = (agentState.tasks_failed as number) ?? 0;
+  const sessionSpend = agentState.session_spend as number | undefined;
+  const successRateRaw = agentState.success_rate as number | undefined;
+
+  const activeAgents = autonomousRunning ? '1' : '0';
+  const totalTasks = tasksCompleted + tasksFailed;
+  const tasksToday = autonomousRunning != null ? String(totalTasks) : 'N/A';
+  const sessionCost = sessionSpend != null ? `$${sessionSpend.toFixed(2)}` : 'N/A';
+  const successRate = successRateRaw != null ? `${Math.round(successRateRaw * 100)}%` : 'N/A';
+
+  const loading = !connected;
 
   const stats = [
     { label: 'Active Agents', value: loading ? '...' : activeAgents, color: 'var(--sg-emerald)' },
@@ -19,14 +77,23 @@ export default function DashboardPanel() {
     { label: 'Success Rate', value: loading ? '...' : successRate, color: 'var(--sg-violet)' },
   ];
 
-  const recentEvents = events.slice(-5).reverse();
+  // -- Recent activities (latest 5, newest first) ----------------------------
+  const recentActivities = activities.slice(-5).reverse();
+
+  // -- Level → status dot class mapping --------------------------------------
+  const levelDotClass: Record<string, string> = {
+    info: 'sg-status-active',
+    warn: 'sg-status-warning',
+    error: 'sg-status-error',
+    debug: 'sg-status-idle',
+  };
 
   return (
     <div className="space-y-6" role="region" aria-label="Super-Goose Dashboard">
       {/* Stats grid */}
       <section aria-label="Key metrics">
         <h2 className="sr-only">Key Metrics</h2>
-        <div className="grid grid-cols-2 gap-4" role="list">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="list">
           {stats.map(s => (
             <div key={s.label} role="listitem">
               <SGMetricCard label={s.label} value={s.value} color={s.color} />
@@ -45,6 +112,35 @@ export default function DashboardPanel() {
         </div>
       </section>
 
+      {/* Pending approvals — driven by AG-UI pendingApprovals */}
+      <section aria-label="Pending approvals">
+        <h2 className="sg-section-label">Pending Approvals</h2>
+        {pendingApprovals.length > 0 ? (
+          <div role="list" aria-label="Approval requests">
+            {pendingApprovals.map((approval: ToolCallApproval) => {
+              const action = actionLabel(approval.toolCallName);
+              const description = descriptionFromArgs(approval.args);
+              const risk = riskFromToolName(approval.toolCallName);
+
+              return (
+                <div key={approval.toolCallId} role="listitem">
+                  <SGApprovalGate
+                    action={action}
+                    description={description}
+                    risk={risk}
+                    toolName={approval.toolCallName}
+                    onApprove={() => approveToolCall(approval.toolCallId)}
+                    onReject={() => rejectToolCall(approval.toolCallId)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <SGEmptyState icon="✅" message="No pending approvals" />
+        )}
+      </section>
+
       {/* Hardware status */}
       <section aria-label="Hardware status">
         <h2 className="sg-section-label">Hardware</h2>
@@ -58,7 +154,9 @@ export default function DashboardPanel() {
           </div>
           <div className="flex items-center justify-between" role="listitem">
             <span style={{ color: 'var(--sg-text-2)', fontSize: '0.875rem' }}>CPU</span>
-            <span style={{ color: 'var(--sg-text-3)', fontSize: '0.875rem' }}>Idle</span>
+            <span style={{ color: 'var(--sg-text-3)', fontSize: '0.875rem' }}>
+              {isRunning ? 'Active' : 'Idle'}
+            </span>
           </div>
           <div className="flex items-center justify-between" role="listitem">
             <span style={{ color: 'var(--sg-text-2)', fontSize: '0.875rem' }}>Memory</span>
@@ -67,19 +165,24 @@ export default function DashboardPanel() {
         </div>
       </section>
 
-      {/* Recent activity */}
+      {/* Recent activity — driven by AG-UI activities stream */}
       <section aria-label="Recent activity">
         <h2 className="sg-section-label">
           Recent Activity
           {connected && <span className="sg-badge sg-badge-emerald" aria-label="Live updates active" style={{ marginLeft: '0.5rem', fontSize: '0.625rem' }}>LIVE</span>}
         </h2>
-        {recentEvents.length > 0 ? (
+        {recentActivities.length > 0 ? (
           <div className="sg-card space-y-2" role="log" aria-label="Activity feed" aria-live="polite" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-            {recentEvents.map((evt, i) => (
-              <div key={i} className="flex items-center gap-2" style={{ fontSize: '0.8125rem' }}>
-                <span className="sg-status-dot sg-status-active" aria-hidden="true" />
-                <span style={{ color: 'var(--sg-text-3)' }}>{evt.type.replace(/([A-Z])/g, ' $1').trim().toLowerCase()}</span>
-                {evt.core_type != null && <span className="sg-badge sg-badge-indigo" style={{ fontSize: '0.625rem' }}>{String(evt.core_type)}</span>}
+            {recentActivities.map((activity) => (
+              <div key={activity.id} className="flex items-center gap-2" style={{ fontSize: '0.8125rem' }}>
+                <span
+                  className={`sg-status-dot ${levelDotClass[activity.level] ?? 'sg-status-idle'}`}
+                  aria-hidden="true"
+                />
+                <span style={{ color: 'var(--sg-text-3)', flex: 1 }}>{activity.message}</span>
+                <span style={{ color: 'var(--sg-text-4)', fontSize: '0.6875rem', whiteSpace: 'nowrap' }}>
+                  {new Date(activity.timestamp).toLocaleTimeString()}
+                </span>
               </div>
             ))}
           </div>

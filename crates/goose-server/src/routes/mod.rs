@@ -1,6 +1,7 @@
 pub mod action_required;
 pub mod agent;
 pub mod agent_stream;
+pub mod ag_ui_stream;
 pub mod config_management;
 pub mod cost;
 pub mod enterprise;
@@ -56,5 +57,6 @@ pub fn configure(state: Arc<crate::state::AppState>, secret_key: String) -> Rout
         .merge(enterprise::routes(state.clone()))
         .merge(extensions::routes(state.clone()))
         .merge(agent_stream::routes(state.clone()))
+        .merge(ag_ui_stream::routes(state.clone()))
         .merge(mcp_app_proxy::routes(secret_key))
 }

@@ -567,7 +567,7 @@ impl Agent {
             docs_dir,
             &audit_db,
             "Super-Goose",
-            "1.24.05",
+            env!("CARGO_PKG_VERSION"),
         ).await {
             Ok(daemon) => {
                 info!("Autonomous daemon initialized (audit: {:?})", audit_db);
@@ -609,14 +609,15 @@ impl Agent {
         }
 
         // Step 2: Gather config snapshot for state saving
+        let version = env!("CARGO_PKG_VERSION");
         let config_json = serde_json::json!({
-            "version": "1.24.05",
+            "version": version,
             "core": self.core_registry.active_core_type().await.to_string(),
             "timestamp": chrono::Utc::now().to_rfc3339(),
         }).to_string();
 
         // Step 3: Perform the full update cycle
-        let result = ota.perform_update("1.24.05", &config_json).await?;
+        let result = ota.perform_update(version, &config_json).await?;
 
         let mut output = String::from("## Self-Improve Result\n\n");
         output.push_str(&format!("**Status:** {}\n", result.status));

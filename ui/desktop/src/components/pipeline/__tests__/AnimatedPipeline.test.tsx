@@ -61,10 +61,11 @@ describe('AnimatedPipeline', () => {
       expect(screen.getByText('SUPER-GOOSE END-TO-END PIPELINE')).toBeDefined();
     });
 
-    it('renders INPUT and OUTPUT labels', () => {
-      render(<TestPipeline />);
-      expect(screen.getByText('INPUT')).toBeDefined();
-      expect(screen.getByText('OUTPUT')).toBeDefined();
+    it('renders input and output connection lines', () => {
+      const { container } = render(<TestPipeline />);
+      // Input/output are now SVG lines (arrows), not text labels
+      const lines = container.querySelectorAll('svg line');
+      expect(lines.length).toBeGreaterThan(0);
     });
   });
 
@@ -94,14 +95,16 @@ describe('AnimatedPipeline', () => {
       expect(screen.getByText('WAITING')).toBeDefined();
     });
 
-    it('shows quantum standby text when waiting', () => {
-      render(<TestPipeline />);
-      expect(screen.getByText('QUANTUM STANDBY')).toBeDefined();
+    it('shows quantum waiting pulse animation when idle', () => {
+      const { container } = render(<TestPipeline />);
+      // Waiting mode renders animated circles instead of text
+      const waitingPulse = container.querySelector('.pipeline-waiting-pulse');
+      expect(waitingPulse).not.toBeNull();
     });
 
-    it('shows awaiting task subtitle when waiting', () => {
+    it('shows pipeline idle message in activity log when waiting', () => {
       render(<TestPipeline />);
-      expect(screen.getByText('Awaiting next task...')).toBeDefined();
+      expect(screen.getByText('Pipeline idle — waiting for agent activity')).toBeDefined();
     });
 
     it('shows idle message in activity log when waiting', () => {
@@ -116,11 +119,10 @@ describe('AnimatedPipeline', () => {
       expect(screen.getByText('THINKING')).toBeDefined();
     });
 
-    it('shows active subtitle with current stage', () => {
+    it('shows chatState in header when streaming', () => {
       render(<TestPipeline chatState={ChatState.Streaming} />);
-      // Should contain "Active: EXECUTE"
-      const subtitle = screen.getByText(/Active:.*EXECUTE/);
-      expect(subtitle).toBeDefined();
+      // Header shows chatState in uppercase
+      expect(screen.getByText('STREAMING')).toBeDefined();
     });
 
     it('shows sub-label for active stage', () => {
@@ -134,7 +136,7 @@ describe('AnimatedPipeline', () => {
       const { container } = render(<TestPipeline />);
       const svg = container.querySelector('svg');
       expect(svg).not.toBeNull();
-      expect(svg?.getAttribute('viewBox')).toBe('0 0 880 310');
+      expect(svg?.getAttribute('viewBox')).toBe('0 0 420 65');
     });
 
     it('renders glow filters for each stage', () => {

@@ -66,8 +66,8 @@ export const PANEL_REGISTRY: Record<PanelId, PanelConfig> = {
     icon: Workflow,
     component: LazyPlaceholder, // resolved to AnimatedPipeline in BottomZone
     defaultZone: 'bottom',
-    minSizePercent: 8,
-    maxSizePercent: 40,
+    minSizePercent: 5,
+    maxSizePercent: 15,
     collapsible: true,
     closable: true,
     order: 0,

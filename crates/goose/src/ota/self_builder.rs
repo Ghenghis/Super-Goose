@@ -77,14 +77,31 @@ pub struct BuildConfig {
 }
 
 impl BuildConfig {
-    /// Create a default build config for the goose-cli crate.
+    /// Create a default build config for the goose-server crate (goosed binary).
+    ///
+    /// This is the correct default for Electron desktop builds, which run `goosed`
+    /// from the `goose-server` package.
     pub fn default_goose() -> Self {
+        Self {
+            workspace_root: PathBuf::from("."),
+            package: "goose-server".to_string(),
+            binary_name: "goosed".to_string(),
+            profile: BuildProfile::Release,
+            timeout: Duration::from_secs(600), // 10 minutes
+            extra_args: Vec::new(),
+        }
+    }
+
+    /// Create a build config for the goose-cli crate (CLI binary).
+    ///
+    /// Use this when building the standalone CLI tool rather than the server.
+    pub fn default_goose_cli() -> Self {
         Self {
             workspace_root: PathBuf::from("."),
             package: "goose-cli".to_string(),
             binary_name: "goose".to_string(),
             profile: BuildProfile::Release,
-            timeout: Duration::from_secs(600), // 10 minutes
+            timeout: Duration::from_secs(600),
             extra_args: Vec::new(),
         }
     }
@@ -213,6 +230,105 @@ impl SelfBuilder {
         Ok(result)
     }
 
+    /// Execute the build with streaming progress updates.
+    ///
+    /// Like `build()`, but sends each line of cargo output through the `progress_tx`
+    /// channel. The caller can forward these to a shared progress state for UI polling.
+    pub async fn build_with_progress(
+        &self,
+        progress_tx: tokio::sync::mpsc::Sender<String>,
+    ) -> Result<BuildResult> {
+        self.validate_prerequisites().await?;
+
+        let args = self.build_cargo_args();
+        info!(
+            args = ?args,
+            workspace = %self.config.workspace_root.display(),
+            "Starting cargo build (streaming)"
+        );
+
+        let start = std::time::Instant::now();
+
+        let mut child = tokio::process::Command::new("cargo")
+            .args(&args)
+            .current_dir(&self.config.workspace_root)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .context("Failed to spawn cargo build")?;
+
+        // Stream stderr (cargo writes progress to stderr)
+        let stderr = child.stderr.take();
+        let stdout = child.stdout.take();
+
+        let mut all_output = String::new();
+
+        // Read stderr in a background task (cargo's main output goes to stderr)
+        let tx_stderr = progress_tx.clone();
+        let stderr_handle = tokio::spawn(async move {
+            let mut lines = Vec::new();
+            if let Some(stderr) = stderr {
+                use tokio::io::{AsyncBufReadExt, BufReader};
+                let reader = BufReader::new(stderr);
+                let mut line_reader = reader.lines();
+                while let Ok(Some(line)) = line_reader.next_line().await {
+                    let _ = tx_stderr.send(line.clone()).await;
+                    lines.push(line);
+                }
+            }
+            lines.join("\n")
+        });
+
+        // Read stdout in a background task
+        let tx_stdout = progress_tx;
+        let stdout_handle = tokio::spawn(async move {
+            let mut lines = Vec::new();
+            if let Some(stdout) = stdout {
+                use tokio::io::{AsyncBufReadExt, BufReader};
+                let reader = BufReader::new(stdout);
+                let mut line_reader = reader.lines();
+                while let Ok(Some(line)) = line_reader.next_line().await {
+                    let _ = tx_stdout.send(line.clone()).await;
+                    lines.push(line);
+                }
+            }
+            lines.join("\n")
+        });
+
+        let status = child.wait().await.context("Failed to wait for cargo build")?;
+
+        let stderr_output = stderr_handle.await.unwrap_or_default();
+        let stdout_output = stdout_handle.await.unwrap_or_default();
+        all_output.push_str(&stdout_output);
+        all_output.push('\n');
+        all_output.push_str(&stderr_output);
+
+        let duration = start.elapsed();
+        let success = status.success();
+        let binary_path = if success {
+            let path = self.config.expected_binary_path();
+            if path.exists() {
+                Some(path)
+            } else {
+                warn!("Build succeeded but binary not found at expected path");
+                None
+            }
+        } else {
+            error!("Build failed (streaming): {}", &stderr_output.chars().take(500).collect::<String>());
+            None
+        };
+
+        Ok(BuildResult {
+            success,
+            binary_path,
+            output: all_output,
+            duration_secs: duration.as_secs_f64(),
+            built_at: Utc::now(),
+            git_hash: self.get_git_hash().await.ok(),
+            profile: self.config.profile,
+        })
+    }
+
     /// Perform a dry-run build (validates args without executing cargo).
     pub fn build_dry_run(&self) -> BuildResult {
         let args = self.build_cargo_args();
@@ -283,8 +399,8 @@ mod tests {
     fn test_config(dir: &Path) -> BuildConfig {
         BuildConfig {
             workspace_root: dir.to_path_buf(),
-            package: "goose-cli".to_string(),
-            binary_name: "goose".to_string(),
+            package: "goose-server".to_string(),
+            binary_name: "goosed".to_string(),
             profile: BuildProfile::Debug,
             timeout: Duration::from_secs(60),
             extra_args: Vec::new(),
@@ -308,6 +424,15 @@ mod tests {
     #[test]
     fn test_build_config_default() {
         let config = BuildConfig::default_goose();
+        assert_eq!(config.package, "goose-server");
+        assert_eq!(config.binary_name, "goosed");
+        assert_eq!(config.profile, BuildProfile::Release);
+        assert_eq!(config.timeout, Duration::from_secs(600));
+    }
+
+    #[test]
+    fn test_build_config_default_cli() {
+        let config = BuildConfig::default_goose_cli();
         assert_eq!(config.package, "goose-cli");
         assert_eq!(config.binary_name, "goose");
         assert_eq!(config.profile, BuildProfile::Release);
@@ -318,8 +443,8 @@ mod tests {
     fn test_expected_binary_path() {
         let config = BuildConfig {
             workspace_root: PathBuf::from("/workspace"),
-            package: "goose-cli".to_string(),
-            binary_name: "goose".to_string(),
+            package: "goose-server".to_string(),
+            binary_name: "goosed".to_string(),
             profile: BuildProfile::Release,
             timeout: Duration::from_secs(60),
             extra_args: Vec::new(),
@@ -329,7 +454,7 @@ mod tests {
         let path_str = path.to_string_lossy();
         assert!(path_str.contains("target"));
         assert!(path_str.contains("release"));
-        assert!(path_str.contains("goose"));
+        assert!(path_str.contains("goosed"));
     }
 
     #[test]
@@ -339,7 +464,7 @@ mod tests {
         let builder = SelfBuilder::new(config);
         let args = builder.build_cargo_args();
 
-        assert_eq!(args, vec!["build", "-p", "goose-cli"]);
+        assert_eq!(args, vec!["build", "-p", "goose-server"]);
     }
 
     #[test]
@@ -350,7 +475,7 @@ mod tests {
         let builder = SelfBuilder::new(config);
         let args = builder.build_cargo_args();
 
-        assert_eq!(args, vec!["build", "-p", "goose-cli", "--release"]);
+        assert_eq!(args, vec!["build", "-p", "goose-server", "--release"]);
     }
 
     #[test]
@@ -363,7 +488,7 @@ mod tests {
 
         assert_eq!(
             args,
-            vec!["build", "-p", "goose-cli", "--features", "memory"]
+            vec!["build", "-p", "goose-server", "--features", "memory"]
         );
     }
 
@@ -465,7 +590,7 @@ mod tests {
         let builder = SelfBuilder::new(config);
         let args = builder.build_cargo_args();
         // Should just be build + package, no extra args
-        assert_eq!(args, vec!["build", "-p", "goose-cli"]);
+        assert_eq!(args, vec!["build", "-p", "goose-server"]);
     }
 
     #[test]
@@ -482,7 +607,7 @@ mod tests {
         let args = builder.build_cargo_args();
         assert_eq!(
             args,
-            vec!["build", "-p", "goose-cli", "--features", "memory,bookmarks", "--jobs", "4"]
+            vec!["build", "-p", "goose-server", "--features", "memory,bookmarks", "--jobs", "4"]
         );
     }
 
@@ -565,7 +690,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let config = test_config(dir.path());
         let builder = SelfBuilder::new(config.clone());
-        assert_eq!(builder.config().package, "goose-cli");
-        assert_eq!(builder.config().binary_name, "goose");
+        assert_eq!(builder.config().package, "goose-server");
+        assert_eq!(builder.config().binary_name, "goosed");
     }
 }
