@@ -6,7 +6,7 @@
 
 **Fork of [Block's Goose](https://github.com/block/goose) with enterprise-grade enhancements.**
 
-[![Version](https://img.shields.io/badge/v1.24.05-stable-FF6600?style=for-the-badge)](https://github.com/Ghenghis/Super-Goose/releases)
+[![Version](https://img.shields.io/badge/v1.25.0-stable-FF6600?style=for-the-badge)](https://github.com/Ghenghis/Super-Goose/releases)
 [![Tests](https://img.shields.io/badge/Tests-4,274_passing-00CC66?style=for-the-badge)](https://github.com/Ghenghis/Super-Goose/actions)
 [![CI](https://img.shields.io/github/actions/workflow/status/Ghenghis/Super-Goose/ci.yml?branch=main&style=for-the-badge&label=CI&color=00CC66)](https://github.com/Ghenghis/Super-Goose/actions)
 [![License](https://img.shields.io/badge/License-Apache_2.0-FF6600.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
@@ -92,7 +92,7 @@ See [BUILD_AND_DEPLOY.md](docs/BUILD_AND_DEPLOY.md) for full build instructions,
 
 | Platform | CLI | Desktop |
 |:--|:--|:--|
-| **Docker** | `ghcr.io/ghenghis/super-goose:v1.24.05` | -- |
+| **Docker** | `ghcr.io/ghenghis/super-goose:v1.25.0` | -- |
 | **Windows x64** | `goose-x86_64-pc-windows-msvc.zip` | `Super-Goose-win32-x64.zip` |
 | **macOS ARM** | `goose-aarch64-apple-darwin.tar.bz2` | `Super-Goose.dmg` |
 | **macOS Intel** | `goose-x86_64-apple-darwin.tar.bz2` | `Super-Goose-intel.dmg` |
