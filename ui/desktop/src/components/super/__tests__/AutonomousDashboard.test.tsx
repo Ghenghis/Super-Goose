@@ -343,4 +343,62 @@ describe('AutonomousDashboard', () => {
       expect(screen.getByText('OTA Self-Build')).toBeDefined();
     });
   });
+
+  // -- Restart UI tests -------------------------------------------------------
+
+  it('shows Force Restart button', async () => {
+    render(<AutonomousDashboard />);
+    await waitFor(() => {
+      expect(screen.getByText('Force Restart')).toBeDefined();
+    });
+  });
+
+  it('disables Force Restart when OTA is busy', async () => {
+    const mockTriggerResponse = {
+      triggered: true,
+      cycle_id: 'cycle-busy',
+      message: 'Building...',
+      restart_required: false,
+    };
+
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (opts?.method === 'POST' && url.includes('/api/ota/trigger')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockTriggerResponse),
+        });
+      }
+      if (url.includes('/api/ota/status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockOta),
+        });
+      }
+      if (url.includes('/api/autonomous/status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockAuto),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<AutonomousDashboard />);
+
+    // Wait for initial render with data
+    await waitFor(() => {
+      expect(screen.getByTestId('ota-trigger-btn')).toBeDefined();
+    });
+
+    // Trigger OTA to set busy state
+    fireEvent.click(screen.getByTestId('ota-trigger-btn'));
+
+    // The Force Restart button should be disabled while OTA is busy
+    // (otaBusy is true during the triggerOta async call)
+    await waitFor(() => {
+      const forceBtn = screen.getByTestId('ota-force-restart-btn');
+      expect(forceBtn).toHaveProperty('disabled', true);
+    });
+  });
 });

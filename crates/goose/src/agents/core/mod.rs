@@ -38,7 +38,7 @@ pub use orchestrator_core::OrchestratorCore;
 pub use swarm_core::SwarmCore;
 pub use workflow_core::WorkflowCore;
 pub use adversarial_core::AdversarialCore;
-pub use registry::AgentCoreRegistry;
+pub use registry::{AgentCoreRegistry, CoreInfo};
 pub use metrics::{CoreMetrics, CoreMetricsSnapshot};
 pub use selector::{CoreSelector, SelectionResult};
 

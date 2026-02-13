@@ -12,6 +12,21 @@ import { status } from './api';
 import { Client } from './api/client';
 import { ExternalGoosedConfig } from './utils/settings';
 
+// OTA Restart Supervisor Constants
+const OTA_EXIT_CODE = 42;           // Exit code signaling intentional OTA restart
+const MAX_RESTARTS = 10;            // Max restart attempts before giving up
+const BACKOFF_BASE_MS = 1000;       // Base delay: 1s, 2s, 4s, 8s...
+const BACKOFF_CAP_MS = 60000;       // Cap at 60s between restarts
+const STABILITY_WINDOW_MS = 300000; // Reset counter after 5min of stable running
+
+// Module-level restart tracking (accessible via IPC)
+export const supervisorState = {
+  restartCount: 0,
+  lastRestartTime: 0,
+  maxRestarts: MAX_RESTARTS,
+  shuttingDown: false,
+};
+
 export const findAvailablePort = (): Promise<number> => {
   return new Promise((resolve, _reject) => {
     const server = createServer();
@@ -116,6 +131,13 @@ export const startGoosed = async (options: StartGoosedOptions): Promise<GoosedRe
   const port = await findAvailablePort();
   const stderrLines: string[] = [];
 
+  // Restart supervisor state
+  let restartCount = 0;
+  let lastRestartTime = 0;
+  let processStartTime = Date.now();
+  let shuttingDown = false;
+  let currentProcess: ChildProcess = null as unknown as ChildProcess;
+
   log.info(`Starting goosed from: ${resolvedGoosedPath} on port ${port} in dir ${dir}`);
 
   const additionalEnv: GooseProcessEnv = {
@@ -186,22 +208,97 @@ export const startGoosed = async (options: StartGoosedOptions): Promise<GoosedRe
     });
   });
 
-  goosedProcess.on('close', (code: number | null) => {
+  // Named close handler for restart-on-exit with exponential backoff
+  const handleProcessClose = (code: number | null) => {
     log.info(`goosed process exited with code ${code} for port ${port} and dir ${dir}`);
-  });
+
+    // Don't restart if app is quitting
+    if (shuttingDown) {
+      log.info('App shutting down, not restarting goosed');
+      return;
+    }
+
+    // Reset counter if process was stable for 5+ minutes
+    const uptime = Date.now() - processStartTime;
+    if (uptime > STABILITY_WINDOW_MS) {
+      restartCount = 0;
+    }
+
+    if (restartCount >= MAX_RESTARTS) {
+      log.error(`goosed has restarted ${MAX_RESTARTS} times, giving up`);
+      supervisorState.restartCount = restartCount;
+      return;
+    }
+
+    // OTA restart (code 42) gets minimal delay; crashes get exponential backoff
+    const isOtaRestart = code === OTA_EXIT_CODE;
+    const delay = isOtaRestart
+      ? 500
+      : Math.min(BACKOFF_BASE_MS * Math.pow(2, restartCount), BACKOFF_CAP_MS);
+
+    restartCount++;
+    lastRestartTime = Date.now();
+
+    // Sync to module-level state for IPC visibility
+    supervisorState.restartCount = restartCount;
+    supervisorState.lastRestartTime = lastRestartTime;
+
+    log.info(
+      `${isOtaRestart ? 'OTA' : 'Crash'} restart: attempt ${restartCount}/${MAX_RESTARTS} in ${delay}ms`
+    );
+
+    setTimeout(() => {
+      processStartTime = Date.now();
+      try {
+        const newProcess = spawn(goosedPath, safeArgs, spawnOptions);
+        if (isWindows && newProcess.unref) newProcess.unref();
+
+        newProcess.stdout?.on('data', (data: Buffer) => {
+          log.info(`goosed stdout for port ${port} and dir ${dir}: ${data.toString()}`);
+        });
+        newProcess.stderr?.on('data', (data: Buffer) => {
+          data
+            .toString()
+            .split('\n')
+            .filter((l) => l.trim())
+            .forEach((line) => {
+              log.error(`goosed stderr for port ${port} and dir ${dir}: ${line}`);
+              stderrLines.push(line);
+            });
+        });
+        newProcess.on('error', (err: Error) => {
+          log.error(`Failed to restart goosed: ${err.message}`);
+        });
+        newProcess.on('close', handleProcessClose);
+
+        currentProcess = newProcess;
+        log.info(`goosed restarted successfully (PID: ${newProcess.pid})`);
+      } catch (err) {
+        log.error(`Failed to spawn goosed on restart: ${err}`);
+      }
+    }, delay);
+  };
+
+  goosedProcess.on('close', handleProcessClose);
 
   goosedProcess.on('error', (err: Error) => {
     log.error(`Failed to start goosed on port ${port} and dir ${dir}`, err);
     throw err;
   });
 
+  // Track the latest process (may change on restart)
+  currentProcess = goosedProcess;
+
   const try_kill_goose = () => {
+    shuttingDown = true;
+    supervisorState.shuttingDown = true;
     try {
+      const proc = currentProcess || goosedProcess;
       if (isWindows) {
-        const pid = goosedProcess.pid?.toString() || '0';
+        const pid = proc.pid?.toString() || '0';
         spawn('taskkill', ['/pid', pid, '/T', '/F'], { shell: false });
       } else {
-        goosedProcess.kill?.();
+        proc.kill?.();
       }
     } catch (error) {
       log.error('Error while terminating goosed process:', error);

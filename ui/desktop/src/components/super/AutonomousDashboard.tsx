@@ -41,7 +41,39 @@ export default function AutonomousDashboard() {
   const [loading, setLoading] = useState(true);
   const [otaMessage, setOtaMessage] = useState<string | null>(null);
   const [otaBusy, setOtaBusy] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [restartCountdown, setRestartCountdown] = useState(0);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [, setPreviousVersion] = useState<string | null>(null);
+  const [reconnectMessage, setReconnectMessage] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const pollForReconnect = useCallback(async (prevVersion: string) => {
+    setReconnecting(true);
+    setReconnectMessage(null);
+    const maxAttempts = 30; // 60s at 2s intervals
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      try {
+        const res = await fetch(`${API_BASE}/api/version`);
+        if (res.ok) {
+          const data = await res.json();
+          const newVersion = data.version || 'unknown';
+          setReconnecting(false);
+          setRestarting(false);
+          if (newVersion !== prevVersion) {
+            setReconnectMessage(`Reconnected — running v${newVersion} (was v${prevVersion})`);
+          } else {
+            setReconnectMessage(`Reconnected — v${newVersion}`);
+          }
+          return;
+        }
+      } catch { /* still down */ }
+    }
+    setReconnecting(false);
+    setRestarting(false);
+    setReconnectMessage('Restart failed — backend unreachable after 60s');
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -93,15 +125,27 @@ export default function AutonomousDashboard() {
         const data: OtaTriggerResponse = await res.json();
         setOtaMessage(data.message);
         if (data.restart_required) {
-          setOtaMessage('OTA complete — restarting in 2s...');
-          setTimeout(() => {
-            // Try Electron restart first, fall back to backend restart
-            if (window.electron?.restartApp) {
-              window.electron.restartApp();
-            } else {
-              fetch(`${API_BASE}/api/ota/restart`, { method: 'POST' }).catch(() => {});
+          const prevVer = ota?.current_version || 'unknown';
+          setPreviousVersion(prevVer);
+          setRestarting(true);
+          setOtaMessage('OTA complete — restarting in 3...');
+          let count = 3;
+          setRestartCountdown(count);
+          const timer = setInterval(() => {
+            count--;
+            setRestartCountdown(count);
+            if (count <= 0) {
+              clearInterval(timer);
+              // Try Electron restart first, fall back to backend restart
+              if (window.electron?.restartApp) {
+                window.electron.restartApp();
+              } else {
+                fetch(`${API_BASE}/api/ota/restart`, { method: 'POST' }).catch(() => {});
+              }
+              // Start polling for reconnection
+              pollForReconnect(prevVer);
             }
-          }, 2000);
+          }, 1000);
         }
         await fetchData();
       } else {
@@ -140,6 +184,27 @@ export default function AutonomousDashboard() {
             >
               Trigger OTA
             </button>
+            <button
+              data-testid="ota-force-restart-btn"
+              className="px-3 py-1 rounded text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-50"
+              disabled={restarting || otaBusy}
+              onClick={async () => {
+                const prevVer = ota?.current_version || 'unknown';
+                setPreviousVersion(prevVer);
+                setRestarting(true);
+                setRestartCountdown(0);
+                try {
+                  await fetch(`${API_BASE}/api/ota/restart`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ force: true, reason: 'user_force_restart' }),
+                  });
+                } catch { /* expected — server is exiting */ }
+                pollForReconnect(prevVer);
+              }}
+            >
+              Force Restart
+            </button>
           </div>
         </div>
         <div className="p-3 rounded-lg border border-border-default bg-background-default space-y-2">
@@ -166,6 +231,34 @@ export default function AutonomousDashboard() {
           )}
         </div>
       </div>
+
+      {/* Restart status */}
+      {restarting && (
+        <div className="p-3 rounded-lg border border-border-default bg-background-default" style={{ borderLeft: '3px solid var(--sg-gold, #f59e0b)' }}>
+          {restartCountdown > 0 ? (
+            <div style={{ color: 'var(--sg-gold, #f59e0b)', fontSize: '0.875rem', fontWeight: 600 }}>
+              Restarting in {restartCountdown}...
+            </div>
+          ) : reconnecting ? (
+            <div style={{ color: 'var(--sg-sky, #38bdf8)', fontSize: '0.875rem' }}>
+              <span className="animate-pulse">●</span> Reconnecting to backend...
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {reconnectMessage && (
+        <div
+          className="p-3 rounded-lg border border-border-default bg-background-default"
+          style={{
+            borderLeft: `3px solid ${reconnectMessage.includes('failed') ? 'var(--sg-red, #ef4444)' : 'var(--sg-emerald, #34d399)'}`,
+            fontSize: '0.8125rem',
+            color: reconnectMessage.includes('failed') ? 'var(--sg-red, #ef4444)' : 'var(--sg-emerald, #34d399)',
+          }}
+        >
+          {reconnectMessage}
+        </div>
+      )}
 
       {/* Autonomous Daemon */}
       <div>

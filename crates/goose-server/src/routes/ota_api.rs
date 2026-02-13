@@ -20,6 +20,16 @@ pub struct OtaTriggerRequest {
     pub dry_run: bool,
 }
 
+#[derive(Deserialize, Default)]
+pub struct OtaRestartRequest {
+    #[serde(default)]
+    pub force: bool,
+    #[serde(default)]
+    pub rebuild: bool,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
 #[derive(Deserialize)]
 pub struct AutonomousActionRequest {
     pub session_id: String,
@@ -432,17 +442,60 @@ async fn version_info() -> Json<VersionInfo> {
 /// POST /api/ota/restart
 ///
 /// Gracefully restarts the goosed process after OTA binary swap.
+/// Writes a restart marker file so the next startup knows it was an OTA restart.
+/// Uses exit code 42 to signal "intentional OTA restart" (vs 0=clean, 1=crash).
 /// Delays exit by 500ms so the HTTP response can flush.
-async fn ota_restart() -> Json<serde_json::Value> {
-    tokio::spawn(async {
+async fn ota_restart(
+    body: Option<Json<OtaRestartRequest>>,
+) -> Json<serde_json::Value> {
+    let req = body.map(|b| b.0).unwrap_or_default();
+    let reason = req.reason.unwrap_or_else(|| "ota_update".to_string());
+
+    // Write restart marker for next startup to detect OTA restart
+    if let Some(config_dir) = dirs::config_dir() {
+        let marker_dir = config_dir.join("goose").join("ota");
+        let _ = std::fs::create_dir_all(&marker_dir);
+        let marker_path = marker_dir.join(".restart-pending");
+        let marker = serde_json::json!({
+            "reason": reason,
+            "rebuild": req.rebuild,
+            "force": req.force,
+            "timestamp": chrono::Utc::now().timestamp(),
+            "version": env!("CARGO_PKG_VERSION"),
+        });
+        if let Err(e) = std::fs::write(&marker_path, marker.to_string()) {
+            tracing::warn!("Failed to write restart marker: {}", e);
+        } else {
+            tracing::info!("Restart marker written to {:?}", marker_path);
+        }
+    }
+
+    let exit_code = if req.force { 1 } else { 42 };
+
+    tokio::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-        tracing::info!("OTA restart: shutting down for binary swap");
-        std::process::exit(0);
+        tracing::info!("OTA restart: shutting down for binary swap (exit code {})", exit_code);
+        std::process::exit(exit_code);
     });
 
     Json(serde_json::json!({
         "restarting": true,
+        "exit_code": exit_code,
+        "reason": reason,
         "message": "Process will exit in 500ms for OTA restart"
+    }))
+}
+
+/// GET /api/ota/restart-status
+///
+/// Check if a restart is pending (marker file exists).
+async fn ota_restart_status() -> Json<serde_json::Value> {
+    let pending = dirs::config_dir()
+        .map(|d| d.join("goose").join("ota").join(".restart-pending").exists())
+        .unwrap_or(false);
+
+    Json(serde_json::json!({
+        "restart_pending": pending,
     }))
 }
 
@@ -538,6 +591,7 @@ pub fn routes(state: Arc<AppState>) -> Router {
         .route("/api/ota/trigger", post(ota_trigger))
         .route("/api/ota/history", get(ota_history))
         .route("/api/ota/restart", post(ota_restart))
+        .route("/api/ota/restart-status", get(ota_restart_status))
         // Autonomous endpoints
         .route("/api/autonomous/status", get(autonomous_status))
         .route("/api/autonomous/start", post(autonomous_start))

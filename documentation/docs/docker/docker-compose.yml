@@ -32,5 +32,31 @@ services:
     tty: true
     entrypoint: ["/bin/bash"]
 
+  goosed:
+    build:
+      context: ../../..
+      dockerfile: documentation/docs/docker/Dockerfile
+    entrypoint: ["/usr/local/bin/goosed", "agent"]
+    ports:
+      - "${GOOSE_PORT:-3284}:3284"
+    environment:
+      - GOOSE_PORT=3284
+      - GOOSE_SERVER__HOST=0.0.0.0
+      - GOOSE_HOME=/home/goose
+    volumes:
+      - goose-config:/home/goose/.config/goose
+      - ${WORKSPACE:-./workspace}:/workspace
+    restart: on-failure:10
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3284/api/version"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
 volumes:
   goose-config:

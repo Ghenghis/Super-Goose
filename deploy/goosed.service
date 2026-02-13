@@ -1,0 +1,50 @@
+[Unit]
+Description=Super-Goose AI Agent Server (goosed)
+Documentation=https://ghenghis.github.io/Super-Goose
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=goose
+Group=goose
+
+# Binary and args
+ExecStart=/usr/local/bin/goosed agent
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Restart policy: always restart on failure, with rate limiting
+Restart=on-failure
+RestartSec=3
+StartLimitBurst=10
+StartLimitIntervalSec=300
+
+# Environment
+Environment=GOOSE_PORT=3284
+Environment=GOOSE_SERVER__HOST=0.0.0.0
+EnvironmentFile=-/etc/goose/goosed.env
+
+# Watchdog: sd_notify must be called within 60s or systemd kills us
+# WatchdogSec=60  # Uncomment when sd_notify support is added
+
+# Resource limits
+LimitNOFILE=65536
+TimeoutStartSec=30
+TimeoutStopSec=15
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/goose/.config/goose /tmp
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=goosed
+
+[Install]
+WantedBy=multi-user.target
