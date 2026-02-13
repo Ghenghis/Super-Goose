@@ -70,21 +70,28 @@ export const test = base.extend<GooseTestFixtures>({
         });
       }
 
-      // Wait for the app to start and remote debugging to be available
-      // Retry connection until it succeeds (app is ready) or timeout
+      // Wait for the app to start and remote debugging to be available.
+      // electron-forge start runs: generate-api → build main/preload → launch Electron.
+      // This can take 10-20 seconds, so we wait before trying CDP connection.
       console.log(`Waiting for Electron app to start on port ${debugPort}...`);
-      const maxRetries = 300; // 300 retries * 200ms = 60 seconds max
-      const retryDelay = 200; // 200ms between retries
+
+      // Give electron-forge time to compile and launch Electron (~15s on first run)
+      const initialDelay = 15000;
+      console.log(`Waiting ${initialDelay / 1000}s for electron-forge to build and launch...`);
+      await new Promise(resolve => setTimeout(resolve, initialDelay));
+
+      const maxRetries = 150; // 150 retries * 400ms = 60 seconds max after initial delay
+      const retryDelay = 400; // 400ms between retries
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           browser = await chromium.connectOverCDP(`http://127.0.0.1:${debugPort}`);
-          console.log(`Connected to Electron app on attempt ${attempt} (~${(attempt * retryDelay) / 1000}s)`);
+          console.log(`Connected to Electron app on attempt ${attempt} (~${initialDelay / 1000 + (attempt * retryDelay) / 1000}s total)`);
           break;
         } catch (error: unknown) {
           if (attempt === maxRetries) {
             const errMsg = error instanceof Error ? error.message : String(error);
-            throw new Error(`Failed to connect to Electron app after ${maxRetries} attempts (~${(maxRetries * retryDelay) / 1000}s). Last error: ${errMsg}`);
+            throw new Error(`Failed to connect to Electron app after ${maxRetries} attempts (~${initialDelay / 1000 + (maxRetries * retryDelay) / 1000}s total). Last error: ${errMsg}`);
           }
           // Wait before next retry
           await new Promise(resolve => setTimeout(resolve, retryDelay));
@@ -110,19 +117,40 @@ export const test = base.extend<GooseTestFixtures>({
 
       // Wait for page to be ready
       await page.waitForLoadState('domcontentloaded');
+      console.log('DOM content loaded');
 
       // Try to wait for networkidle
       try {
-        await page.waitForLoadState('networkidle', { timeout: 10000 });
+        await page.waitForLoadState('networkidle', { timeout: 15000 });
+        console.log('Network idle reached');
       } catch (_error: unknown) {
         console.log('NetworkIdle timeout (likely due to MCP activity), continuing...');
       }
 
-      // Wait for React app to be ready
+      // Wait for React app to mount (root has children)
       await page.waitForFunction(() => {
         const root = document.getElementById('root');
         return root && root.children.length > 0;
       }, { timeout: 30000 });
+      console.log('React root mounted');
+
+      // Wait for the app to fully hydrate — components, sidebar, and panels need time
+      // to render after React mount. Electron + Vite dev server can be slow on first load.
+      await page.waitForTimeout(5000);
+
+      // Wait for actual interactive content to appear (chat input, sidebar, or settings)
+      try {
+        await page.waitForFunction(() => {
+          // Look for signs the app is fully interactive
+          const chatInput = document.querySelector('[data-testid="chat-input"], textarea, [contenteditable]');
+          const sidebar = document.querySelector('[data-testid*="sidebar"], [data-super="true"], .super-goose-panel');
+          const mainContent = document.querySelector('main, [role="main"], .app-content');
+          return !!(chatInput || sidebar || mainContent);
+        }, { timeout: 15000 });
+        console.log('App interactive elements detected');
+      } catch (_error: unknown) {
+        console.log('Interactive elements not detected within timeout, continuing...');
+      }
 
       console.log('App ready, starting test...');
 

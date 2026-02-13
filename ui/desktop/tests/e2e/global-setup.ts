@@ -53,6 +53,18 @@ async function killZombieProcesses() {
           console.warn('Warning killing goosed.exe:', errMsg);
         }
       }
+      // Windows: also kill any lingering Super-Goose.exe (Electron app)
+      try {
+        await execAsync('taskkill /F /IM "Super-Goose.exe"');
+        console.log('✓ Killed lingering Super-Goose.exe processes');
+      } catch (error: unknown) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (errMsg.includes('not found') || errMsg.includes('ERROR: The process')) {
+          console.log('✓ No lingering Super-Goose.exe processes found');
+        } else {
+          console.warn('Warning killing Super-Goose.exe:', errMsg);
+        }
+      }
     } else {
       // Unix: pkill goosed
       try {

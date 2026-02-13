@@ -52,16 +52,36 @@ async function ensureSidebarOpen() {
       const root = document.getElementById('root');
       return root && root.children.length > 0;
     },
-    { timeout: 15000 },
+    { timeout: 30000 },
   );
 
   // Navigate to chat (the default route that includes the sidebar)
   await mainWindow.evaluate(() => {
     window.location.hash = '#/chat/new';
   });
-  await mainWindow.waitForTimeout(1500);
 
-  console.log('App is ready, checking sidebar');
+  // Wait for the sidebar to actually render (not just the route change)
+  // First wait for the initial navigation
+  await mainWindow.waitForTimeout(3000);
+
+  // Then wait for the sidebar DOM to be ready
+  await mainWindow.waitForFunction(
+    () => {
+      // Look for sidebar elements that indicate the panels are loaded
+      const sidebar = document.querySelector('[data-super="true"]') ||
+                      document.querySelector('.super-goose-panel') ||
+                      document.querySelector('[data-testid*="sidebar"]');
+      return !!sidebar;
+    },
+    { timeout: 15000 },
+  ).catch(() => {
+    console.log('Sidebar selector not found, continuing with timeout fallback');
+  });
+
+  // Extra buffer for panel data to populate
+  await mainWindow.waitForTimeout(1000);
+
+  console.log('App is ready, sidebar should be open');
 }
 
 // ---------------------------------------------------------------------------

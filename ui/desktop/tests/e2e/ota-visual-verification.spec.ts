@@ -245,8 +245,11 @@ test.describe('OTA Visual Verification', () => {
     await expect(page.locator('text=closed (0/5)')).toBeVisible();
     await expect(page.locator('text=Analyzing test coverage gaps')).toBeVisible();
 
-    // Screenshot for visual verification
-    await page.screenshot({ path: 'test-results/ota-idle-pipeline.png', fullPage: true });
+    // Visual regression assertion
+    await expect(page).toHaveScreenshot('ota-idle-pipeline.png', {
+      fullPage: true,
+      maxDiffPixels: 100,
+    });
   });
 
   test('OTA dashboard renders building state', async ({ page }) => {
@@ -282,7 +285,10 @@ test.describe('OTA Visual Verification', () => {
     await expect(page.getByText('building', { exact: true })).toBeVisible();
     await expect(page.getByText('5', { exact: true })).toBeVisible(); // pending improvements
 
-    await page.screenshot({ path: 'test-results/ota-building-pipeline.png', fullPage: true });
+    await expect(page).toHaveScreenshot('ota-building-pipeline.png', {
+      fullPage: true,
+      maxDiffPixels: 100,
+    });
   });
 
   test('OTA dashboard renders daemon stopped state', async ({ page }) => {
@@ -327,7 +333,10 @@ test.describe('OTA Visual Verification', () => {
     await expect(page.locator('text=Start')).toBeVisible();
     await expect(page.locator('text=0 (0 OK / 0 failed)')).toBeVisible();
 
-    await page.screenshot({ path: 'test-results/ota-daemon-stopped.png', fullPage: true });
+    await expect(page).toHaveScreenshot('ota-daemon-stopped.png', {
+      fullPage: true,
+      maxDiffPixels: 100,
+    });
   });
 
   test('OTA dashboard renders circuit breaker tripped', async ({ page }) => {
@@ -371,7 +380,10 @@ test.describe('OTA Visual Verification', () => {
     await expect(page.locator('text=open (4/5)')).toBeVisible();
     await expect(page.locator('text=9 (5 OK / 4 failed)')).toBeVisible();
 
-    await page.screenshot({ path: 'test-results/ota-circuit-breaker-tripped.png', fullPage: true });
+    await expect(page).toHaveScreenshot('ota-circuit-breaker-tripped.png', {
+      fullPage: true,
+      maxDiffPixels: 100,
+    });
   });
 
   test('daemon toggle button fires correct API call', async ({ page }) => {

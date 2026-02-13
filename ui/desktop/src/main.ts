@@ -130,7 +130,7 @@ if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
 // Apply single instance lock on Windows and Linux where it's needed for deep links
 // macOS uses the 'open-url' event instead
 let gotTheLock = true;
-if (process.platform !== 'darwin') {
+if (process.platform !== 'darwin' && !process.env.ENABLE_PLAYWRIGHT) {
   gotTheLock = app.requestSingleInstanceLock();
 
   if (!gotTheLock) {
@@ -562,38 +562,44 @@ const createChat = async (
 
   const serverReady = await checkServerStatus(goosedClient, errorLog);
   if (!serverReady) {
-    const isUsingExternalBackend = settings.externalGoosed?.enabled;
-
-    if (isUsingExternalBackend) {
-      const response = dialog.showMessageBoxSync({
-        type: 'error',
-        title: 'External Backend Unreachable',
-        message: `Could not connect to external backend at ${settings.externalGoosed?.url}`,
-        detail: 'The external goosed server may not be running.',
-        buttons: ['Disable External Backend & Retry', 'Quit'],
-        defaultId: 0,
-        cancelId: 1,
-      });
-
-      if (response === 0) {
-        updateSettings((s) => {
-          if (s.externalGoosed) {
-            s.externalGoosed.enabled = false;
-          }
-        });
-        mainWindow.destroy();
-        return createChat(app, initialMessage, dir);
-      }
+    if (process.env.ENABLE_PLAYWRIGHT) {
+      // In Playwright E2E mode, skip dialogs and keep the app alive.
+      // Tests mock the backend routes so they don't need goosed running.
+      console.error('[Playwright] Backend failed to start, keeping app alive for E2E tests');
     } else {
-      dialog.showMessageBoxSync({
-        type: 'error',
-        title: 'Super-Goose Failed to Start',
-        message: 'The backend server failed to start.',
-        detail: errorLog.join('\n'),
-        buttons: ['OK'],
-      });
+      const isUsingExternalBackend = settings.externalGoosed?.enabled;
+
+      if (isUsingExternalBackend) {
+        const response = dialog.showMessageBoxSync({
+          type: 'error',
+          title: 'External Backend Unreachable',
+          message: `Could not connect to external backend at ${settings.externalGoosed?.url}`,
+          detail: 'The external goosed server may not be running.',
+          buttons: ['Disable External Backend & Retry', 'Quit'],
+          defaultId: 0,
+          cancelId: 1,
+        });
+
+        if (response === 0) {
+          updateSettings((s) => {
+            if (s.externalGoosed) {
+              s.externalGoosed.enabled = false;
+            }
+          });
+          mainWindow.destroy();
+          return createChat(app, initialMessage, dir);
+        }
+      } else {
+        dialog.showMessageBoxSync({
+          type: 'error',
+          title: 'Super-Goose Failed to Start',
+          message: 'The backend server failed to start.',
+          detail: errorLog.join('\n'),
+          buttons: ['OK'],
+        });
+      }
+      app.quit();
     }
-    app.quit();
   }
 
   // Let windowStateKeeper manage the window
