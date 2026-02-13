@@ -18,22 +18,37 @@
 //!   ├── SelfBuilder        — cargo build with validation
 //!   ├── BinarySwapper      — atomic binary replacement
 //!   ├── HealthChecker      — post-update verification
+//!   ├── TestRunner          — run Rust/Vitest/tsc test suites
 //!   └── RollbackManager    — restore on failure
 //! ```
 
+pub mod auto_improve;
+pub mod code_applier;
 pub mod state_saver;
 pub mod self_builder;
 pub mod binary_swapper;
 pub mod health_checker;
+pub mod improvement_planner;
 pub mod rollback;
+pub mod test_runner;
 pub mod update_scheduler;
+pub mod policy_engine;
+pub mod safety_envelope;
+pub mod sandbox_runner;
 
+pub use code_applier::{CodeApplier, CodeChange, ChangeType, ApplyResult};
 pub use state_saver::{StateSaver, StateSnapshot};
 pub use self_builder::{SelfBuilder, BuildConfig, BuildProfile, BuildResult};
 pub use binary_swapper::{BinarySwapper, SwapRecord};
 pub use health_checker::{HealthChecker, HealthCheckConfig, HealthReport, CheckResult};
+pub use improvement_planner::{ImprovementPlanner, ImprovementPlan, Improvement, ImprovementType, ImprovementStatus, RiskLevel, InsightData};
 pub use rollback::{RollbackManager, RollbackRecord, RollbackReason};
+pub use test_runner::{TestRunner, TestRunConfig, TestRunResult, TestSuiteResult, TestFailure};
 pub use update_scheduler::{UpdateScheduler, SchedulerConfig, UpdatePolicy, UpdateCheckStatus, SchedulerState};
+pub use policy_engine::{PolicyEngine, PolicyAction, PolicyEvaluation, PolicyViolation, PolicyRule, RuleType, Severity};
+pub use safety_envelope::{SafetyEnvelope, SafetyReport, InvariantResult, InvariantType};
+pub use sandbox_runner::{SandboxRunner, SandboxConfig, SandboxResult, CodeChangeRef};
+pub use auto_improve::{AutoImproveScheduler, AutoImproveConfig, ImproveCycle, CycleStatus, TestSummary};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
