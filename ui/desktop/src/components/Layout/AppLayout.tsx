@@ -14,6 +14,13 @@ import { CLIProvider } from '../cli/CLIContext';
 import { PanelSystemProvider } from './PanelSystem';
 import { ResizableLayout } from './ResizableLayout';
 import { AnimatedPipeline, usePipeline } from '../pipeline';
+import AgentStatusPanel from '../GooseSidebar/AgentStatusPanel';
+import TaskBoardPanel from '../GooseSidebar/TaskBoardPanel';
+import FileActivityPanel from '../GooseSidebar/FileActivityPanel';
+import SkillsPluginsPanel from '../GooseSidebar/SkillsPluginsPanel';
+import ConnectorStatusPanel from '../GooseSidebar/ConnectorStatusPanel';
+import AgentMessagesPanel from '../GooseSidebar/AgentMessagesPanel';
+import SuperGoosePanel from '../super/SuperGoosePanel';
 
 interface AppLayoutContentProps {
   activeSessions: Array<{
@@ -134,6 +141,21 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
     </div>
   );
 
+  // ── Right zone panel components ──────────────────────────────────────
+  const rightPanelComponents = {
+    agentPanel: (
+      <div className="flex flex-col gap-2 p-2 overflow-y-auto h-full">
+        <AgentStatusPanel />
+        <TaskBoardPanel />
+        <FileActivityPanel />
+        <SkillsPluginsPanel />
+        <ConnectorStatusPanel />
+        <AgentMessagesPanel />
+      </div>
+    ),
+    superGoose: <SuperGoosePanel />,
+  };
+
   // ── Bottom zone panel components ─────────────────────────────────────
   const bottomPanelComponents = {
     pipeline: pipelineVisible ? (
@@ -152,6 +174,7 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
       <ResizableLayout
         leftContent={leftContent}
         centerContent={centerContent}
+        rightPanelComponents={rightPanelComponents}
         bottomPanelComponents={bottomPanelComponents}
       />
     </div>

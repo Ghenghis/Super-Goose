@@ -1,4 +1,5 @@
 export { PanelSystemProvider, usePanelSystem } from './PanelSystemProvider';
+export { useLayoutShortcuts } from './useLayoutShortcuts';
 export { PANEL_REGISTRY, getPanelsForZone, getPanelConfig, getAllPanelIds, getToggleablePanels } from './PanelRegistry';
 export { LAYOUT_PRESETS, getPresetById, getDefaultPreset } from './PanelLayoutPresets';
 export { PanelContainer } from './PanelContainer';

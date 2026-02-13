@@ -31,6 +31,7 @@ import {
   getDefaultPreset,
   getPresetById,
 } from './PanelLayoutPresets';
+import { useLayoutShortcuts } from './useLayoutShortcuts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -61,6 +62,16 @@ function buildDefaultLayout(): LayoutState {
     presetId: DEFAULT_PRESET_ID,
     locked: true,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Internal bridge — renders nothing, just activates keyboard shortcuts.
+// Must live *inside* the Provider so usePanelSystem() can read context.
+// ---------------------------------------------------------------------------
+
+function ShortcutsBridge() {
+  useLayoutShortcuts();
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -338,6 +349,7 @@ export function PanelSystemProvider({ children, initialLayout }: PanelSystemProv
 
   return (
     <PanelSystemContext.Provider value={value}>
+      <ShortcutsBridge />
       {children}
     </PanelSystemContext.Provider>
   );

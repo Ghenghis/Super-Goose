@@ -461,6 +461,106 @@
   border-bottom-color: var(--sg-indigo);
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Panel System — Resize Handles, Transitions, Zone Animations
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* Resize handle base */
+[data-panel-group-direction="horizontal"] > [data-resize-handle] {
+  width: 1px;
+  background: var(--border-default, hsl(var(--border)));
+  transition: width 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  cursor: col-resize;
+}
+
+[data-panel-group-direction="vertical"] > [data-resize-handle] {
+  height: 1px;
+  background: var(--border-default, hsl(var(--border)));
+  transition: height 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  cursor: row-resize;
+}
+
+/* Resize handle hover glow */
+[data-panel-group-direction="horizontal"] > [data-resize-handle]:hover,
+[data-panel-group-direction="horizontal"] > [data-resize-handle][data-resize-handle-active] {
+  width: 4px;
+  background: var(--sg-indigo, #6366f1);
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+}
+
+[data-panel-group-direction="vertical"] > [data-resize-handle]:hover,
+[data-panel-group-direction="vertical"] > [data-resize-handle][data-resize-handle-active] {
+  height: 4px;
+  background: var(--sg-indigo, #6366f1);
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+}
+
+/* Panel zone transitions */
+[data-testid="left-zone"],
+[data-testid="center-zone"],
+[data-testid="right-zone"],
+[data-testid="bottom-zone"] {
+  transition: opacity 200ms ease;
+}
+
+/* Panel header */
+[data-panel-id] > div:first-child {
+  transition: background-color 150ms ease;
+}
+
+/* Bottom zone tab active indicator */
+[data-testid="bottom-zone"] button[class*="border-text-default"] {
+  position: relative;
+}
+
+/* Status bar styling */
+[data-testid="status-bar"] {
+  font-size: 11px;
+  letter-spacing: 0.01em;
+}
+
+/* Lock mode — hide resize handles completely */
+.layout-locked [data-resize-handle] {
+  width: 1px !important;
+  height: 1px !important;
+  cursor: default !important;
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+/* Fade-in animation for panels appearing */
+@keyframes sg-panel-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sg-panel-enter {
+  animation: sg-panel-fade-in 200ms ease-out;
+}
+
+/* Smooth collapse animation */
+@keyframes sg-collapse {
+  from { max-height: 400px; opacity: 1; }
+  to { max-height: 0; opacity: 0; }
+}
+
+@keyframes sg-expand {
+  from { max-height: 0; opacity: 0; }
+  to { max-height: 400px; opacity: 1; }
+}
+
+/* Panel toolbar dropdown backdrop */
+[data-testid="status-bar"] .absolute {
+  backdrop-filter: blur(8px);
+}
+
+/* Super-Goose panel system overrides — scoped */
+[data-super="true"] [data-resize-handle]:hover,
+[data-super="true"] [data-resize-handle][data-resize-handle-active] {
+  background: var(--sg-gold, #fbbf24);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
+}
+
 @font-face {
   font-family: 'Cash Sans';
   src:
