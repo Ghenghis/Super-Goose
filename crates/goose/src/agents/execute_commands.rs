@@ -41,6 +41,14 @@ static COMMANDS: &[CommandDef] = &[
         name: "core",
         description: "Switch active core: /core <name> (freeform, structured, orchestrator, swarm, workflow, adversarial)",
     },
+    CommandDef {
+        name: "self-improve",
+        description: "Trigger OTA self-build pipeline: /self-improve [--dry-run]",
+    },
+    CommandDef {
+        name: "autonomous",
+        description: "Manage autonomous daemon: /autonomous [status|start|stop]",
+    },
 ];
 
 pub fn list_commands() -> &'static [CommandDef] {
@@ -101,6 +109,12 @@ impl Agent {
             "experience" | "exp" => self.handle_experience_command(&params, session_id).await,
             "skills" => self.handle_skills_command(&params, session_id).await,
             "insights" => self.handle_insights_command(session_id).await,
+            "self-improve" | "selfimprove" | "ota" => {
+                self.handle_self_improve_command(&params, session_id).await
+            }
+            "autonomous" | "daemon" => {
+                self.handle_autonomous_command(&params, session_id).await
+            }
             _ => {
                 self.handle_recipe_command(command, params_str, session_id)
                     .await
@@ -663,6 +677,138 @@ impl Agent {
         let insights = super::insight_extractor::InsightExtractor::extract(&store).await?;
         let formatted = super::insight_extractor::InsightExtractor::format_insights(&insights);
         Ok(Some(Message::assistant().with_text(formatted)))
+    }
+
+    /// Handle /self-improve command — trigger OTA self-build pipeline
+    async fn handle_self_improve_command(
+        &self,
+        params: &[&str],
+        _session_id: &str,
+    ) -> Result<Option<Message>> {
+        let dry_run = params.iter().any(|p| *p == "--dry-run" || *p == "dry-run" || *p == "check");
+
+        if params.first() == Some(&"status") {
+            let ota_guard = self.ota_manager.lock().await;
+            return match ota_guard.as_ref() {
+                Some(ota) => {
+                    Ok(Some(Message::assistant().with_text(format!(
+                        "## OTA Status\n\n**Status:** {}\n**Workspace:** detected\n\n\
+                         Use `/self-improve` to build, or `/self-improve --dry-run` to validate.",
+                        ota.status()
+                    ))))
+                }
+                None => {
+                    Ok(Some(Message::assistant().with_text(
+                        "OTA manager not initialized. No Cargo workspace detected.\n\n\
+                         Run from within the goose repository to enable self-improvement."
+                    )))
+                }
+            };
+        }
+
+        // Run insight extraction first for context
+        if let Ok(insights) = self.extract_insights().await {
+            if !insights.is_empty() {
+                tracing::info!("Pre-improve insights: {} patterns found", insights.len());
+            }
+        }
+
+        match self.perform_self_improve(dry_run).await {
+            Ok(summary) => Ok(Some(Message::assistant().with_text(summary))),
+            Err(e) => Ok(Some(Message::assistant().with_text(format!(
+                "## Self-Improve Failed\n\n**Error:** {}\n\n\
+                 Make sure you're running from within the goose repository with Cargo installed.",
+                e
+            )))),
+        }
+    }
+
+    /// Handle /autonomous command — manage the autonomous daemon
+    async fn handle_autonomous_command(
+        &self,
+        params: &[&str],
+        _session_id: &str,
+    ) -> Result<Option<Message>> {
+        match params.first().copied() {
+            Some("start") => {
+                if let Err(e) = self.init_autonomous_daemon().await {
+                    return Ok(Some(Message::assistant().with_text(format!(
+                        "Failed to initialize autonomous daemon: {}", e
+                    ))));
+                }
+                let guard = self.autonomous_daemon.lock().await;
+                if let Some(daemon) = guard.as_ref() {
+                    daemon.start();
+                    Ok(Some(Message::assistant().with_text(
+                        "Autonomous daemon **started**. Use `/autonomous status` to check."
+                    )))
+                } else {
+                    Ok(Some(Message::assistant().with_text(
+                        "Failed to start daemon — initialization returned None."
+                    )))
+                }
+            }
+            Some("stop") => {
+                let guard = self.autonomous_daemon.lock().await;
+                if let Some(daemon) = guard.as_ref() {
+                    daemon.stop();
+                    Ok(Some(Message::assistant().with_text(
+                        "Autonomous daemon **stopped**."
+                    )))
+                } else {
+                    Ok(Some(Message::assistant().with_text(
+                        "Daemon not running."
+                    )))
+                }
+            }
+            None | Some("status") => {
+                let guard = self.autonomous_daemon.lock().await;
+                match guard.as_ref() {
+                    Some(daemon) => {
+                        let running = daemon.is_running();
+                        let pending = daemon.pending_task_count().await;
+                        let shutdown = daemon.is_shutdown().await;
+                        let breakers = daemon.failsafe_status().await;
+
+                        let mut output = String::from("## Autonomous Daemon Status\n\n");
+                        output.push_str(&format!("**Running:** {}\n", running));
+                        output.push_str(&format!("**Pending tasks:** {}\n", pending));
+                        output.push_str(&format!("**Shutdown:** {}\n\n", shutdown));
+
+                        output.push_str("**Circuit Breakers:**\n");
+                        for b in &breakers {
+                            output.push_str(&format!(
+                                "  - {} — {:?} (failures: {})\n",
+                                b.name, b.state, b.consecutive_failures
+                            ));
+                        }
+
+                        output.push_str("\nUsage:\n");
+                        output.push_str("  `/autonomous start` — Start the daemon\n");
+                        output.push_str("  `/autonomous stop` — Stop the daemon\n");
+                        output.push_str("  `/autonomous status` — Show this status\n");
+
+                        Ok(Some(Message::assistant().with_text(output)))
+                    }
+                    None => {
+                        Ok(Some(Message::assistant().with_text(
+                            "Autonomous daemon not initialized.\n\n\
+                             Use `/autonomous start` to initialize and start it."
+                        )))
+                    }
+                }
+            }
+            Some(other) => {
+                Ok(Some(Message::assistant().with_text(format!(
+                    "Unknown /autonomous subcommand: `{}`\n\n\
+                     Usage:\n\
+                     - `/autonomous` or `/autonomous status` — Show daemon status\n\
+                     - `/autonomous start` — Start the daemon\n\
+                     - `/autonomous stop` — Stop the daemon",
+                    other
+                ))))
+            }
+        }
     }
 }
 

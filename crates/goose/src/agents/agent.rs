@@ -280,6 +280,12 @@ pub struct Agent {
     pub(crate) experience_store: Mutex<Option<Arc<super::experience_store::ExperienceStore>>>,
     /// Voyager-style skill library for reusable strategies
     pub(crate) skill_library: Mutex<Option<Arc<super::skill_library::SkillLibrary>>>,
+    /// OTA self-update manager (self-build + binary swap + rollback)
+    pub(crate) ota_manager: Mutex<Option<crate::ota::OtaManager>>,
+    /// Autonomous daemon for scheduled tasks (CI watch, docs gen, etc.)
+    pub(crate) autonomous_daemon: Mutex<Option<Arc<crate::autonomous::AutonomousDaemon>>>,
+    /// Whether the autonomous daemon has been initialized
+    autonomous_daemon_initialized: AtomicBool,
 }
 
 #[derive(Clone, Debug)]
@@ -398,6 +404,9 @@ impl Agent {
             nesting_depth: 0,
             experience_store: Mutex::new(None),
             skill_library: Mutex::new(None),
+            ota_manager: Mutex::new(None),
+            autonomous_daemon: Mutex::new(None),
+            autonomous_daemon_initialized: AtomicBool::new(false),
         }
     }
 
@@ -480,6 +489,170 @@ impl Agent {
     /// Get a clone of the skill library Arc (if initialized).
     pub async fn skill_library(&self) -> Option<Arc<super::skill_library::SkillLibrary>> {
         self.skill_library.lock().await.clone()
+    }
+
+    /// Initialize the OTA self-update manager.
+    ///
+    /// Safe to call multiple times — subsequent calls are no-ops.
+    /// Detects workspace root from current working directory or CARGO_MANIFEST_DIR.
+    pub async fn init_ota_manager(&self) -> Result<()> {
+        let mut guard = self.ota_manager.lock().await;
+        if guard.is_some() {
+            return Ok(());
+        }
+
+        // Find workspace root: try CARGO_MANIFEST_DIR, then current_dir, then fallback
+        let workspace_root = std::env::var("CARGO_MANIFEST_DIR")
+            .map(std::path::PathBuf::from)
+            .or_else(|_| std::env::current_dir())
+            .unwrap_or_else(|_| std::path::PathBuf::from("."));
+
+        // Only initialize if we're in a Cargo workspace (Cargo.toml exists)
+        if workspace_root.join("Cargo.toml").exists() {
+            let manager = crate::ota::OtaManager::default_goose(workspace_root.clone());
+            info!("OTA manager initialized at {:?}", workspace_root);
+            *guard = Some(manager);
+        } else {
+            debug!("No Cargo.toml found at {:?} — OTA self-update disabled", workspace_root);
+        }
+
+        Ok(())
+    }
+
+    /// Initialize the Autonomous daemon for scheduled task execution.
+    ///
+    /// Safe to call multiple times — subsequent calls are no-ops.
+    pub async fn init_autonomous_daemon(&self) -> Result<()> {
+        if self.autonomous_daemon_initialized.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+
+        let mut guard = self.autonomous_daemon.lock().await;
+        if guard.is_some() {
+            self.autonomous_daemon_initialized.store(true, Ordering::Relaxed);
+            return Ok(());
+        }
+
+        let data_dir = dirs::data_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("super-goose");
+        std::fs::create_dir_all(&data_dir).ok();
+
+        let repo_path = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let docs_dir = data_dir.join("generated-docs");
+        let audit_db = data_dir.join("audit.db");
+
+        match crate::autonomous::AutonomousDaemon::new(
+            repo_path,
+            docs_dir,
+            &audit_db,
+            "Super-Goose",
+            "1.24.05",
+        ).await {
+            Ok(daemon) => {
+                info!("Autonomous daemon initialized (audit: {:?})", audit_db);
+                *guard = Some(Arc::new(daemon));
+            }
+            Err(e) => {
+                warn!("Failed to initialize Autonomous daemon: {} (non-fatal)", e);
+            }
+        }
+
+        self.autonomous_daemon_initialized.store(true, Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// Perform a full OTA self-improvement cycle:
+    /// 1. Extract insights from experience
+    /// 2. Build new binary
+    /// 3. Run health checks
+    /// 4. Swap binary (with rollback on failure)
+    ///
+    /// Returns a human-readable summary.
+    pub async fn perform_self_improve(&self, dry_run: bool) -> Result<String> {
+        // Step 1: Ensure OTA manager is initialized
+        self.init_ota_manager().await?;
+
+        let mut ota_guard = self.ota_manager.lock().await;
+        let ota = ota_guard.as_mut()
+            .ok_or_else(|| anyhow!("OTA manager not available (no Cargo workspace found)"))?;
+
+        if dry_run {
+            let result = ota.dry_run();
+            return Ok(format!(
+                "## Self-Improve Dry Run\n\n\
+                 **Status:** {}\n\
+                 **Summary:** {}\n\n\
+                 _No actual build or binary swap performed._",
+                result.status, result.summary
+            ));
+        }
+
+        // Step 2: Gather config snapshot for state saving
+        let config_json = serde_json::json!({
+            "version": "1.24.05",
+            "core": self.core_registry.active_core_type().await.to_string(),
+            "timestamp": chrono::Utc::now().to_rfc3339(),
+        }).to_string();
+
+        // Step 3: Perform the full update cycle
+        let result = ota.perform_update("1.24.05", &config_json).await?;
+
+        let mut output = String::from("## Self-Improve Result\n\n");
+        output.push_str(&format!("**Status:** {}\n", result.status));
+        output.push_str(&format!("**Summary:** {}\n\n", result.summary));
+
+        if let Some(ref build) = result.build_result {
+            output.push_str(&format!("**Build:** {} (profile: {})\n",
+                if build.success { "OK" } else { "FAILED" },
+                build.profile
+            ));
+            if let Some(ref path) = build.binary_path {
+                output.push_str(&format!("**Binary:** {}\n", path.display()));
+            }
+        }
+
+        if let Some(ref health) = result.health_report {
+            output.push_str(&format!("**Health:** {} ({} checks passed)\n",
+                if health.healthy { "HEALTHY" } else { "UNHEALTHY" },
+                health.checks.iter().filter(|c| c.passed).count()
+            ));
+        }
+
+        if let Some(ref rollback) = result.rollback_record {
+            output.push_str(&format!("**Rollback:** {} (reason: {})\n",
+                if rollback.success { "OK" } else { "FAILED" },
+                rollback.reason
+            ));
+        }
+
+        Ok(output)
+    }
+
+    /// Run InsightExtractor on the experience store and return insights.
+    /// Called periodically (e.g., after every N replies) to learn from experience.
+    pub async fn extract_insights(&self) -> Result<Vec<super::insight_extractor::Insight>> {
+        let store = self.experience_store.lock().await.clone()
+            .ok_or_else(|| anyhow!("ExperienceStore not initialized"))?;
+
+        super::insight_extractor::InsightExtractor::extract(&store).await
+    }
+
+    /// Retrieve relevant skills from the SkillLibrary for a given task.
+    /// Used to augment the system prompt with learned strategies.
+    pub async fn retrieve_skills_for_task(&self, task: &str) -> Vec<super::skill_library::Skill> {
+        let lib = match self.skill_library.lock().await.clone() {
+            Some(l) => l,
+            None => return Vec::new(),
+        };
+
+        match lib.find_for_task(task, 3).await {
+            Ok(skills) => skills,
+            Err(e) => {
+                debug!("SkillLibrary retrieval failed: {} (non-fatal)", e);
+                Vec::new()
+            }
+        }
     }
 
     /// Create a CoreSelector wired to the current experience store.
@@ -1896,6 +2069,21 @@ impl Agent {
                             ).await {
                                 tracing::warn!("Failed to record experience: {}", e);
                             }
+
+                            // Periodic insight extraction: every 10th experience
+                            let count = store.count().await.unwrap_or(0);
+                            if count > 0 && count % 10 == 0 {
+                                match super::insight_extractor::InsightExtractor::extract(store).await {
+                                    Ok(insights) if !insights.is_empty() => {
+                                        tracing::info!(
+                                            "InsightExtractor: {} insights extracted from {} experiences",
+                                            insights.len(), count
+                                        );
+                                    }
+                                    Ok(_) => {}
+                                    Err(e) => tracing::debug!("InsightExtractor error (non-fatal): {}", e),
+                                }
+                            }
                         }
 
                         // Build response message with core output
@@ -1991,6 +2179,36 @@ impl Agent {
                     warn!("Failed to generate session description: {}", e);
                 }
             });
+        }
+
+        // === SKILL LIBRARY: Inject relevant learned strategies into context ===
+        {
+            let task_text = conversation.messages().iter().rev()
+                .find(|m| m.role == rmcp::model::Role::User)
+                .map(|m| m.as_concat_text())
+                .unwrap_or_default();
+
+            if !task_text.is_empty() && !task_text.starts_with('/') {
+                let skills = self.retrieve_skills_for_task(&task_text).await;
+                if !skills.is_empty() {
+                    let mut skill_context = String::from(
+                        "\n\n[LEARNED STRATEGIES]: The following strategies have been verified from past experience:\n"
+                    );
+                    for skill in &skills {
+                        skill_context.push_str(&skill.as_prompt_context());
+                        skill_context.push('\n');
+                    }
+                    system_prompt.push_str(&skill_context);
+                    debug!("Injected {} learned skills into system prompt", skills.len());
+                }
+            }
+        }
+
+        // === AUTONOMOUS DAEMON: Lazy-init (non-blocking) ===
+        if !self.autonomous_daemon_initialized.load(Ordering::Relaxed) {
+            if let Err(e) = self.init_autonomous_daemon().await {
+                debug!("Autonomous daemon init skipped: {} (non-fatal)", e);
+            }
         }
 
         // === CHECKPOINT: Lazy-init SQLite CheckpointManager (LangGraph parity) ===
