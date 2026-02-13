@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useAgentStream } from '../../hooks/useAgentStream';
+﻿import { useState, useCallback, useEffect } from 'react';
+import { useAgUi } from '../../ag-ui/useAgUi';
 import { SGStatusDot, SGEmptyState } from './shared';
 import { backendApi } from '../../utils/backendApi';
 
@@ -14,7 +14,7 @@ const CORE_TYPES = [
 
 export default function AgentsPanel() {
   const [tab, setTab] = useState<'active' | 'cores' | 'builder'>('active');
-  const { events, connected, latestStatus } = useAgentStream();
+  const { connected, agentState, activities } = useAgUi();
   const [activeCore, setActiveCore] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [builderConfig, setBuilderConfig] = useState({
@@ -69,9 +69,12 @@ export default function AgentsPanel() {
   }, []);
 
   // Derive active core from SSE stream or local state
-  const currentCore = activeCore ?? (latestStatus?.core_type != null ? String(latestStatus.core_type) : null);
+  const currentCore = activeCore ?? (agentState?.core_type != null ? String(agentState.core_type) : null);
 
-  const recentEvents = events.slice(-10).reverse();
+  const recentEvents = (activities ?? []).slice(-10).reverse().map((a: { id?: string; message?: string; metadata?: Record<string, unknown> }) => ({
+    type: (a.metadata?.event_type as string) ?? 'AgentStatus',
+    tool_name: a.metadata?.tool_name as string | undefined,
+  }));
 
   return (
     <div className="space-y-4" role="region" aria-label="Agents Panel">

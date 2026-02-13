@@ -4,7 +4,7 @@ use axum::{
     extract::State,
     http,
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use bytes::Bytes;
@@ -411,12 +411,72 @@ async fn ag_ui_stream(
 }
 
 // ---------------------------------------------------------------------------
+// POST Request Bodies
+// ---------------------------------------------------------------------------
+
+/// Request body for POST /api/ag-ui/tool-result
+#[derive(Debug, Deserialize)]
+pub struct ToolResultRequest {
+    #[serde(rename = "toolCallId")]
+    pub tool_call_id: String,
+    pub content: String,
+}
+
+/// Request body for POST /api/ag-ui/message
+#[derive(Debug, Deserialize)]
+pub struct SendMessageRequest {
+    pub content: String,
+}
+
+// ---------------------------------------------------------------------------
+// POST Handlers
+// ---------------------------------------------------------------------------
+
+/// POST /api/ag-ui/tool-result — receives a tool-call result from the frontend.
+async fn ag_ui_tool_result(
+    State(_state): State<Arc<AppState>>,
+    axum::Json(payload): axum::Json<ToolResultRequest>,
+) -> axum::http::StatusCode {
+    tracing::info!(
+        tool_call_id = %payload.tool_call_id,
+        "AG-UI tool-result received"
+    );
+    // TODO: Wire into agent execution pipeline when event bus is connected.
+    axum::http::StatusCode::OK
+}
+
+/// POST /api/ag-ui/abort — cancels the current agent run.
+async fn ag_ui_abort(
+    State(_state): State<Arc<AppState>>,
+) -> axum::http::StatusCode {
+    tracing::info!("AG-UI abort requested");
+    // TODO: Wire into agent execution cancellation.
+    axum::http::StatusCode::OK
+}
+
+/// POST /api/ag-ui/message — receives a user message for the agent.
+async fn ag_ui_message(
+    State(_state): State<Arc<AppState>>,
+    axum::Json(payload): axum::Json<SendMessageRequest>,
+) -> axum::http::StatusCode {
+    tracing::info!(
+        content_len = payload.content.len(),
+        "AG-UI message received"
+    );
+    // TODO: Forward to agent session when event bus is wired.
+    axum::http::StatusCode::OK
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
 pub fn routes(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/ag-ui/stream", get(ag_ui_stream))
+        .route("/api/ag-ui/tool-result", post(ag_ui_tool_result))
+        .route("/api/ag-ui/abort", post(ag_ui_abort))
+        .route("/api/ag-ui/message", post(ag_ui_message))
         .with_state(state)
 }
 
@@ -1406,6 +1466,26 @@ mod tests {
         assert_eq!(json["type"], "ACTIVITY_SNAPSHOT");
         assert_eq!(json["content"]["progress"], 0.75);
         assert_eq!(json["content"]["title"], "Building");
+    }
+
+    // -- POST endpoint request deserialization ------------------------------
+
+    #[test]
+    fn test_tool_result_request_deserialization() {
+        let json = serde_json::json!({
+            "toolCallId": "tc-123",
+            "content": "{\"approved\": true}"
+        });
+        let req: ToolResultRequest = serde_json::from_value(json).unwrap();
+        assert_eq!(req.tool_call_id, "tc-123");
+        assert_eq!(req.content, "{\"approved\": true}");
+    }
+
+    #[test]
+    fn test_send_message_request_deserialization() {
+        let json = serde_json::json!({ "content": "Hello agent" });
+        let req: SendMessageRequest = serde_json::from_value(json).unwrap();
+        assert_eq!(req.content, "Hello agent");
     }
 
     /// SSE frame format: multiple events produce independent frames.

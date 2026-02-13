@@ -4,9 +4,9 @@ import AgentsPanel from '../AgentsPanel';
 
 // --- Mocks ----------------------------------------------------------------
 
-const mockUseAgentStream = vi.fn();
-vi.mock('../../../hooks/useAgentStream', () => ({
-  useAgentStream: (...args: unknown[]) => mockUseAgentStream(...args),
+const mockUseAgUi = vi.fn();
+vi.mock('../../../ag-ui/useAgUi', () => ({
+  useAgUi: (...args: unknown[]) => mockUseAgUi(...args),
 }));
 
 const mockSwitchCore = vi.fn();
@@ -25,11 +25,21 @@ vi.mock('../../../utils/backendApi', () => ({
 // --- Helpers ---------------------------------------------------------------
 
 function defaults() {
-  mockUseAgentStream.mockReturnValue({
-    events: [],
+  mockUseAgUi.mockReturnValue({
     connected: false,
-    latestStatus: null,
-    clearEvents: vi.fn(),
+    agentState: {},
+    activities: [],
+    messages: [],
+    activeToolCalls: new Map(),
+    pendingApprovals: [],
+    reasoningMessages: [],
+    isRunning: false,
+    currentStep: null,
+    isReasoning: false,
+    customEvents: [],
+    approveToolCall: vi.fn(),
+    rejectToolCall: vi.fn(),
+    reconnect: vi.fn(),
   });
 }
 
@@ -81,11 +91,21 @@ describe('AgentsPanel', () => {
 
   // -- SSE connection indicator on Active tab -------------------------------
   it('shows Connected status when SSE is connected', () => {
-    mockUseAgentStream.mockReturnValue({
-      events: [],
+    mockUseAgUi.mockReturnValue({
       connected: true,
-      latestStatus: null,
-      clearEvents: vi.fn(),
+      agentState: {},
+      activities: [],
+      messages: [],
+      activeToolCalls: new Map(),
+      pendingApprovals: [],
+      reasoningMessages: [],
+      isRunning: false,
+      currentStep: null,
+      isReasoning: false,
+      customEvents: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
+      reconnect: vi.fn(),
     });
     render(<AgentsPanel />);
 
@@ -98,24 +118,44 @@ describe('AgentsPanel', () => {
   });
 
   // -- Active core badge ----------------------------------------------------
-  it('shows active core badge from latestStatus', () => {
-    mockUseAgentStream.mockReturnValue({
-      events: [],
+  it('shows active core badge from agentState', () => {
+    mockUseAgUi.mockReturnValue({
       connected: true,
-      latestStatus: { type: 'AgentStatus', core_type: 'StructuredCore' },
-      clearEvents: vi.fn(),
+      agentState: { core_type: 'StructuredCore' },
+      activities: [],
+      messages: [],
+      activeToolCalls: new Map(),
+      pendingApprovals: [],
+      reasoningMessages: [],
+      isRunning: false,
+      currentStep: null,
+      isReasoning: false,
+      customEvents: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
+      reconnect: vi.fn(),
     });
     render(<AgentsPanel />);
 
     expect(screen.getByText('StructuredCore')).toBeDefined();
   });
 
-  it('does not show core badge when latestStatus has no core', () => {
-    mockUseAgentStream.mockReturnValue({
-      events: [],
+  it('does not show core badge when agentState has no core', () => {
+    mockUseAgUi.mockReturnValue({
       connected: true,
-      latestStatus: { type: 'AgentStatus' },
-      clearEvents: vi.fn(),
+      agentState: {},
+      activities: [],
+      messages: [],
+      activeToolCalls: new Map(),
+      pendingApprovals: [],
+      reasoningMessages: [],
+      isRunning: false,
+      currentStep: null,
+      isReasoning: false,
+      customEvents: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
+      reconnect: vi.fn(),
     });
     const { container } = render(<AgentsPanel />);
 
@@ -126,15 +166,25 @@ describe('AgentsPanel', () => {
 
   // -- Active tab with events -----------------------------------------------
   it('renders agent events on Active tab', () => {
-    mockUseAgentStream.mockReturnValue({
-      events: [
-        { type: 'ToolCalled', tool_name: 'developer' },
-        { type: 'AgentStatus' },
-        { type: 'CoreSwitched' },
-      ],
+    mockUseAgUi.mockReturnValue({
       connected: true,
-      latestStatus: null,
-      clearEvents: vi.fn(),
+      agentState: {},
+      activities: [
+        { id: 'a1', message: 'Tool called', metadata: { event_type: 'ToolCalled', tool_name: 'developer' } },
+        { id: 'a2', message: 'Agent status', metadata: { event_type: 'AgentStatus' } },
+        { id: 'a3', message: 'Core switched', metadata: { event_type: 'CoreSwitched' } },
+      ],
+      messages: [],
+      activeToolCalls: new Map(),
+      pendingApprovals: [],
+      reasoningMessages: [],
+      isRunning: false,
+      currentStep: null,
+      isReasoning: false,
+      customEvents: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
+      reconnect: vi.fn(),
     });
     render(<AgentsPanel />);
 
@@ -144,11 +194,23 @@ describe('AgentsPanel', () => {
   });
 
   it('shows tool name in event detail', () => {
-    mockUseAgentStream.mockReturnValue({
-      events: [{ type: 'ToolCalled', tool_name: 'bash' }],
+    mockUseAgUi.mockReturnValue({
       connected: false,
-      latestStatus: null,
-      clearEvents: vi.fn(),
+      agentState: {},
+      activities: [
+        { id: 'a1', message: 'Tool called', metadata: { event_type: 'ToolCalled', tool_name: 'bash' } },
+      ],
+      messages: [],
+      activeToolCalls: new Map(),
+      pendingApprovals: [],
+      reasoningMessages: [],
+      isRunning: false,
+      currentStep: null,
+      isReasoning: false,
+      customEvents: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
+      reconnect: vi.fn(),
     });
     render(<AgentsPanel />);
 
@@ -156,16 +218,26 @@ describe('AgentsPanel', () => {
   });
 
   it('assigns correct badge labels to event types', () => {
-    mockUseAgentStream.mockReturnValue({
-      events: [
-        { type: 'AgentStatus' },
-        { type: 'ToolCalled', tool_name: 'x' },
-        { type: 'CoreSwitched' },
-        { type: 'ExperienceRecorded' },
-      ],
+    mockUseAgUi.mockReturnValue({
       connected: false,
-      latestStatus: null,
-      clearEvents: vi.fn(),
+      agentState: {},
+      activities: [
+        { id: 'a1', message: 'Status', metadata: { event_type: 'AgentStatus' } },
+        { id: 'a2', message: 'Tool', metadata: { event_type: 'ToolCalled', tool_name: 'x' } },
+        { id: 'a3', message: 'Core', metadata: { event_type: 'CoreSwitched' } },
+        { id: 'a4', message: 'Exp', metadata: { event_type: 'ExperienceRecorded' } },
+      ],
+      messages: [],
+      activeToolCalls: new Map(),
+      pendingApprovals: [],
+      reasoningMessages: [],
+      isRunning: false,
+      currentStep: null,
+      isReasoning: false,
+      customEvents: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
+      reconnect: vi.fn(),
     });
     render(<AgentsPanel />);
 
@@ -292,12 +364,22 @@ describe('AgentsPanel', () => {
     });
   });
 
-  it('derives active core from SSE latestStatus on Cores tab', () => {
-    mockUseAgentStream.mockReturnValue({
-      events: [],
+  it('derives active core from SSE agentState on Cores tab', () => {
+    mockUseAgUi.mockReturnValue({
       connected: true,
-      latestStatus: { type: 'AgentStatus', core_type: 'workflow' },
-      clearEvents: vi.fn(),
+      agentState: { core_type: 'workflow' },
+      activities: [],
+      messages: [],
+      activeToolCalls: new Map(),
+      pendingApprovals: [],
+      reasoningMessages: [],
+      isRunning: false,
+      currentStep: null,
+      isReasoning: false,
+      customEvents: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
+      reconnect: vi.fn(),
     });
     render(<AgentsPanel />);
     fireEvent.click(screen.getByRole('tab', { name: 'Cores' }));
@@ -354,11 +436,23 @@ describe('AgentsPanel', () => {
   });
 
   it('has log role for events when present', () => {
-    mockUseAgentStream.mockReturnValue({
-      events: [{ type: 'AgentStatus' }],
+    mockUseAgUi.mockReturnValue({
       connected: false,
-      latestStatus: null,
-      clearEvents: vi.fn(),
+      agentState: {},
+      activities: [
+        { id: 'a1', message: 'Status', metadata: { event_type: 'AgentStatus' } },
+      ],
+      messages: [],
+      activeToolCalls: new Map(),
+      pendingApprovals: [],
+      reasoningMessages: [],
+      isRunning: false,
+      currentStep: null,
+      isReasoning: false,
+      customEvents: [],
+      approveToolCall: vi.fn(),
+      rejectToolCall: vi.fn(),
+      reconnect: vi.fn(),
     });
     render(<AgentsPanel />);
 

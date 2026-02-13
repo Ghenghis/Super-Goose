@@ -3,9 +3,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import AgentsPanel from '../AgentsPanel';
 
 // Mock hooks and API
-const mockUseAgentStream = vi.fn();
-vi.mock('../../../hooks/useAgentStream', () => ({
-  useAgentStream: (...args: unknown[]) => mockUseAgentStream(...args),
+const mockUseAgUi = vi.fn();
+vi.mock('../../../ag-ui/useAgUi', () => ({
+  useAgUi: (...args: unknown[]) => mockUseAgUi(...args),
 }));
 
 vi.mock('../../../utils/backendApi', () => ({
@@ -18,11 +18,21 @@ vi.mock('../../../utils/backendApi', () => ({
 }));
 
 beforeEach(() => {
-  mockUseAgentStream.mockReturnValue({
-    events: [],
+  mockUseAgUi.mockReturnValue({
     connected: false,
-    latestStatus: null,
-    clearEvents: vi.fn(),
+    agentState: {},
+    activities: [],
+    messages: [],
+    activeToolCalls: new Map(),
+    pendingApprovals: [],
+    reasoningMessages: [],
+    isRunning: false,
+    currentStep: null,
+    isReasoning: false,
+    customEvents: [],
+    approveToolCall: vi.fn(),
+    rejectToolCall: vi.fn(),
+    reconnect: vi.fn(),
   });
 });
 afterEach(() => vi.restoreAllMocks());

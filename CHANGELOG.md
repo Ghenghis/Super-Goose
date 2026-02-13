@@ -118,7 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Testing
 - 87 agent core tests, 52 learning engine tests, 198 OTA tests, 86 autonomous tests
 - 8 TimeWarp event store tests
-- 2,832 Vitest frontend tests across 225 files
+- 3,122+ Vitest frontend tests across 231 files
 - 291 Playwright E2E tests (68 conditional skips for CI environments)
 - TypeScript compilation: zero errors (`tsc --noEmit` clean)
 
@@ -148,6 +148,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `backend-e2e-tests` job in `ci-comprehensive.yml` — builds goosed, starts real server, runs E2E
 - `scripts/test-backend-e2e.sh` for local backend E2E validation
 - Non-blocking CI gate (warning-only) to avoid blocking existing pipeline
+
+#### AG-UI Protocol Adoption
+- AG-UI protocol implementation with 24 event types across 7 categories (lifecycle, text messages, tool calls, state, activity, reasoning, custom)
+- `ag_ui_stream.rs`: Rust SSE backend with event streaming, legacy event bridge, 4 REST endpoints (`GET /api/ag-ui/stream`, `POST /api/ag-ui/tool-result`, `POST /api/ag-ui/abort`, `POST /api/ag-ui/message`)
+- `useAgUi` React hook (1,001 lines): SSE auto-reconnect with exponential backoff, tool-call approval workflow, frontend tool definitions, subscriber system, AbortController support
+- AG-UI type system: `types.ts` (601 lines) with 37 event type definitions, discriminated unions, and type guards
+- `verifyEvents.ts`: event sequence validation pipeline ensuring correct lifecycle ordering
+- 5 new Super-Goose panels: RecipeBrowser (recipe browser with search + category filters), PromptLibrary (10 prompt templates with copy-to-clipboard), DeeplinkGenerator (URL builder for extension/recipe/config links), SkillsPanel (8 skills with category tabs + toggles), AgenticFeatures (mission control: tool calls, reasoning stream, HITL approval queue)
+- `SGApprovalGate` shared component for human-in-the-loop tool-call approval UI
+- DashboardPanel and MonitorPanel migrated from `useAgentStream` + `useSuperGooseData` to unified `useAgUi` hook
 
 ### Changed
 

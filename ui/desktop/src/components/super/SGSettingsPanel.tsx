@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSuperGooseData } from '../../hooks/useSuperGooseData';
 
 const API_BASE = 'http://localhost:3284';
 
@@ -20,7 +19,18 @@ const FALLBACK_TOGGLES: FeatureToggle[] = [
 export default function SGSettingsPanel() {
   const [features, setFeatures] = useState<FeatureToggle[]>(FALLBACK_TOGGLES);
   const [apiAvailable, setApiAvailable] = useState(false);
-  const { learningStats } = useSuperGooseData();
+  const [learningStats, setLearningStats] = useState<{
+    total_experiences?: number;
+    total_skills?: number;
+    verified_skills?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/learning/stats`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setLearningStats(data); })
+      .catch(() => {});
+  }, []);
 
   const fetchFeatures = useCallback(async () => {
     try {

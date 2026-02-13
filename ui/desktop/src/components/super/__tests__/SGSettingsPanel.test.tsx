@@ -4,25 +4,38 @@ import SGSettingsPanel from '../SGSettingsPanel';
 
 // --- Mocks ----------------------------------------------------------------
 
-const mockUseSuperGooseData = vi.fn();
-vi.mock('../../../hooks/useSuperGooseData', () => ({
-  useSuperGooseData: (...args: unknown[]) => mockUseSuperGooseData(...args),
-}));
-
 let mockFetch: ReturnType<typeof vi.fn>;
 
-beforeEach(() => {
-  mockFetch = vi.fn().mockResolvedValue({ ok: false });
-  vi.stubGlobal('fetch', mockFetch);
-
-  mockUseSuperGooseData.mockReturnValue({
-    learningStats: null,
-    costSummary: null,
-    autonomousStatus: null,
-    otaStatus: null,
-    loading: false,
-    refresh: vi.fn(),
+/**
+ * Helper: create a fetch mock that routes by URL.
+ * features endpoint and learning/stats endpoint return { ok: false } by default.
+ */
+function createFetchMock(overrides: {
+  features?: Response | (() => Promise<Response>);
+  learningStats?: Response | (() => Promise<Response>);
+  put?: Response | (() => Promise<Response>);
+} = {}) {
+  const defaultResponse = { ok: false } as Response;
+  return vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+    if (opts?.method === 'PUT' && overrides.put) {
+      const v = overrides.put;
+      return typeof v === 'function' ? v() : Promise.resolve(v);
+    }
+    if (typeof url === 'string' && url.includes('/api/learning/stats') && overrides.learningStats) {
+      const v = overrides.learningStats;
+      return typeof v === 'function' ? v() : Promise.resolve(v);
+    }
+    if (typeof url === 'string' && url.includes('/api/features') && !url.includes('/api/features/') && overrides.features) {
+      const v = overrides.features;
+      return typeof v === 'function' ? v() : Promise.resolve(v);
+    }
+    return Promise.resolve(defaultResponse);
   });
+}
+
+beforeEach(() => {
+  mockFetch = createFetchMock();
+  vi.stubGlobal('fetch', mockFetch);
 });
 
 afterEach(() => {
@@ -121,15 +134,18 @@ describe('SGSettingsPanel', () => {
   });
 
   it('uses API features when fetch succeeds', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        features: [
-          { name: 'Custom Feature', enabled: true, description: 'From API' },
-          { name: 'Another Feature', enabled: false, description: 'Also from API' },
-        ],
-      }),
+    mockFetch = createFetchMock({
+      features: {
+        ok: true,
+        json: async () => ({
+          features: [
+            { name: 'Custom Feature', enabled: true, description: 'From API' },
+            { name: 'Another Feature', enabled: false, description: 'Also from API' },
+          ],
+        }),
+      } as unknown as Response,
     });
+    vi.stubGlobal('fetch', mockFetch);
 
     render(<SGSettingsPanel />);
 
@@ -141,16 +157,18 @@ describe('SGSettingsPanel', () => {
   });
 
   it('sends PUT request when toggling with API available', async () => {
-    mockFetch
-      .mockResolvedValueOnce({
+    mockFetch = createFetchMock({
+      features: {
         ok: true,
         json: async () => ({
           features: [
             { name: 'TestFeature', enabled: false, description: 'Test' },
           ],
         }),
-      })
-      .mockResolvedValue({ ok: true });
+      } as unknown as Response,
+      put: { ok: true } as Response,
+    });
+    vi.stubGlobal('fetch', mockFetch);
 
     render(<SGSettingsPanel />);
 
@@ -173,16 +191,18 @@ describe('SGSettingsPanel', () => {
   });
 
   it('reverts toggle on PUT failure', async () => {
-    mockFetch
-      .mockResolvedValueOnce({
+    mockFetch = createFetchMock({
+      features: {
         ok: true,
         json: async () => ({
           features: [
             { name: 'RevertTest', enabled: false, description: 'Will fail' },
           ],
         }),
-      })
-      .mockResolvedValueOnce({ ok: false }); // PUT fails
+      } as unknown as Response,
+      put: { ok: false } as Response,
+    });
+    vi.stubGlobal('fetch', mockFetch);
 
     render(<SGSettingsPanel />);
 
@@ -203,16 +223,18 @@ describe('SGSettingsPanel', () => {
   });
 
   it('reverts toggle on network error', async () => {
-    mockFetch
-      .mockResolvedValueOnce({
+    mockFetch = createFetchMock({
+      features: {
         ok: true,
         json: async () => ({
           features: [
             { name: 'NetError', enabled: false, description: 'Will error' },
           ],
         }),
-      })
-      .mockRejectedValueOnce(new Error('Network error'));
+      } as unknown as Response,
+      put: (() => Promise.reject(new Error('Network error'))) as unknown as Response,
+    });
+    vi.stubGlobal('fetch', mockFetch);
 
     render(<SGSettingsPanel />);
 
@@ -235,12 +257,15 @@ describe('SGSettingsPanel', () => {
   });
 
   it('hides (offline) badge when API features load', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        features: [{ name: 'F1', enabled: false, description: '' }],
-      }),
+    mockFetch = createFetchMock({
+      features: {
+        ok: true,
+        json: async () => ({
+          features: [{ name: 'F1', enabled: false, description: '' }],
+        }),
+      } as unknown as Response,
     });
+    vi.stubGlobal('fetch', mockFetch);
 
     render(<SGSettingsPanel />);
 
@@ -265,26 +290,25 @@ describe('SGSettingsPanel', () => {
     expect(notInit.length).toBe(2);
   });
 
-  it('shows learning stats when available', () => {
-    mockUseSuperGooseData.mockReturnValue({
+  it('shows learning stats when available', async () => {
+    mockFetch = createFetchMock({
       learningStats: {
-        total_experiences: 100,
-        success_rate: 0.8,
-        total_skills: 25,
-        verified_skills: 10,
-        total_insights: 5,
-        experiences_by_core: {},
-      },
-      costSummary: null,
-      autonomousStatus: null,
-      otaStatus: null,
-      loading: false,
-      refresh: vi.fn(),
+        ok: true,
+        json: async () => ({
+          total_experiences: 100,
+          total_skills: 25,
+          verified_skills: 10,
+        }),
+      } as unknown as Response,
     });
+    vi.stubGlobal('fetch', mockFetch);
+
     render(<SGSettingsPanel />);
 
-    expect(screen.getByText('100 entries')).toBeDefined();
-    expect(screen.getByText('25 skills (10 verified)')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText('100 entries')).toBeDefined();
+      expect(screen.getByText('25 skills (10 verified)')).toBeDefined();
+    });
   });
 
   // -- Version section ------------------------------------------------------
@@ -298,7 +322,8 @@ describe('SGSettingsPanel', () => {
 
   // -- Graceful failure on API fetch ----------------------------------------
   it('keeps fallback toggles when fetch throws', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    mockFetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
+    vi.stubGlobal('fetch', mockFetch);
     render(<SGSettingsPanel />);
 
     // All fallback toggles should still be visible
