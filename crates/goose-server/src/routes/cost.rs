@@ -111,6 +111,11 @@ fn provider_from_model(model: &str) -> String {
     }
 }
 
+/// Get the default agent (session-agnostic).
+async fn get_default_agent(state: &AppState) -> Option<Arc<goose::agents::Agent>> {
+    state.get_agent("default".to_string()).await.ok()
+}
+
 // ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
@@ -118,17 +123,32 @@ fn provider_from_model(model: &str) -> String {
 /// `GET /api/cost/summary`
 ///
 /// Returns total spend, current-session spend, budget info and a per-model
-/// breakdown.  The data comes from the global `CostTracker` via `AppState`.
-/// Because `Agent.cost_tracker` is private we cannot reach it through the
-/// server state today, so this handler returns structured zero-cost defaults
-/// until that integration is wired.
+/// breakdown from the Agent's CostTracker.
 async fn get_cost_summary(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> Json<CostSummary> {
-    // TODO: wire to real CostTracker once Agent exposes it via AppState
-    let total_spend: f64 = 0.0;
-    let session_spend: f64 = 0.0;
-    let model_breakdown: Vec<ModelCost> = Vec::new();
+    let agent = get_default_agent(&state).await;
+
+    let mut total_spend: f64 = 0.0;
+    let mut session_spend: f64 = 0.0;
+    let mut model_breakdown: Vec<ModelCost> = Vec::new();
+
+    if let Some(agent) = &agent {
+        let tracker = agent.cost_tracker();
+        total_spend = tracker.get_cost().await;
+        session_spend = total_spend; // single-session tracker
+
+        let tokens = tracker.get_tokens();
+        if tokens.total() > 0 {
+            model_breakdown.push(ModelCost {
+                model: "current-session".to_string(),
+                provider: "mixed".to_string(),
+                input_tokens: tokens.input_tokens,
+                output_tokens: tokens.output_tokens,
+                cost: total_spend,
+            });
+        }
+    }
 
     let budget_limit = read_budget_limit();
     let warning_threshold = read_warning_threshold();
@@ -150,11 +170,29 @@ async fn get_cost_summary(
 ///
 /// Detailed per-model, per-session, and daily cost breakdown.
 async fn get_cost_breakdown(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> Json<CostBreakdown> {
-    // TODO: wire to real CostTracker once Agent exposes it via AppState
+    let agent = get_default_agent(&state).await;
+
+    let mut by_model: Vec<ModelCost> = Vec::new();
+
+    if let Some(agent) = &agent {
+        let tracker = agent.cost_tracker();
+        let tokens = tracker.get_tokens();
+        let cost = tracker.get_cost().await;
+        if tokens.total() > 0 {
+            by_model.push(ModelCost {
+                model: "aggregated".to_string(),
+                provider: "mixed".to_string(),
+                input_tokens: tokens.input_tokens,
+                output_tokens: tokens.output_tokens,
+                cost,
+            });
+        }
+    }
+
     Json(CostBreakdown {
-        by_model: Vec::new(),
+        by_model,
         by_session: Vec::new(),
         daily_trend: Vec::new(),
     })
@@ -221,13 +259,6 @@ mod tests {
 
     #[test]
     fn test_routes_creation() {
-        // Verify that the router can be constructed without panicking.
-        // We cannot easily build a full AppState in a unit test so we just
-        // confirm the handler function signatures are well-typed by checking
-        // the types compile and that route wiring does not panic at the type
-        // level.  An integration test would exercise the full stack.
-        //
-        // Here we validate the response structs serialise correctly instead.
         let summary = CostSummary {
             total_spend: 0.0,
             session_spend: 0.0,
@@ -270,22 +301,17 @@ mod tests {
         };
 
         let json = serde_json::to_string_pretty(&summary).unwrap();
-
-        // Verify all top-level fields are present
         assert!(json.contains("\"total_spend\": 12.5"));
         assert!(json.contains("\"session_spend\": 3.25"));
         assert!(json.contains("\"budget_limit\": 50.0"));
         assert!(json.contains("\"budget_remaining\": 37.5"));
         assert!(json.contains("\"budget_warning_threshold\": 0.8"));
         assert!(json.contains("\"is_over_budget\": false"));
-
-        // Verify model breakdown entries
         assert!(json.contains("claude-3-5-sonnet-20241022"));
         assert!(json.contains("gpt-4o"));
         assert!(json.contains("\"input_tokens\": 50000"));
         assert!(json.contains("\"output_tokens\": 25000"));
 
-        // Round-trip: deserialise the ModelCost entries back
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         let models = parsed["model_breakdown"].as_array().unwrap();
         assert_eq!(models.len(), 2);
@@ -293,31 +319,26 @@ mod tests {
 
     #[test]
     fn test_budget_request_deserialization() {
-        // Full request with both fields
         let json_full = r#"{"limit": 50.0, "warning_threshold": 0.8}"#;
         let req: SetBudgetRequest = serde_json::from_str(json_full).unwrap();
         assert_eq!(req.limit, Some(50.0));
         assert_eq!(req.warning_threshold, Some(0.8));
 
-        // Partial request — only limit
         let json_limit = r#"{"limit": 100.0}"#;
         let req: SetBudgetRequest = serde_json::from_str(json_limit).unwrap();
         assert_eq!(req.limit, Some(100.0));
         assert!(req.warning_threshold.is_none());
 
-        // Partial request — only warning threshold
         let json_threshold = r#"{"warning_threshold": 0.5}"#;
         let req: SetBudgetRequest = serde_json::from_str(json_threshold).unwrap();
         assert!(req.limit.is_none());
         assert_eq!(req.warning_threshold, Some(0.5));
 
-        // Empty object — both None
         let json_empty = r#"{}"#;
         let req: SetBudgetRequest = serde_json::from_str(json_empty).unwrap();
         assert!(req.limit.is_none());
         assert!(req.warning_threshold.is_none());
 
-        // Null budget (explicitly remove limit)
         let json_null = r#"{"limit": null, "warning_threshold": 0.9}"#;
         let req: SetBudgetRequest = serde_json::from_str(json_null).unwrap();
         assert!(req.limit.is_none());

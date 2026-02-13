@@ -11,14 +11,6 @@ use utoipa::ToSchema;
 use crate::routes::errors::ErrorResponse;
 use crate::state::AppState;
 
-// TODO: Wire to Agent.experience_store when pub accessor is added
-// The Agent struct has:
-//   pub(crate) experience_store: Mutex<Option<Arc<ExperienceStore>>>
-//   pub(crate) skill_library: Mutex<Option<Arc<SkillLibrary>>>
-// These fields are not accessible from the goose-server crate. Once pub accessors
-// (e.g. Agent::experience_store() -> Option<Arc<ExperienceStore>>) are added,
-// replace the mock data below with real queries.
-
 // ---------------------------------------------------------------------------
 // Response types
 // ---------------------------------------------------------------------------
@@ -111,6 +103,16 @@ pub struct VerifySkillResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers — convert domain types to API response types
+// ---------------------------------------------------------------------------
+
+/// Try to get the agent for the default session (empty string triggers get_or_create).
+async fn get_default_agent(state: &AppState) -> Option<Arc<goose::agents::Agent>> {
+    // Routes that are session-agnostic use the default session.
+    state.get_agent("default".to_string()).await.ok()
+}
+
+// ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
 
@@ -124,10 +126,11 @@ pub struct VerifySkillResponse {
     )
 )]
 async fn get_learning_stats(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> Result<Json<LearningStats>, ErrorResponse> {
-    // TODO: Wire to Agent.experience_store when pub accessor is added
-    let stats = LearningStats {
+    let agent = get_default_agent(&state).await;
+
+    let mut stats = LearningStats {
         total_experiences: 0,
         success_rate: 0.0,
         total_skills: 0,
@@ -135,6 +138,41 @@ async fn get_learning_stats(
         total_insights: 0,
         experiences_by_core: HashMap::new(),
     };
+
+    if let Some(agent) = &agent {
+        // Experience stats
+        if let Some(store) = agent.experience_store().await {
+            if let Ok(count) = store.count().await {
+                stats.total_experiences = count as u64;
+            }
+            if let Ok(core_stats) = store.get_core_stats().await {
+                let mut total_execs = 0u64;
+                let mut total_successes = 0u64;
+                for cs in &core_stats {
+                    stats.experiences_by_core.insert(cs.core_type.clone(), cs.total_executions);
+                    total_execs += cs.total_executions;
+                    total_successes += cs.successes;
+                }
+                if total_execs > 0 {
+                    stats.success_rate = total_successes as f64 / total_execs as f64;
+                }
+            }
+            if let Ok(insights) = store.get_insights(None).await {
+                stats.total_insights = insights.len() as u64;
+            }
+        }
+
+        // Skill stats
+        if let Some(lib) = agent.skill_library().await {
+            if let Ok(count) = lib.count().await {
+                stats.total_skills = count as u64;
+            }
+            if let Ok(verified) = lib.verified_skills().await {
+                stats.verified_skills = verified.len() as u64;
+            }
+        }
+    }
+
     Ok(Json(stats))
 }
 
@@ -152,20 +190,44 @@ async fn get_learning_stats(
     )
 )]
 async fn get_experiences(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Query(params): Query<ExperienceQueryParams>,
 ) -> Result<Json<ExperienceListResponse>, ErrorResponse> {
     let limit = params.limit.unwrap_or(50);
     let offset = params.offset.unwrap_or(0);
 
-    // TODO: Wire to Agent.experience_store when pub accessor is added
-    let response = ExperienceListResponse {
-        experiences: Vec::new(),
-        total: 0,
+    let agent = get_default_agent(&state).await;
+    let mut experiences = Vec::new();
+    let mut total = 0u64;
+
+    if let Some(agent) = &agent {
+        if let Some(store) = agent.experience_store().await {
+            if let Ok(count) = store.count().await {
+                total = count as u64;
+            }
+            // Fetch limit + offset entries so we can skip the offset in-memory
+            let fetch_count = (limit + offset) as usize;
+            if let Ok(recent) = store.recent(fetch_count).await {
+                for exp in recent.into_iter().skip(offset as usize).take(limit as usize) {
+                    experiences.push(ExperienceEntry {
+                        id: exp.experience_id,
+                        task_summary: exp.task,
+                        core_type: format!("{:?}", exp.core_type),
+                        outcome: if exp.succeeded { "success".to_string() } else { "failure".to_string() },
+                        insights: exp.insights,
+                        timestamp: exp.created_at.to_rfc3339(),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(Json(ExperienceListResponse {
+        experiences,
+        total,
         limit,
         offset,
-    };
-    Ok(Json(response))
+    }))
 }
 
 /// List extracted insights from the learning engine.
@@ -178,14 +240,29 @@ async fn get_experiences(
     )
 )]
 async fn get_insights(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> Result<Json<InsightListResponse>, ErrorResponse> {
-    // TODO: Wire to Agent.experience_store when pub accessor is added
-    let response = InsightListResponse {
-        insights: Vec::new(),
-        total: 0,
-    };
-    Ok(Json(response))
+    let agent = get_default_agent(&state).await;
+    let mut insights = Vec::new();
+
+    if let Some(agent) = &agent {
+        if let Some(store) = agent.experience_store().await {
+            if let Ok(raw_insights) = store.get_insights(None).await {
+                for (i, desc) in raw_insights.into_iter().enumerate() {
+                    insights.push(InsightEntry {
+                        id: format!("insight-{}", i),
+                        insight_type: "pattern".to_string(),
+                        description: desc,
+                        confidence: 0.8,
+                        source_experiences: vec![],
+                    });
+                }
+            }
+        }
+    }
+
+    let total = insights.len() as u64;
+    Ok(Json(InsightListResponse { insights, total }))
 }
 
 /// List skill library entries with optional verified-only filter.
@@ -201,15 +278,37 @@ async fn get_insights(
     )
 )]
 async fn get_skills(
-    State(_state): State<Arc<AppState>>,
-    Query(_params): Query<SkillQueryParams>,
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<SkillQueryParams>,
 ) -> Result<Json<SkillListResponse>, ErrorResponse> {
-    // TODO: Wire to Agent.skill_library when pub accessor is added
-    let response = SkillListResponse {
-        skills: Vec::new(),
-        total: 0,
-    };
-    Ok(Json(response))
+    let agent = get_default_agent(&state).await;
+    let mut skills = Vec::new();
+
+    if let Some(agent) = &agent {
+        if let Some(lib) = agent.skill_library().await {
+            let raw = if params.verified_only.unwrap_or(false) {
+                lib.verified_skills().await
+            } else {
+                lib.all_skills().await
+            };
+            if let Ok(raw_skills) = raw {
+                for sk in raw_skills {
+                    skills.push(SkillEntry {
+                        id: sk.skill_id,
+                        name: sk.name,
+                        description: sk.description,
+                        strategy: sk.steps.join("\n"),
+                        verified: sk.verified,
+                        use_count: sk.use_count as u64,
+                        success_rate: sk.success_rate as f64,
+                    });
+                }
+            }
+        }
+    }
+
+    let total = skills.len() as u64;
+    Ok(Json(SkillListResponse { skills, total }))
 }
 
 /// Mark a skill as verified by its ID.
@@ -226,14 +325,40 @@ async fn get_skills(
     )
 )]
 async fn verify_skill(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<VerifySkillResponse>, ErrorResponse> {
-    // TODO: Wire to Agent.skill_library when pub accessor is added
-    // For now, return a not-found since there are no skills in the mock store.
-    // When wired, this will look up the skill by ID and call skill_library.verify(id).
+    let agent = get_default_agent(&state).await;
+
+    if let Some(agent) = &agent {
+        if let Some(lib) = agent.skill_library().await {
+            // Record a successful usage to mark the skill as verified
+            match lib.record_usage(&id, true).await {
+                Ok(true) => {
+                    return Ok(Json(VerifySkillResponse {
+                        id,
+                        verified: true,
+                        message: "Skill verified successfully".to_string(),
+                    }));
+                }
+                Ok(false) => {
+                    return Err(ErrorResponse::not_found(format!(
+                        "Skill '{}' not found",
+                        id
+                    )));
+                }
+                Err(e) => {
+                    return Err(ErrorResponse::internal(format!(
+                        "Failed to verify skill: {}",
+                        e
+                    )));
+                }
+            }
+        }
+    }
+
     Err(ErrorResponse::not_found(format!(
-        "Skill '{}' not found (learning store not yet wired)",
+        "Skill '{}' not found (learning store not initialized)",
         id
     )))
 }
@@ -262,20 +387,11 @@ mod tests {
 
     #[test]
     fn test_routes_creation() {
-        // Verify that the router can be built without panicking.
-        // We use a minimal approach: construct the router the same way routes() does,
-        // but without a real AppState (just confirm compilation and route registration).
-        // Since AppState::new() is async and needs real infra, we test the route
-        // definitions indirectly by ensuring the function compiles and the types align.
-        //
-        // The actual route tree is exercised below via serialization tests.
         let _get_stats = get_learning_stats;
         let _get_experiences = get_experiences;
         let _get_insights = get_insights;
         let _get_skills = get_skills;
         let _verify_skill = verify_skill;
-
-        // Confirm the routes() function signature is correct.
         let _routes_fn: fn(Arc<AppState>) -> Router = routes;
     }
 
@@ -330,7 +446,6 @@ mod tests {
         assert_eq!(json["insights"].as_array().unwrap().len(), 2);
         assert_eq!(json["timestamp"], "2026-02-12T14:30:00Z");
 
-        // Round-trip
         let deserialized: ExperienceEntry = serde_json::from_value(json).unwrap();
         assert_eq!(deserialized.task_summary, "Refactor authentication module");
         assert_eq!(deserialized.insights.len(), 2);
@@ -355,11 +470,9 @@ mod tests {
         assert_eq!(json["use_count"], 7);
         assert_eq!(json["success_rate"], 0.86);
 
-        // Verify the strategy field preserves newlines
         let strategy_str = json["strategy"].as_str().unwrap();
         assert!(strategy_str.contains('\n'));
 
-        // Round-trip
         let deserialized: SkillEntry = serde_json::from_value(json).unwrap();
         assert_eq!(deserialized.use_count, 7);
         assert!(deserialized.verified);
@@ -367,30 +480,25 @@ mod tests {
 
     #[test]
     fn test_query_params_parsing() {
-        // ExperienceQueryParams with all fields
         let json = serde_json::json!({"limit": 25, "offset": 10});
         let params: ExperienceQueryParams = serde_json::from_value(json).unwrap();
         assert_eq!(params.limit, Some(25));
         assert_eq!(params.offset, Some(10));
 
-        // ExperienceQueryParams with no fields (all optional)
         let json = serde_json::json!({});
         let params: ExperienceQueryParams = serde_json::from_value(json).unwrap();
         assert_eq!(params.limit, None);
         assert_eq!(params.offset, None);
 
-        // ExperienceQueryParams with partial fields
         let json = serde_json::json!({"limit": 100});
         let params: ExperienceQueryParams = serde_json::from_value(json).unwrap();
         assert_eq!(params.limit, Some(100));
         assert_eq!(params.offset, None);
 
-        // SkillQueryParams with verified_only
         let json = serde_json::json!({"verified_only": true});
         let params: SkillQueryParams = serde_json::from_value(json).unwrap();
         assert_eq!(params.verified_only, Some(true));
 
-        // SkillQueryParams empty
         let json = serde_json::json!({});
         let params: SkillQueryParams = serde_json::from_value(json).unwrap();
         assert_eq!(params.verified_only, None);

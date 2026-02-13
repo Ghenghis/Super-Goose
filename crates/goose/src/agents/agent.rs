@@ -501,6 +501,16 @@ impl Agent {
         self.skill_library.lock().await.clone()
     }
 
+    /// Get access to the OTA manager (if initialized).
+    pub async fn ota_manager_ref(&self) -> tokio::sync::MutexGuard<'_, Option<crate::ota::OtaManager>> {
+        self.ota_manager.lock().await
+    }
+
+    /// Get a clone of the autonomous daemon Arc (if initialized).
+    pub async fn autonomous_daemon(&self) -> Option<Arc<crate::autonomous::AutonomousDaemon>> {
+        self.autonomous_daemon.lock().await.clone()
+    }
+
     /// Initialize the OTA self-update manager.
     ///
     /// Safe to call multiple times — subsequent calls are no-ops.

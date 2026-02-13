@@ -105,3 +105,7 @@ nul
 test_output.txt
 test_stderr.txt
 test_stdout.txt
+
+# Local utility scripts
+cargo_check.bat
+test_compaction.bat

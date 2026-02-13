@@ -14,21 +14,17 @@ use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct OtaTriggerRequest {
-    #[allow(dead_code)]
     pub session_id: String,
-    #[allow(dead_code)]
     #[serde(default)]
     pub dry_run: bool,
 }
 
 #[derive(Deserialize)]
 pub struct AutonomousActionRequest {
-    #[allow(dead_code)]
     pub session_id: String,
 }
 
 #[derive(Deserialize)]
-#[allow(dead_code)]
 pub struct AuditLogQuery {
     #[serde(default = "default_audit_limit")]
     pub limit: u32,
@@ -100,16 +96,53 @@ pub struct AuditLogEntry {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/// Get the agent for a given session, or fall back to "default".
+async fn get_agent(
+    state: &AppState,
+    session_id: Option<&str>,
+) -> Option<Arc<goose::agents::Agent>> {
+    let sid = session_id.unwrap_or("default").to_string();
+    state.get_agent(sid).await.ok()
+}
+
+fn default_circuit_breaker() -> CircuitBreakerStatus {
+    CircuitBreakerStatus {
+        state: "closed".to_string(),
+        consecutive_failures: 0,
+        max_failures: 3,
+        last_failure: None,
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Handlers — OTA
 // ---------------------------------------------------------------------------
 
 /// GET /api/ota/status
 ///
-/// Returns the current OTA pipeline status.
-// TODO: Wire to Agent.ota_manager when pub(crate) access is available via AppState
+/// Returns the current OTA pipeline status from the Agent's OtaManager.
 async fn ota_status(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> Json<OtaStatus> {
+    let agent = get_agent(&state, None).await;
+
+    if let Some(agent) = &agent {
+        let guard = agent.ota_manager_ref().await;
+        if let Some(mgr) = guard.as_ref() {
+            let status = mgr.status();
+            return Json(OtaStatus {
+                state: format!("{:?}", status),
+                last_build_time: None,
+                last_build_result: None,
+                current_version: env!("CARGO_PKG_VERSION").to_string(),
+                pending_improvements: 0,
+            });
+        }
+    }
+
     Json(OtaStatus {
         state: "idle".to_string(),
         last_build_time: None,
@@ -121,31 +154,60 @@ async fn ota_status(
 
 /// POST /api/ota/trigger
 ///
-/// Triggers a self-improvement cycle.
-// TODO: Wire to Agent.ota_manager — invoke OtaManager::start_improvement_cycle()
+/// Triggers a self-improvement cycle via the Agent's OtaManager.
 async fn ota_trigger(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Json(req): Json<OtaTriggerRequest>,
 ) -> Json<OtaTriggerResponse> {
-    let dry_run = req.dry_run;
+    let agent = get_agent(&state, Some(&req.session_id)).await;
+
+    if let Some(agent) = &agent {
+        let mut guard = agent.ota_manager_ref().await;
+        if let Some(mgr) = guard.as_mut() {
+            if req.dry_run {
+                let result = mgr.dry_run();
+                return Json(OtaTriggerResponse {
+                    triggered: false,
+                    cycle_id: None,
+                    message: format!("Dry-run complete: {:?}", result.status),
+                });
+            }
+            // Real trigger
+            let version = env!("CARGO_PKG_VERSION");
+            match mgr.perform_update(version, "{}").await {
+                Ok(result) => {
+                    return Json(OtaTriggerResponse {
+                        triggered: true,
+                        cycle_id: Some(uuid::Uuid::new_v4().to_string()),
+                        message: result.summary,
+                    });
+                }
+                Err(e) => {
+                    return Json(OtaTriggerResponse {
+                        triggered: false,
+                        cycle_id: None,
+                        message: format!("OTA trigger failed: {}", e),
+                    });
+                }
+            }
+        }
+    }
+
     Json(OtaTriggerResponse {
         triggered: false,
         cycle_id: None,
-        message: if dry_run {
-            "Dry-run mode: OTA pipeline not yet wired to backend".to_string()
-        } else {
-            "OTA pipeline not yet wired to backend".to_string()
-        },
+        message: "OTA manager not initialized".to_string(),
     })
 }
 
 /// GET /api/ota/history
 ///
 /// Returns past improvement cycle history.
-// TODO: Wire to Agent.ota_manager — read from AutoImproveScheduler cycle history
 async fn ota_history(
     State(_state): State<Arc<AppState>>,
 ) -> Json<Vec<ImprovementHistoryEntry>> {
+    // OtaManager doesn't persist cycle history yet — return empty.
+    // Future: read from AutoImproveScheduler's SQLite history.
     Json(vec![])
 }
 
@@ -156,79 +218,126 @@ async fn ota_history(
 /// GET /api/autonomous/status
 ///
 /// Returns daemon status including circuit breaker state.
-// TODO: Wire to Agent.autonomous_daemon
 async fn autonomous_status(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> Json<AutonomousStatus> {
+    let agent = get_agent(&state, None).await;
+
+    if let Some(agent) = &agent {
+        if let Some(daemon) = agent.autonomous_daemon().await {
+            let running = daemon.is_running();
+            let breaker_statuses = daemon.failsafe_status().await;
+
+            // Aggregate circuit breaker state from first breaker (or default)
+            let cb = if let Some(bs) = breaker_statuses.first() {
+                CircuitBreakerStatus {
+                    state: format!("{:?}", bs.state),
+                    consecutive_failures: bs.consecutive_failures,
+                    max_failures: 3,
+                    last_failure: bs.last_failure_at.map(|t| t.to_rfc3339()),
+                }
+            } else {
+                default_circuit_breaker()
+            };
+
+            // Get audit log counts for tasks completed/failed
+            let audit = daemon.audit_log();
+            let completed = audit
+                .count_by_outcome(&goose::autonomous::audit_log::ActionOutcome::Success)
+                .await
+                .unwrap_or(0) as u64;
+            let failed = audit
+                .count_by_outcome(&goose::autonomous::audit_log::ActionOutcome::Failure)
+                .await
+                .unwrap_or(0) as u64;
+
+            return Json(AutonomousStatus {
+                running,
+                uptime_seconds: 0, // AutonomousDaemon doesn't track start time yet
+                tasks_completed: completed,
+                tasks_failed: failed,
+                circuit_breaker: cb,
+                current_task: None,
+            });
+        }
+    }
+
     Json(AutonomousStatus {
         running: false,
         uptime_seconds: 0,
         tasks_completed: 0,
         tasks_failed: 0,
-        circuit_breaker: CircuitBreakerStatus {
-            state: "closed".to_string(),
-            consecutive_failures: 0,
-            max_failures: 3,
-            last_failure: None,
-        },
+        circuit_breaker: default_circuit_breaker(),
         current_task: None,
     })
 }
 
 /// POST /api/autonomous/start
 ///
-/// Starts the autonomous daemon for the given session.
-// TODO: Wire to Agent.autonomous_daemon — invoke AutonomousDaemon::start()
+/// Starts the autonomous daemon.
 async fn autonomous_start(
-    State(_state): State<Arc<AppState>>,
-    Json(_req): Json<AutonomousActionRequest>,
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<AutonomousActionRequest>,
 ) -> Json<AutonomousStatus> {
-    Json(AutonomousStatus {
-        running: false,
-        uptime_seconds: 0,
-        tasks_completed: 0,
-        tasks_failed: 0,
-        circuit_breaker: CircuitBreakerStatus {
-            state: "closed".to_string(),
-            consecutive_failures: 0,
-            max_failures: 3,
-            last_failure: None,
-        },
-        current_task: None,
-    })
+    let agent = get_agent(&state, Some(&req.session_id)).await;
+
+    if let Some(agent) = &agent {
+        if let Some(daemon) = agent.autonomous_daemon().await {
+            daemon.start();
+        }
+    }
+
+    // Return fresh status
+    autonomous_status(State(state)).await
 }
 
 /// POST /api/autonomous/stop
 ///
-/// Stops the autonomous daemon for the given session.
-// TODO: Wire to Agent.autonomous_daemon — invoke AutonomousDaemon::stop()
+/// Stops the autonomous daemon.
 async fn autonomous_stop(
-    State(_state): State<Arc<AppState>>,
-    Json(_req): Json<AutonomousActionRequest>,
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<AutonomousActionRequest>,
 ) -> Json<AutonomousStatus> {
-    Json(AutonomousStatus {
-        running: false,
-        uptime_seconds: 0,
-        tasks_completed: 0,
-        tasks_failed: 0,
-        circuit_breaker: CircuitBreakerStatus {
-            state: "closed".to_string(),
-            consecutive_failures: 0,
-            max_failures: 3,
-            last_failure: None,
-        },
-        current_task: None,
-    })
+    let agent = get_agent(&state, Some(&req.session_id)).await;
+
+    if let Some(agent) = &agent {
+        if let Some(daemon) = agent.autonomous_daemon().await {
+            daemon.stop();
+        }
+    }
+
+    // Return fresh status
+    autonomous_status(State(state)).await
 }
 
 /// GET /api/autonomous/audit-log?limit=N
 ///
 /// Returns recent autonomous actions from the audit log.
-// TODO: Wire to Agent.autonomous_daemon — read from AuditLog
 async fn autonomous_audit_log(
-    State(_state): State<Arc<AppState>>,
-    Query(_query): Query<AuditLogQuery>,
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<AuditLogQuery>,
 ) -> Json<Vec<AuditLogEntry>> {
+    let agent = get_agent(&state, None).await;
+
+    if let Some(agent) = &agent {
+        if let Some(daemon) = agent.autonomous_daemon().await {
+            let audit = daemon.audit_log();
+            if let Ok(entries) = audit.recent(query.limit as usize).await {
+                let api_entries: Vec<AuditLogEntry> = entries
+                    .into_iter()
+                    .map(|e| AuditLogEntry {
+                        id: e.entry_id,
+                        timestamp: e.timestamp.to_rfc3339(),
+                        action: e.action_type,
+                        details: e.description,
+                        outcome: e.outcome.to_string(),
+                    })
+                    .collect();
+                return Json(api_entries);
+            }
+        }
+    }
+
     Json(vec![])
 }
 
@@ -260,10 +369,6 @@ mod tests {
 
     #[test]
     fn test_routes_creation() {
-        // Verify the router can be built without panicking.
-        // We cannot call `routes()` without a real AppState, but we can
-        // confirm the handler function signatures are compatible with Axum
-        // by checking the response types serialize correctly.
         let status = OtaStatus {
             state: "idle".to_string(),
             last_build_time: None,
@@ -357,7 +462,6 @@ mod tests {
 
     #[test]
     fn test_circuit_breaker_states() {
-        // Closed state (healthy)
         let closed = CircuitBreakerStatus {
             state: "closed".to_string(),
             consecutive_failures: 0,
@@ -369,7 +473,6 @@ mod tests {
         assert_eq!(json["consecutive_failures"], 0);
         assert!(json["last_failure"].is_null());
 
-        // Open state (tripped)
         let open = CircuitBreakerStatus {
             state: "open".to_string(),
             consecutive_failures: 3,
@@ -381,7 +484,6 @@ mod tests {
         assert_eq!(json["consecutive_failures"], 3);
         assert_eq!(json["last_failure"], "2026-02-12T10:45:00Z");
 
-        // Half-open state (recovery probe)
         let half_open = CircuitBreakerStatus {
             state: "half_open".to_string(),
             consecutive_failures: 2,
