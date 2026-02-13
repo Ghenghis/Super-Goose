@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, type ReactNode } from 'react';
 import {
   Search,
   Package,
@@ -11,6 +11,7 @@ import {
 import { Switch } from '../ui/switch';
 import ToolDetailModal from './ToolDetailModal';
 import bundledExtensions from '../settings/extensions/bundled-extensions.json';
+import { backendApi } from '../../utils/backendApi';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,7 +35,7 @@ interface TierMeta {
   key: TierKey;
   label: string;
   subtitle: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   badgeColor: string;
   badgeBg: string;
 }
@@ -120,6 +121,43 @@ export default function ToolsBridgePanel() {
     tier3: true,
   });
   const [selectedTool, setSelectedTool] = useState<ToolEntry | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isBackendAvailable, setIsBackendAvailable] = useState(false);
+
+  // Fetch extensions from backend on mount
+  useEffect(() => {
+    const fetchExtensions = async () => {
+      setIsLoading(true);
+      try {
+        const extensions = await backendApi.getExtensions();
+        if (extensions && extensions.length > 0) {
+          setIsBackendAvailable(true);
+          // Convert backend ExtensionInfo to ToolEntry
+          const toolEntries: ToolEntry[] = extensions.map((ext) => ({
+            id: ext.key,
+            name: ext.name,
+            display_name: ext.name,
+            description: ext.description,
+            enabled: ext.enabled,
+            type: ext.type as 'builtin' | 'stdio' | 'streamable_http',
+            env_keys: [],
+            bundled: ext.type === 'builtin',
+          }));
+          setTools(toolEntries);
+        } else {
+          // Backend unavailable, use bundled fallback
+          setIsBackendAvailable(false);
+        }
+      } catch (err) {
+        console.warn('[ToolsBridgePanel] Failed to fetch extensions:', err);
+        setIsBackendAvailable(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchExtensions();
+  }, []);
 
   // Group tools by tier
   const grouped = useMemo(() => {
@@ -141,11 +179,29 @@ export default function ToolsBridgePanel() {
     setExpandedTiers((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
-  const handleToggle = useCallback((id: string) => {
-    setTools((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, enabled: !t.enabled } : t))
-    );
-  }, []);
+  const handleToggle = useCallback(
+    async (id: string) => {
+      // Optimistically update local state
+      const tool = tools.find((t) => t.id === id);
+      if (!tool) return;
+
+      const newEnabledState = !tool.enabled;
+      setTools((prev) => prev.map((t) => (t.id === id ? { ...t, enabled: newEnabledState } : t)));
+
+      // Persist to backend if available
+      if (isBackendAvailable) {
+        const success = await backendApi.toggleExtension(id, newEnabledState);
+        if (!success) {
+          console.warn('[ToolsBridgePanel] Failed to persist toggle to backend');
+          // Rollback on failure
+          setTools((prev) =>
+            prev.map((t) => (t.id === id ? { ...t, enabled: !newEnabledState } : t))
+          );
+        }
+      }
+    },
+    [tools, isBackendAvailable]
+  );
 
   const handleSaveTool = useCallback((updated: ToolEntry) => {
     setTools((prev) => prev.map((t) => (t.id === updated.id ? { ...updated } : t)));
@@ -162,6 +218,8 @@ export default function ToolsBridgePanel() {
           <h2 className="text-lg font-medium text-text-default">Tools &amp; Bridges</h2>
           <p className="text-xs text-text-muted mt-0.5">
             {tools.length} registered &middot; {totalEnabled} enabled
+            {isLoading && ' · Loading...'}
+            {!isLoading && !isBackendAvailable && ' · Using fallback data'}
           </p>
         </div>
       </div>

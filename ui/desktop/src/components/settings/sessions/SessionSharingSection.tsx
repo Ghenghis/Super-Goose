@@ -1,53 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '../../ui/input';
 import { Check, Lock, Loader2, AlertCircle } from 'lucide-react';
 import { Switch } from '../../ui/switch';
 import { Button } from '../../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { trackSettingToggled } from '../../../utils/analytics';
+import { useSettingsBridge, SettingsKeys } from '../../../utils/settingsBridge';
 
 export default function SessionSharingSection() {
   const envBaseUrlShare = window.appConfig.get('GOOSE_BASE_URL_SHARE');
-  console.log('envBaseUrlShare', envBaseUrlShare);
 
-  // If env is set, force sharing enabled and set the baseUrl accordingly.
-  const [sessionSharingConfig, setSessionSharingConfig] = useState({
-    enabled: envBaseUrlShare ? true : false,
-    baseUrl: typeof envBaseUrlShare === 'string' ? envBaseUrlShare : '',
-  });
+  // --- Bridged settings (Electron settings API + backend) ---
+  const { value: sharingEnabled, setValue: setSharingEnabled } =
+    useSettingsBridge<boolean>(SettingsKeys.SessionSharingEnabled, false);
+  const { value: sharingBaseUrl, setValue: setSharingBaseUrl } =
+    useSettingsBridge<string>(SettingsKeys.SessionSharingBaseUrl, '');
+
   const [urlError, setUrlError] = useState('');
   const [testResult, setTestResult] = useState<{
     status: 'success' | 'error' | 'testing' | null;
     message: string;
   }>({ status: null, message: '' });
 
+  // Derive effective config: env override takes precedence
+  const effectiveEnabled = envBaseUrlShare ? true : sharingEnabled;
+  const effectiveBaseUrl = typeof envBaseUrlShare === 'string' ? envBaseUrlShare : sharingBaseUrl;
+
   // isUrlConfigured is true if the user has configured a baseUrl and it is valid.
   const isUrlConfigured =
     !envBaseUrlShare &&
-    sessionSharingConfig.enabled &&
-    isValidUrl(String(sessionSharingConfig.baseUrl));
+    effectiveEnabled &&
+    isValidUrl(String(effectiveBaseUrl));
 
-  // Only load saved config from localStorage if the env variable is not provided.
+  // Sync env override into the settings bridge + keep localStorage fallback
+  // for consumers that still read session_sharing_config (e.g. sessionLinks.ts).
   useEffect(() => {
     if (envBaseUrlShare) {
-      // If env variable is set, save the forced configuration to localStorage
-      const forcedConfig = {
-        enabled: true,
-        baseUrl: typeof envBaseUrlShare === 'string' ? envBaseUrlShare : '',
-      };
-      localStorage.setItem('session_sharing_config', JSON.stringify(forcedConfig));
-    } else {
-      const savedSessionConfig = localStorage.getItem('session_sharing_config');
-      if (savedSessionConfig) {
-        try {
-          const config = JSON.parse(savedSessionConfig);
-          setSessionSharingConfig(config);
-        } catch (error) {
-          console.error('Error parsing session sharing config:', error);
-        }
-      }
+      const forcedUrl = typeof envBaseUrlShare === 'string' ? envBaseUrlShare : '';
+      setSharingEnabled(true);
+      setSharingBaseUrl(forcedUrl);
+      // Keep localStorage fallback for cross-module reads
+      localStorage.setItem(
+        'session_sharing_config',
+        JSON.stringify({ enabled: true, baseUrl: forcedUrl }),
+      );
     }
-  }, [envBaseUrlShare]);
+  }, [envBaseUrlShare, setSharingEnabled, setSharingBaseUrl]);
 
   // Helper to check if the user's input is a valid URL
   function isValidUrl(value: string): boolean {
@@ -65,29 +63,31 @@ export default function SessionSharingSection() {
     if (envBaseUrlShare) {
       return; // Do nothing if the environment variable forces sharing.
     }
-    setSessionSharingConfig((prev) => {
-      const updated = { ...prev, enabled: !prev.enabled };
-      localStorage.setItem('session_sharing_config', JSON.stringify(updated));
-      trackSettingToggled('session_sharing', updated.enabled);
-      return updated;
-    });
+    const next = !effectiveEnabled;
+    setSharingEnabled(next);
+    // Keep localStorage fallback for cross-module reads
+    localStorage.setItem(
+      'session_sharing_config',
+      JSON.stringify({ enabled: next, baseUrl: effectiveBaseUrl }),
+    );
+    trackSettingToggled('session_sharing', next);
   };
 
   // Handle changes to the base URL field
-  const handleBaseUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBaseUrlChange = (e: { target: { value: string } }) => {
     const newBaseUrl = e.target.value;
-    setSessionSharingConfig((prev) => ({
-      ...prev,
-      baseUrl: newBaseUrl,
-    }));
+    setSharingBaseUrl(newBaseUrl);
 
     // Clear previous test results when URL changes
     setTestResult({ status: null, message: '' });
 
     if (isValidUrl(newBaseUrl)) {
       setUrlError('');
-      const updated = { ...sessionSharingConfig, baseUrl: newBaseUrl };
-      localStorage.setItem('session_sharing_config', JSON.stringify(updated));
+      // Keep localStorage fallback for cross-module reads
+      localStorage.setItem(
+        'session_sharing_config',
+        JSON.stringify({ enabled: effectiveEnabled, baseUrl: newBaseUrl }),
+      );
     } else {
       setUrlError('Invalid URL format. Please enter a valid URL (e.g. https://example.com/api).');
     }
@@ -95,7 +95,7 @@ export default function SessionSharingSection() {
 
   // Test connection to the configured URL
   const testConnection = async () => {
-    const baseUrl = sessionSharingConfig.baseUrl;
+    const baseUrl = effectiveBaseUrl;
     if (!baseUrl) return;
 
     setTestResult({ status: 'testing', message: 'Testing connection...' });
@@ -177,7 +177,7 @@ export default function SessionSharingSection() {
                 <Lock className="w-5 h-5 text-text-muted" />
               ) : (
                 <Switch
-                  checked={sessionSharingConfig.enabled}
+                  checked={effectiveEnabled}
                   disabled={!!envBaseUrlShare}
                   onCheckedChange={toggleSharing}
                   variant="mono"
@@ -186,7 +186,7 @@ export default function SessionSharingSection() {
             </div>
 
             {/* Base URL field (only visible if enabled) */}
-            {sessionSharingConfig.enabled && (
+            {effectiveEnabled && (
               <div className="space-y-2 relative">
                 <div className="flex items-center space-x-2">
                   <label htmlFor="session-sharing-url" className="text-sm text-text-default">
@@ -199,7 +199,7 @@ export default function SessionSharingSection() {
                     id="session-sharing-url"
                     type="url"
                     placeholder="https://example.com/api"
-                    value={sessionSharingConfig.baseUrl}
+                    value={effectiveBaseUrl}
                     disabled={!!envBaseUrlShare}
                     {...(envBaseUrlShare ? {} : { onChange: handleBaseUrlChange })}
                   />

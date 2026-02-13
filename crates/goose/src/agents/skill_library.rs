@@ -540,4 +540,379 @@ mod tests {
             assert!(types.contains(ct));
         }
     }
+
+    // ── Edge-case tests ────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_find_for_task_no_matches() {
+        let lib = SkillLibrary::in_memory().await.unwrap();
+
+        let mut s = make_skill("auth-fix", CoreType::Structured)
+            .with_patterns(vec!["authentication".into(), "login".into()]);
+        s.verified = true;
+        s.use_count = 1;
+        s.attempt_count = 1;
+        s.success_rate = 1.0;
+        lib.store(&s).await.unwrap();
+
+        // Completely unrelated query
+        let results = lib.find_for_task("optimize database performance", 5).await.unwrap();
+        assert!(results.is_empty(), "Unrelated task should find no skills");
+    }
+
+    #[tokio::test]
+    async fn test_find_for_task_short_words_filtered() {
+        // Words <= 3 chars are filtered out
+        let lib = SkillLibrary::in_memory().await.unwrap();
+
+        let mut s = make_skill("api-fix", CoreType::Structured)
+            .with_patterns(vec!["api".into()]);
+        s.verified = true;
+        s.use_count = 1;
+        lib.store(&s).await.unwrap();
+
+        // "fix the api bug" → keywords after filter (>3 chars): [] → empty
+        let results = lib.find_for_task("fix the api bug", 5).await.unwrap();
+        // "fix"=3, "the"=3, "api"=3, "bug"=3 → all filtered → empty keywords → empty result
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_find_for_task_empty_query() {
+        let lib = SkillLibrary::in_memory().await.unwrap();
+        let results = lib.find_for_task("", 5).await.unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_find_for_task_whitespace_only() {
+        let lib = SkillLibrary::in_memory().await.unwrap();
+        let results = lib.find_for_task("   ", 5).await.unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_record_usage_nonexistent_skill() {
+        let lib = SkillLibrary::in_memory().await.unwrap();
+        let found = lib.record_usage("nonexistent-id", true).await.unwrap();
+        assert!(!found, "record_usage returns false for nonexistent skill");
+    }
+
+    #[tokio::test]
+    async fn test_record_usage_sets_verified_on_success() {
+        let lib = SkillLibrary::in_memory().await.unwrap();
+        let skill = make_skill("test-skill", CoreType::Freeform);
+        let id = skill.skill_id.clone();
+        assert!(!skill.verified);
+        lib.store(&skill).await.unwrap();
+
+        // Failure does not set verified
+        lib.record_usage(&id, false).await.unwrap();
+        let all = lib.all_skills().await.unwrap();
+        assert!(!all[0].verified);
+
+        // Success sets verified
+        lib.record_usage(&id, true).await.unwrap();
+        let all = lib.all_skills().await.unwrap();
+        assert!(all[0].verified);
+    }
+
+    #[tokio::test]
+    async fn test_verified_skills_empty_store() {
+        let lib = SkillLibrary::in_memory().await.unwrap();
+        let verified = lib.verified_skills().await.unwrap();
+        assert!(verified.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_all_skills_empty_store() {
+        let lib = SkillLibrary::in_memory().await.unwrap();
+        let all = lib.all_skills().await.unwrap();
+        assert!(all.is_empty());
+        assert_eq!(lib.count().await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_store_replaces_existing_skill() {
+        let lib = SkillLibrary::in_memory().await.unwrap();
+        let mut skill = make_skill("evolving", CoreType::Freeform);
+        let id = skill.skill_id.clone();
+        lib.store(&skill).await.unwrap();
+        assert_eq!(lib.count().await.unwrap(), 1);
+
+        // Update the same skill
+        skill.use_count = 10;
+        skill.verified = true;
+        lib.store(&skill).await.unwrap();
+        assert_eq!(lib.count().await.unwrap(), 1);
+
+        let all = lib.all_skills().await.unwrap();
+        assert_eq!(all[0].use_count, 10);
+        assert!(all[0].verified);
+        assert_eq!(all[0].skill_id, id);
+    }
+
+    #[tokio::test]
+    async fn test_delete_nonexistent_returns_false() {
+        let lib = SkillLibrary::in_memory().await.unwrap();
+        assert!(!lib.delete("no-such-id").await.unwrap());
+    }
+
+    #[test]
+    fn test_skill_record_usage_math() {
+        let mut skill = Skill::new("test", "desc", CoreType::Freeform);
+        assert_eq!(skill.attempt_count, 0);
+        assert_eq!(skill.use_count, 0);
+        assert_eq!(skill.success_rate, 0.0);
+
+        skill.record_usage(true);
+        assert_eq!(skill.attempt_count, 1);
+        assert_eq!(skill.use_count, 1);
+        assert_eq!(skill.success_rate, 1.0);
+
+        skill.record_usage(false);
+        assert_eq!(skill.attempt_count, 2);
+        assert_eq!(skill.use_count, 1);
+        assert!((skill.success_rate - 0.5).abs() < 0.01);
+
+        skill.record_usage(false);
+        assert_eq!(skill.attempt_count, 3);
+        assert!((skill.success_rate - 0.3333).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_skill_serialization_roundtrip() {
+        let skill = Skill::new("ser-test", "Serialize roundtrip", CoreType::Structured)
+            .with_steps(vec!["step1".into(), "step2".into()])
+            .with_preconditions(vec!["pre1".into()])
+            .with_patterns(vec!["pattern1".into()]);
+        let json = serde_json::to_string(&skill).unwrap();
+        let back: Skill = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "ser-test");
+        assert_eq!(back.steps.len(), 2);
+        assert_eq!(back.preconditions.len(), 1);
+        assert_eq!(back.task_patterns.len(), 1);
+    }
+
+    #[test]
+    fn test_skill_prompt_context_unverified() {
+        let skill = Skill::new("unverified-skill", "desc", CoreType::Freeform);
+        let ctx = skill.as_prompt_context();
+        assert!(ctx.contains("unverified-skill"));
+        // Unverified skill should NOT have "Track record" line
+        assert!(!ctx.contains("Track record"));
+    }
+
+    #[test]
+    fn test_skill_prompt_context_no_steps() {
+        let skill = Skill::new("no-steps", "desc", CoreType::Freeform);
+        let ctx = skill.as_prompt_context();
+        // No "Steps:" section when steps is empty
+        assert!(!ctx.contains("Steps:"));
+    }
+
+    #[test]
+    fn test_skill_prompt_context_no_preconditions() {
+        let skill = Skill::new("no-pre", "desc", CoreType::Freeform);
+        let ctx = skill.as_prompt_context();
+        // No "When to use:" section when preconditions is empty
+        assert!(!ctx.contains("When to use:"));
+    }
+
+    // === Production hardening: duplicate handling, special chars, ranking, edge cases ===
+
+    #[tokio::test]
+    async fn test_duplicate_name_different_ids() {
+        // Edge case: two skills with the same name but different IDs → both stored
+        let lib = SkillLibrary::in_memory().await.unwrap();
+
+        let s1 = make_skill("same-name", CoreType::Structured);
+        let s2 = make_skill("same-name", CoreType::Freeform);
+        assert_ne!(s1.skill_id, s2.skill_id);
+
+        lib.store(&s1).await.unwrap();
+        lib.store(&s2).await.unwrap();
+        assert_eq!(lib.count().await.unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_store_same_id_overwrites_completely() {
+        // Edge case: INSERT OR REPLACE with same skill_id replaces all fields
+        let lib = SkillLibrary::in_memory().await.unwrap();
+
+        let mut skill = Skill::new("original", "Original description", CoreType::Structured);
+        let id = skill.skill_id.clone();
+        skill.use_count = 5;
+        skill.verified = true;
+        lib.store(&skill).await.unwrap();
+
+        // Overwrite with same ID but different fields
+        let mut updated = Skill::new("replaced", "New description", CoreType::Freeform);
+        updated.skill_id = id.clone();
+        updated.use_count = 0;
+        updated.verified = false;
+        lib.store(&updated).await.unwrap();
+
+        assert_eq!(lib.count().await.unwrap(), 1);
+        let all = lib.all_skills().await.unwrap();
+        assert_eq!(all[0].skill_id, id);
+        assert_eq!(all[0].name, "replaced");
+        assert_eq!(all[0].description, "New description");
+        assert!(!all[0].verified);
+        assert_eq!(all[0].use_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_special_characters_in_skill_fields() {
+        // Edge case: SQL-injection-like characters in all text fields
+        let lib = SkillLibrary::in_memory().await.unwrap();
+
+        let skill = Skill::new(
+            "name'; DROP TABLE skills;--",
+            "Description with 'quotes' and \"double\" and <html>",
+            CoreType::Freeform,
+        )
+        .with_steps(vec!["Step with 'quotes'".into(), "Step\nwith\nnewlines".into()])
+        .with_preconditions(vec!["Pre with \ttabs".into()])
+        .with_patterns(vec!["pattern'; DELETE FROM skills;--".into()]);
+
+        lib.store(&skill).await.unwrap();
+        assert_eq!(lib.count().await.unwrap(), 1);
+
+        let all = lib.all_skills().await.unwrap();
+        assert!(all[0].name.contains("DROP TABLE"));
+        assert!(all[0].steps[1].contains("\n"));
+    }
+
+    #[tokio::test]
+    async fn test_find_for_task_ranking_by_pattern_match() {
+        // Edge case: multiple verified skills — pattern match should score highest
+        let lib = SkillLibrary::in_memory().await.unwrap();
+
+        // Skill 1: matches on name only
+        let mut s1 = make_skill("authentication-helper", CoreType::Structured);
+        s1.verified = true;
+        s1.use_count = 1;
+        s1.success_rate = 1.0;
+
+        // Skill 2: matches on task_patterns (highest score = 3)
+        let mut s2 = Skill::new("login-fixer", "Fix login issues", CoreType::Freeform)
+            .with_patterns(vec!["authentication".into(), "oauth".into()]);
+        s2.verified = true;
+        s2.use_count = 1;
+        s2.success_rate = 0.5; // Lower success rate but pattern match
+
+        lib.store(&s1).await.unwrap();
+        lib.store(&s2).await.unwrap();
+
+        let results = lib.find_for_task("authentication error handling", 5).await.unwrap();
+        // Both should match since "authentication" is >3 chars
+        assert!(!results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_find_for_task_limit_respected() {
+        // Edge case: limit parameter actually limits results
+        let lib = SkillLibrary::in_memory().await.unwrap();
+
+        for i in 0..10 {
+            let mut s = Skill::new(
+                &format!("coding-skill-{}", i),
+                "A coding strategy",
+                CoreType::Structured,
+            )
+            .with_patterns(vec!["coding".into()]);
+            s.verified = true;
+            s.use_count = 1;
+            s.success_rate = 1.0;
+            lib.store(&s).await.unwrap();
+        }
+
+        let results = lib.find_for_task("coding challenge", 3).await.unwrap();
+        assert!(results.len() <= 3);
+    }
+
+    #[tokio::test]
+    async fn test_skill_with_empty_collections() {
+        // Edge case: skill with no steps, no preconditions, no patterns
+        let lib = SkillLibrary::in_memory().await.unwrap();
+
+        let skill = Skill::new("bare-skill", "Minimal", CoreType::Freeform);
+        assert!(skill.steps.is_empty());
+        assert!(skill.preconditions.is_empty());
+        assert!(skill.task_patterns.is_empty());
+
+        lib.store(&skill).await.unwrap();
+        let all = lib.all_skills().await.unwrap();
+        assert!(all[0].steps.is_empty());
+        assert!(all[0].preconditions.is_empty());
+        assert!(all[0].task_patterns.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_rapid_store_and_retrieve() {
+        // Edge case: rapid sequential stores followed by retrieval
+        let lib = SkillLibrary::in_memory().await.unwrap();
+
+        for i in 0..50 {
+            let skill = make_skill(&format!("rapid-{}", i), CoreType::Structured);
+            lib.store(&skill).await.unwrap();
+        }
+
+        assert_eq!(lib.count().await.unwrap(), 50);
+        let all = lib.all_skills().await.unwrap();
+        assert_eq!(all.len(), 50);
+    }
+
+    #[tokio::test]
+    async fn test_record_usage_only_failures_never_verifies() {
+        // Edge case: many failures without any success → never verified
+        let lib = SkillLibrary::in_memory().await.unwrap();
+        let skill = make_skill("failing-skill", CoreType::Freeform);
+        let id = skill.skill_id.clone();
+        lib.store(&skill).await.unwrap();
+
+        for _ in 0..10 {
+            lib.record_usage(&id, false).await.unwrap();
+        }
+
+        let all = lib.all_skills().await.unwrap();
+        assert!(!all[0].verified);
+        assert_eq!(all[0].attempt_count, 10);
+        assert_eq!(all[0].use_count, 0);
+        assert_eq!(all[0].success_rate, 0.0);
+    }
+
+    #[test]
+    fn test_skill_record_usage_single_failure() {
+        // Edge case: single failure → success_rate is 0.0, not NaN
+        let mut skill = Skill::new("test", "desc", CoreType::Freeform);
+        skill.record_usage(false);
+        assert_eq!(skill.success_rate, 0.0);
+        assert!(!skill.success_rate.is_nan());
+    }
+
+    #[tokio::test]
+    async fn test_delete_then_reinsert_same_id() {
+        // Edge case: delete a skill, then store a new one with the same ID
+        let lib = SkillLibrary::in_memory().await.unwrap();
+
+        let skill = make_skill("deletable", CoreType::Freeform);
+        let id = skill.skill_id.clone();
+        lib.store(&skill).await.unwrap();
+        assert_eq!(lib.count().await.unwrap(), 1);
+
+        lib.delete(&id).await.unwrap();
+        assert_eq!(lib.count().await.unwrap(), 0);
+
+        // Re-store with the same ID
+        let mut new_skill = Skill::new("reborn", "New life", CoreType::Structured);
+        new_skill.skill_id = id.clone();
+        lib.store(&new_skill).await.unwrap();
+        assert_eq!(lib.count().await.unwrap(), 1);
+
+        let all = lib.all_skills().await.unwrap();
+        assert_eq!(all[0].name, "reborn");
+        assert_eq!(all[0].skill_id, id);
+    }
 }

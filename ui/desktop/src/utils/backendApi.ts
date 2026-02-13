@@ -36,10 +36,61 @@ export interface GatewayConfig {
 }
 
 export interface CostSummary {
-  totalCost: number;
-  sessionCost: number;
-  budgetLimit: number | null;
-  breakdown: Record<string, number>;
+  total_cost: number;
+  session_cost: number;
+  model_breakdown: CostModelBreakdown[];
+  budget_limit: number | null;
+  budget_used_percent: number;
+}
+
+export interface CostModelBreakdown {
+  model: string;
+  provider: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost: number;
+  calls: number;
+}
+
+export interface CostBudget {
+  limit: number | null;
+  warning_threshold: number;
+}
+
+export interface LearningStats {
+  total_experiences: number;
+  success_rate: number;
+  total_skills: number;
+  verified_skills: number;
+  total_insights: number;
+  experiences_by_core: Record<string, number>;
+}
+
+export interface LearningExperience {
+  id: string;
+  task: string;
+  core_type: string;
+  outcome: string;
+  insights: string[];
+  timestamp: string;
+}
+
+export interface LearningInsight {
+  id: string;
+  category: string;
+  pattern: string;
+  confidence: number;
+  occurrences: number;
+  created_at: string;
+}
+
+export interface LearningSkill {
+  id: string;
+  name: string;
+  description: string;
+  verified: boolean;
+  usage_count: number;
+  created_at: string;
 }
 
 export interface Bookmark {
@@ -50,10 +101,11 @@ export interface Bookmark {
 }
 
 export interface ExtensionInfo {
-  id: string;
+  key: string;
   name: string;
   enabled: boolean;
-  type: 'builtin' | 'bundled' | 'custom';
+  type: 'builtin' | 'stdio' | 'streamable_http' | 'platform' | 'frontend' | 'inline_python' | 'sse';
+  description: string;
 }
 
 export interface SessionSearchResult {
@@ -61,6 +113,96 @@ export interface SessionSearchResult {
   title: string;
   snippet: string;
   timestamp: string;
+}
+
+export interface GatewayStatus {
+  healthy: boolean;
+  uptime: string;
+  version: string;
+  auditLogging: boolean;
+  permissions: {
+    total: number;
+    granted: number;
+    denied: number;
+  };
+}
+
+export interface HookEvent {
+  id: string;
+  name: string;
+  category: 'session' | 'tools' | 'flow';
+  enabled: boolean;
+  recentCount: number;
+}
+
+export interface HooksConfig {
+  events: HookEvent[];
+}
+
+export interface MemorySubsystem {
+  id: string;
+  name: string;
+  status: 'active' | 'inactive' | 'degraded';
+  itemCount: number;
+  decayRate: string;
+}
+
+export interface MemorySummary {
+  subsystems: MemorySubsystem[];
+}
+
+export interface PolicyRule {
+  id: string;
+  name: string;
+  condition: string;
+  action: string;
+  enabled: boolean;
+}
+
+export interface PolicyRules {
+  rules: PolicyRule[];
+  dryRunMode: boolean;
+}
+
+export type ScanDirection = 'input' | 'output';
+export type ScanResultType = 'pass' | 'warn' | 'block';
+
+export interface GuardrailsScanEntry {
+  id: string;
+  timestamp: string;
+  direction: ScanDirection;
+  detector: string;
+  result: ScanResultType;
+  message: string;
+  sessionName: string;
+}
+
+export interface GuardrailsScansResponse {
+  scans: GuardrailsScanEntry[];
+}
+
+export interface EnterpriseGuardrailsConfig {
+  enabled: boolean;
+  mode: string;
+  rules: unknown[];
+}
+
+export interface TokenUsageInfo {
+  totalTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  estimatedCost: string;
+  period: string;
+}
+
+export interface ObservabilityConfig {
+  costTrackingEnabled: boolean;
+  usage: TokenUsageInfo;
+}
+
+export interface MemoryConsolidateResponse {
+  success: boolean;
+  message: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,13 +242,13 @@ export const backendApi = {
   },
 
   // -----------------------------------------------------------------------
-  // Enterprise endpoints (stubs -- backend not yet implemented)
+  // Enterprise endpoints
   // -----------------------------------------------------------------------
 
   /** Fetch the current guardrails configuration. */
   getGuardrails: async (): Promise<GuardrailsConfig | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/guardrails`);
+      const res = await fetch(`${API_BASE}/api/guardrails/config`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as GuardrailsConfig;
     } catch (err) {
@@ -134,7 +276,7 @@ export const backendApi = {
   /** Get an aggregate cost summary for the current session & lifetime. */
   getCostSummary: async (): Promise<CostSummary | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/cost`);
+      const res = await fetch(`${API_BASE}/api/cost/summary`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as CostSummary;
     } catch (err) {
@@ -155,6 +297,135 @@ export const backendApi = {
     } catch (err) {
       console.warn('[backendApi] setBudgetLimit failed:', err);
       return false;
+    }
+  },
+
+  /** Get detailed per-model cost breakdown. */
+  getCostBreakdown: async (): Promise<CostModelBreakdown[] | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/cost/breakdown`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as CostModelBreakdown[];
+    } catch (err) {
+      console.warn('[backendApi] getCostBreakdown failed:', err);
+      return null;
+    }
+  },
+
+  /** Get current budget configuration. */
+  getCostBudget: async (): Promise<CostBudget | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/cost/budget`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as CostBudget;
+    } catch (err) {
+      console.warn('[backendApi] getCostBudget failed:', err);
+      return null;
+    }
+  },
+
+  /** Update guardrails configuration. */
+  updateGuardrailsConfig: async (config: Partial<GuardrailsConfig>): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/guardrails/config`, {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(config),
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn('[backendApi] updateGuardrailsConfig failed:', err);
+      return false;
+    }
+  },
+
+  // -----------------------------------------------------------------------
+  // Learning
+  // -----------------------------------------------------------------------
+
+  /** Get aggregate learning statistics. */
+  getLearningStats: async (): Promise<LearningStats | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/learning/stats`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as LearningStats;
+    } catch (err) {
+      console.warn('[backendApi] getLearningStats failed:', err);
+      return null;
+    }
+  },
+
+  /** Get paginated learning experiences. */
+  getLearningExperiences: async (
+    limit?: number,
+    offset?: number
+  ): Promise<LearningExperience[] | null> => {
+    try {
+      const params = new URLSearchParams();
+      if (limit !== undefined) params.set('limit', String(limit));
+      if (offset !== undefined) params.set('offset', String(offset));
+      const qs = params.toString();
+      const res = await fetch(`${API_BASE}/api/learning/experiences${qs ? `?${qs}` : ''}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as LearningExperience[];
+    } catch (err) {
+      console.warn('[backendApi] getLearningExperiences failed:', err);
+      return null;
+    }
+  },
+
+  /** Get all learning insights. */
+  getLearningInsights: async (): Promise<LearningInsight[] | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/learning/insights`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as LearningInsight[];
+    } catch (err) {
+      console.warn('[backendApi] getLearningInsights failed:', err);
+      return null;
+    }
+  },
+
+  /** Get learning skills, optionally only verified. */
+  getLearningSkills: async (verifiedOnly?: boolean): Promise<LearningSkill[] | null> => {
+    try {
+      const params = new URLSearchParams();
+      if (verifiedOnly) params.set('verified_only', 'true');
+      const qs = params.toString();
+      const res = await fetch(`${API_BASE}/api/learning/skills${qs ? `?${qs}` : ''}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as LearningSkill[];
+    } catch (err) {
+      console.warn('[backendApi] getLearningSkills failed:', err);
+      return null;
+    }
+  },
+
+  // -----------------------------------------------------------------------
+  // Autonomous / OTA status
+  // -----------------------------------------------------------------------
+
+  /** Get autonomous daemon status. */
+  getAutonomousStatus: async (): Promise<Record<string, unknown> | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/autonomous/status`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as Record<string, unknown>;
+    } catch (err) {
+      console.warn('[backendApi] getAutonomousStatus failed:', err);
+      return null;
+    }
+  },
+
+  /** Get OTA self-build status. */
+  getOtaStatus: async (): Promise<Record<string, unknown> | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/ota/status`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as Record<string, unknown>;
+    } catch (err) {
+      console.warn('[backendApi] getOtaStatus failed:', err);
+      return null;
     }
   },
 
@@ -229,17 +500,18 @@ export const backendApi = {
     try {
       const res = await fetch(`${API_BASE}/api/extensions`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return (await res.json()) as ExtensionInfo[];
+      const data = (await res.json()) as { extensions: ExtensionInfo[] };
+      return data.extensions;
     } catch (err) {
       console.warn('[backendApi] getExtensions failed:', err);
       return null;
     }
   },
 
-  /** Enable or disable an extension by id. */
-  toggleExtension: async (id: string, enabled: boolean): Promise<boolean> => {
+  /** Enable or disable an extension by key. */
+  toggleExtension: async (key: string, enabled: boolean): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/extensions/${encodeURIComponent(id)}`, {
+      const res = await fetch(`${API_BASE}/api/extensions/${encodeURIComponent(key)}/toggle`, {
         method: 'PUT',
         headers: JSON_HEADERS,
         body: JSON.stringify({ enabled }),
@@ -247,6 +519,237 @@ export const backendApi = {
       return res.ok;
     } catch (err) {
       console.warn('[backendApi] toggleExtension failed:', err);
+      return false;
+    }
+  },
+
+  // -----------------------------------------------------------------------
+  // Enterprise panels
+  // -----------------------------------------------------------------------
+
+  /** Fetch gateway status. */
+  fetchGatewayStatus: async (): Promise<GatewayStatus | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/gateway/status`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as GatewayStatus;
+    } catch (err) {
+      console.warn('[backendApi] fetchGatewayStatus failed:', err);
+      return null;
+    }
+  },
+
+  /** Update gateway audit logging setting. */
+  updateGatewayAuditLogging: async (enabled: boolean): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/gateway/audit`, {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ enabled }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn('[backendApi] updateGatewayAuditLogging failed:', err);
+      return false;
+    }
+  },
+
+  /** Fetch hooks configuration. */
+  fetchHooksConfig: async (): Promise<HooksConfig | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/hooks/events`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as HooksConfig;
+    } catch (err) {
+      console.warn('[backendApi] fetchHooksConfig failed:', err);
+      return null;
+    }
+  },
+
+  /** Toggle a hook event. */
+  toggleHook: async (id: string, enabled: boolean): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/hooks/events/${encodeURIComponent(id)}`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ enabled }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn('[backendApi] toggleHook failed:', err);
+      return false;
+    }
+  },
+
+  /** Fetch memory summary. */
+  fetchMemorySummary: async (): Promise<MemorySummary | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/memory/summary`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as MemorySummary;
+    } catch (err) {
+      console.warn('[backendApi] fetchMemorySummary failed:', err);
+      return null;
+    }
+  },
+
+  /** Fetch policy rules. */
+  fetchPolicyRules: async (): Promise<PolicyRules | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/policies/rules`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as PolicyRules;
+    } catch (err) {
+      console.warn('[backendApi] fetchPolicyRules failed:', err);
+      return null;
+    }
+  },
+
+  /** Toggle a policy rule. */
+  togglePolicyRule: async (id: string, enabled: boolean): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/policies/rules/${encodeURIComponent(id)}`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ enabled }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn('[backendApi] togglePolicyRule failed:', err);
+      return false;
+    }
+  },
+
+  /** Update policy dry-run mode. */
+  updatePolicyDryRunMode: async (enabled: boolean): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/policies/dry-run`, {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ enabled }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn('[backendApi] updatePolicyDryRunMode failed:', err);
+      return false;
+    }
+  },
+
+  /** Fetch enterprise guardrails configuration. */
+  getEnterpriseGuardrails: async (): Promise<EnterpriseGuardrailsConfig | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/guardrails`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as EnterpriseGuardrailsConfig;
+    } catch (err) {
+      console.warn('[backendApi] getEnterpriseGuardrails failed:', err);
+      return null;
+    }
+  },
+
+  /** Update enterprise guardrails configuration (partial merge). */
+  updateEnterpriseGuardrails: async (
+    config: Partial<EnterpriseGuardrailsConfig>
+  ): Promise<EnterpriseGuardrailsConfig | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/guardrails`, {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(config),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as EnterpriseGuardrailsConfig;
+    } catch (err) {
+      console.warn('[backendApi] updateEnterpriseGuardrails failed:', err);
+      return null;
+    }
+  },
+
+  /** Fetch guardrails scan history. */
+  getGuardrailsScans: async (): Promise<GuardrailsScanEntry[] | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/guardrails/scans`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as GuardrailsScansResponse;
+      return data.scans;
+    } catch (err) {
+      console.warn('[backendApi] getGuardrailsScans failed:', err);
+      return null;
+    }
+  },
+
+  /** Trigger memory consolidation across all subsystems. */
+  consolidateMemory: async (): Promise<MemoryConsolidateResponse | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/memory/consolidate`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as MemoryConsolidateResponse;
+    } catch (err) {
+      console.warn('[backendApi] consolidateMemory failed:', err);
+      return null;
+    }
+  },
+
+  /** Fetch observability / telemetry configuration and usage data. */
+  getObservabilityConfig: async (): Promise<ObservabilityConfig | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/observability`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as ObservabilityConfig;
+    } catch (err) {
+      console.warn('[backendApi] getObservabilityConfig failed:', err);
+      return null;
+    }
+  },
+
+  /** Update observability settings (e.g., toggle cost tracking). */
+  updateObservabilityConfig: async (
+    config: { costTrackingEnabled?: boolean }
+  ): Promise<ObservabilityConfig | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/enterprise/observability`, {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(config),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as ObservabilityConfig;
+    } catch (err) {
+      console.warn('[backendApi] updateObservabilityConfig failed:', err);
+      return null;
+    }
+  },
+
+  // -----------------------------------------------------------------------
+  // Settings
+  // -----------------------------------------------------------------------
+
+  /** Get a single setting value from the backend. */
+  getSetting: async <T = unknown>(key: string): Promise<T | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/${encodeURIComponent(key)}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.value as T;
+    } catch (err) {
+      console.warn(`[backendApi] getSetting("${key}") failed:`, err);
+      return null;
+    }
+  },
+
+  /** Set a single setting value on the backend. */
+  setSetting: async (key: string, value: unknown): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ value }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn(`[backendApi] setSetting("${key}") failed:`, err);
       return false;
     }
   },

@@ -107,6 +107,16 @@ describe('HooksPanel', () => {
   });
 
   it('toggles a hook when its switch is clicked', async () => {
+    // The toggle handler calls backendApi.toggleHook which uses fetch.
+    // If fetch rejects, the toggle reverts. So we need fetch to succeed for toggle calls.
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const urlStr = typeof url === 'string' ? url : (url as Request).url;
+      if (urlStr.includes('/hooks/events/')) {
+        return Promise.resolve({ ok: true } as Response);
+      }
+      return Promise.reject(new Error('Not available'));
+    });
+
     const user = userEvent.setup();
     render(<HooksPanel />);
 
@@ -118,7 +128,9 @@ describe('HooksPanel', () => {
     const switches = screen.getAllByTestId('hook-switch');
     await user.click(switches[0]);
 
-    expect(switches[0]).toHaveAttribute('aria-checked', 'true');
+    await waitFor(() => {
+      expect(switches[0]).toHaveAttribute('aria-checked', 'true');
+    });
   });
 
   it('renders switches for all events', async () => {
@@ -131,6 +143,16 @@ describe('HooksPanel', () => {
   });
 
   it('updates summary count after toggling', async () => {
+    // The toggle handler calls backendApi.toggleHook which uses fetch.
+    // If fetch rejects, the toggle reverts. So we need fetch to succeed for toggle calls.
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const urlStr = typeof url === 'string' ? url : (url as Request).url;
+      if (urlStr.includes('/hooks/events/')) {
+        return Promise.resolve({ ok: true } as Response);
+      }
+      return Promise.reject(new Error('Not available'));
+    });
+
     const user = userEvent.setup();
     render(<HooksPanel />);
 

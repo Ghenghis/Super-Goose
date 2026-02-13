@@ -127,6 +127,7 @@ describe('CLISetupWizard', () => {
   it('should show download step content when step is download', () => {
     mockState.setupStep = 'download' as any;
     render(<CLISetupWizard />);
-    expect(screen.getByText('Downloading CLI binary...')).toBeInTheDocument();
+    // Text may include "(simulated)" suffix when Electron bridge is unavailable
+    expect(screen.getByText(/Downloading CLI binary/)).toBeInTheDocument();
   });
 });

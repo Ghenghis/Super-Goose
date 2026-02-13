@@ -58,6 +58,20 @@ export enum SettingsKeys {
   // Misc
   ProjectAutoDetection = 'projectAutoDetection',
   ModelHotSwitch = 'modelHotSwitch',
+
+  // Cost display
+  ShowPricing = 'showPricing',
+
+  // CLI configuration
+  CliDefaultProvider = 'cliDefaultProvider',
+  CliAutoUpdate = 'cliAutoUpdate',
+  CliCustomArgs = 'cliCustomArgs',
+  CliDebugMode = 'cliDebugMode',
+  CliShellIntegration = 'cliShellIntegration',
+
+  // Session sharing
+  SessionSharingEnabled = 'sessionSharingEnabled',
+  SessionSharingBaseUrl = 'sessionSharingBaseUrl',
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +113,22 @@ export interface FeatureSettings {
   projectAutoDetection: boolean;
   /** Whether /model hot-switch is available. */
   modelHotSwitch: boolean;
+  /** Whether the pricing/cost display is shown in the status bar. */
+  showPricing: boolean;
+  /** Default AI provider for the CLI. */
+  cliDefaultProvider: string;
+  /** Whether CLI auto-update on app start is enabled. */
+  cliAutoUpdate: boolean;
+  /** Extra arguments appended to every CLI invocation. */
+  cliCustomArgs: string;
+  /** Whether verbose CLI debug logging is enabled. */
+  cliDebugMode: boolean;
+  /** Whether the goose CLI is added to the system PATH. */
+  cliShellIntegration: boolean;
+  /** Whether session sharing is enabled. */
+  sessionSharingEnabled: boolean;
+  /** Base URL for the session sharing API. */
+  sessionSharingBaseUrl: string;
 }
 
 /**
@@ -131,6 +161,14 @@ export const defaultFeatureSettings: FeatureSettings = {
   searchEnabled: true,
   projectAutoDetection: true,
   modelHotSwitch: true,
+  showPricing: true,
+  cliDefaultProvider: 'anthropic',
+  cliAutoUpdate: true,
+  cliCustomArgs: '',
+  cliDebugMode: false,
+  cliShellIntegration: false,
+  sessionSharingEnabled: false,
+  sessionSharingBaseUrl: '',
 };
 
 // ---------------------------------------------------------------------------
@@ -284,7 +322,7 @@ export function useFeatureSettings(): UseFeatureSettingsReturn {
  */
 export async function syncSettingToBackend(key: string, value: unknown): Promise<boolean> {
   try {
-    const response = await fetch(`/api/settings/${encodeURIComponent(key)}`, {
+    const response = await fetch(`http://localhost:3284/api/settings/${encodeURIComponent(key)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value }),
@@ -304,7 +342,7 @@ export async function syncSettingToBackend(key: string, value: unknown): Promise
  */
 export async function loadSettingFromBackend<T = unknown>(key: string): Promise<T | undefined> {
   try {
-    const response = await fetch(`/api/settings/${encodeURIComponent(key)}`);
+    const response = await fetch(`http://localhost:3284/api/settings/${encodeURIComponent(key)}`);
     if (response.ok) {
       const data = await response.json();
       return data.value as T;
@@ -314,6 +352,161 @@ export async function loadSettingFromBackend<T = unknown>(key: string): Promise<
     console.warn(`[settingsBridge] loadSettingFromBackend("${key}") failed, falling back to localStorage:`, err);
     return undefined;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Settings SSE Stream
+// ---------------------------------------------------------------------------
+
+interface SettingsUpdateEvent {
+  event: 'settings_update';
+  key: string;
+  value: unknown;
+  source: string;
+}
+
+interface HeartbeatEvent {
+  event: 'heartbeat';
+  timestamp: number;
+}
+
+// Union type for all possible SSE events (currently not exported but reserved for future use)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type SettingsStreamEvent = SettingsUpdateEvent | HeartbeatEvent;
+
+interface UseSettingsStreamOptions {
+  /** Base URL for the backend API. Defaults to http://localhost:3284 */
+  baseUrl?: string;
+  /** Callback invoked when a settings update event is received. */
+  onSettingUpdate?: (key: string, value: unknown, source: string) => void;
+  /** Whether to auto-reconnect on disconnect. Defaults to true. */
+  autoReconnect?: boolean;
+  /** Maximum reconnect delay in milliseconds. Defaults to 30000 (30s). */
+  maxReconnectDelay?: number;
+}
+
+interface UseSettingsStreamReturn {
+  /** Whether the SSE connection is currently open. */
+  isConnected: boolean;
+  /** Last error encountered, if any. */
+  error: Error | null;
+}
+
+/**
+ * React hook that opens an SSE connection to `/api/settings/stream` and
+ * listens for live settings updates.
+ *
+ * Auto-reconnects with exponential backoff on disconnect.
+ *
+ * ```tsx
+ * const { isConnected, error } = useSettingsStream({
+ *   onSettingUpdate: (key, value, source) => {
+ *     console.log('Setting updated:', key, value, source);
+ *   },
+ * });
+ * ```
+ */
+export function useSettingsStream(options: UseSettingsStreamOptions = {}): UseSettingsStreamReturn {
+  const {
+    baseUrl = 'http://localhost:3284',
+    onSettingUpdate,
+    autoReconnect = true,
+    maxReconnectDelay = 30000,
+  } = options;
+
+  const [isConnected, setIsConnected] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const reconnectDelayRef = useRef(1000); // Start at 1 second
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const connect = useCallback(() => {
+    if (!mountedRef.current) return;
+
+    try {
+      const url = `${baseUrl}/api/settings/stream`;
+      const eventSource = new EventSource(url);
+      eventSourceRef.current = eventSource;
+
+      eventSource.onopen = () => {
+        if (!mountedRef.current) return;
+        setIsConnected(true);
+        setError(null);
+        reconnectDelayRef.current = 1000; // Reset backoff on successful connection
+      };
+
+      eventSource.addEventListener('settings_update', (event: MessageEvent) => {
+        if (!mountedRef.current) return;
+        try {
+          const data: SettingsUpdateEvent = JSON.parse(event.data);
+          if (data.event === 'settings_update' && onSettingUpdate) {
+            onSettingUpdate(data.key, data.value, data.source);
+          }
+        } catch (err) {
+          console.warn('[useSettingsStream] Failed to parse settings_update event:', err);
+        }
+      });
+
+      eventSource.addEventListener('heartbeat', (event: MessageEvent) => {
+        if (!mountedRef.current) return;
+        try {
+          JSON.parse(event.data) as HeartbeatEvent;
+          // Heartbeat received, connection is alive
+        } catch {
+          // Ignore heartbeat parse errors
+        }
+      });
+
+      eventSource.onerror = () => {
+        if (!mountedRef.current) return;
+        setIsConnected(false);
+        setError(new Error('SSE connection error'));
+        eventSource.close();
+        eventSourceRef.current = null;
+
+        // Auto-reconnect with exponential backoff
+        if (autoReconnect && mountedRef.current) {
+          const delay = Math.min(reconnectDelayRef.current, maxReconnectDelay);
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (mountedRef.current) {
+              connect();
+            }
+          }, delay);
+          reconnectDelayRef.current = Math.min(delay * 2, maxReconnectDelay);
+        }
+      };
+    } catch (err) {
+      setError(err as Error);
+      setIsConnected(false);
+    }
+  }, [baseUrl, onSettingUpdate, autoReconnect, maxReconnectDelay]);
+
+  // Initial connection
+  useEffect(() => {
+    connect();
+
+    return () => {
+      // Cleanup on unmount
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+    };
+  }, [connect]);
+
+  return { isConnected, error };
 }
 
 // ---------------------------------------------------------------------------

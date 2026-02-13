@@ -1,10 +1,12 @@
 import { test, expect } from './fixtures';
+import { skipWithoutBackend } from './skip-utils';
 
-// SKIP: These tests require a running goose-server backend with LLM provider.
+// These tests require a running goose-server backend with LLM provider.
 // They test compaction, token counting, and context window management which
 // depend on actual AI responses. Run with: GOOSE_BACKEND=1 npx playwright test
-test.describe.skip('Enhanced Context Management E2E Tests', () => {
+test.describe('Enhanced Context Management E2E Tests', () => {
   test.beforeEach(async ({ goosePage }) => {
+    skipWithoutBackend(test);
     // Ensure the app is ready before each test
     await goosePage.waitForSelector('[data-testid="chat-input"]', { timeout: 10000 });
   });

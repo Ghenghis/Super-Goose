@@ -21,7 +21,7 @@ import fsSync from 'node:fs';
 import started from 'electron-squirrel-startup';
 import path from 'node:path';
 import os from 'node:os';
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import 'dotenv/config';
 import { checkServerStatus, startGoosed } from './goosed';
 import { expandTilde } from './utils/pathUtils';
@@ -47,6 +47,7 @@ import { Client, createClient, createConfig } from './api/client';
 import { GooseApp } from './api';
 import installExtension, { REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
 import { BLOCKED_PROTOCOLS, WEB_PROTOCOLS } from './utils/urlSecurity';
+import { registerCLIHandlers, cleanupCLI } from './cli-ipc';
 
 function shouldSetupUpdater(): boolean {
   // Setup updater if either the flag is enabled OR dev updates are enabled
@@ -777,6 +778,9 @@ const createChat = async (
 
   windowMap.set(windowId, mainWindow);
 
+  // Register CLI IPC handlers so renderer can manage the goose binary
+  registerCLIHandlers(mainWindow);
+
   // Handle window closure
   mainWindow.on('closed', () => {
     windowMap.delete(windowId);
@@ -1444,6 +1448,410 @@ ipcMain.handle('select-file-or-directory', async (_event, defaultPath?: string) 
   }
   return null;
 });
+
+// ---------------------------------------------------------------------------
+// CLI Management IPC Handlers
+// ---------------------------------------------------------------------------
+
+ipcMain.handle('cli:check-installed', async () => {
+  try {
+    const cliPath = getCLIBinaryPath();
+
+    // Check if the file exists
+    try {
+      const stats = await fs.stat(cliPath);
+      if (!stats.isFile()) {
+        return null;
+      }
+    } catch {
+      return null; // File doesn't exist
+    }
+
+    // Get version by running: goose --version
+    return new Promise((resolve) => {
+      const versionProcess = spawn(cliPath, ['--version']);
+      let output = '';
+
+      versionProcess.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+
+      versionProcess.on('close', (code) => {
+        if (code !== 0) {
+          resolve(null);
+          return;
+        }
+
+        // Parse version from output (e.g., "goose v1.24.05")
+        const versionMatch = output.match(/v?\d+\.\d+\.\d+/);
+        const version = versionMatch ? versionMatch[0] : 'unknown';
+
+        // Get file stats for installed date
+        fs.stat(cliPath)
+          .then((stats) => {
+            resolve({
+              version: version.startsWith('v') ? version : `v${version}`,
+              path: cliPath,
+              installedAt: stats.birthtime.toISOString(),
+              platform: process.platform,
+            });
+          })
+          .catch(() => resolve(null));
+      });
+
+      versionProcess.on('error', () => {
+        resolve(null);
+      });
+    });
+  } catch (error) {
+    console.error('[Main] Error checking CLI installation:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('cli:check-updates', async () => {
+  try {
+    // Fetch latest release from GitHub
+    const response = await fetch(
+      'https://api.github.com/repos/Ghenghis/Super-Goose/releases/latest',
+      {
+        headers: {
+          'User-Agent': 'Super-Goose-Desktop',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error('[Main] Failed to fetch releases:', response.status);
+      return null;
+    }
+
+    const release = await response.json();
+
+    // Find the appropriate asset for the current platform
+    const platformAssetName = getPlatformCLIAssetName();
+    const asset = release.assets?.find((a: any) => a.name === platformAssetName);
+
+    if (!asset) {
+      console.warn(`[Main] No CLI asset found for platform: ${platformAssetName}`);
+      return null;
+    }
+
+    return {
+      version: release.tag_name,
+      downloadUrl: asset.browser_download_url,
+      size: asset.size,
+      sha256: '', // GitHub doesn't provide SHA256 in API, would need separate file
+      releaseDate: release.published_at,
+    };
+  } catch (error) {
+    console.error('[Main] Error checking for CLI updates:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('cli:install', async (event, release) => {
+  try {
+    const cliPath = getCLIBinaryPath();
+    const cliDir = path.dirname(cliPath);
+
+    // Ensure directory exists
+    await fs.mkdir(cliDir, { recursive: true });
+
+    // Download the binary
+    const response = await fetch(release.downloadUrl);
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+    }
+
+    const totalSize = release.size || parseInt(response.headers.get('content-length') || '0');
+    let downloadedSize = 0;
+
+    // Read the response as a stream
+    const buffer: Buffer[] = [];
+    const reader = response.body?.getReader();
+
+    if (!reader) {
+      throw new Error('Failed to get response reader');
+    }
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer.push(Buffer.from(value));
+      downloadedSize += value.length;
+
+      // Send progress update
+      const percent = Math.round((downloadedSize / totalSize) * 100);
+      const window = BrowserWindow.fromWebContents(event.sender);
+      window?.webContents.send('cli:install-progress', percent);
+    }
+
+    // Write the file
+    const fileBuffer = Buffer.concat(buffer);
+    await fs.writeFile(cliPath, fileBuffer);
+
+    // Make executable on Unix-like systems
+    if (process.platform !== 'win32') {
+      await fs.chmod(cliPath, 0o755);
+    }
+
+    // Verify installation
+    const stats = await fs.stat(cliPath);
+
+    return {
+      version: release.version,
+      path: cliPath,
+      installedAt: stats.birthtime.toISOString(),
+      platform: process.platform,
+    };
+  } catch (error) {
+    console.error('[Main] Error installing CLI:', error);
+    throw error;
+  }
+});
+
+// Helper function to get platform-specific CLI binary path
+function getCLIBinaryPath(): string {
+  if (process.platform === 'win32') {
+    const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+    return path.join(appData, 'goose', 'goose.exe');
+  } else {
+    return path.join(os.homedir(), '.local', 'bin', 'goose');
+  }
+}
+
+// Helper function to get platform-specific asset name
+function getPlatformCLIAssetName(): string {
+  const platform = process.platform;
+  const arch = process.arch;
+
+  if (platform === 'win32') {
+    return arch === 'x64' ? 'goose-cli-windows-x64.exe' : 'goose-cli-windows-arm64.exe';
+  } else if (platform === 'darwin') {
+    return arch === 'arm64' ? 'goose-cli-macos-arm64' : 'goose-cli-macos-x64';
+  } else {
+    // Linux
+    return arch === 'arm64' ? 'goose-cli-linux-arm64' : 'goose-cli-linux-x64';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Terminal Session IPC Handlers
+// ---------------------------------------------------------------------------
+
+/** Metadata for an active terminal session managed by the main process */
+interface TerminalSessionInfo {
+  id: string;
+  pid: number;
+  shell: string;
+  cwd: string;
+  createdAt: string;
+  process: ChildProcess;
+}
+
+/** Map of active terminal sessions keyed by session ID */
+const terminalSessions = new Map<string, TerminalSessionInfo>();
+
+/** Get the default shell for the current platform */
+function getDefaultTerminalShell(): string {
+  if (process.platform === 'win32') {
+    return process.env.COMSPEC || 'cmd.exe';
+  }
+  return process.env.SHELL || '/bin/bash';
+}
+
+/**
+ * terminal:create — Spawn a new shell process and register the session.
+ *
+ * Expects: { shell?: string, cwd?: string, cols?: number, rows?: number }
+ * Returns: { id, pid, shell, cwd, createdAt }
+ */
+ipcMain.handle(
+  'terminal:create',
+  async (event, args: { shell?: string; cwd?: string; cols?: number; rows?: number }) => {
+    const sessionId = crypto.randomUUID();
+    const shellCmd = args.shell || getDefaultTerminalShell();
+    const cwd = args.cwd || os.homedir();
+
+    // Build platform-appropriate spawn options
+    const spawnArgs: string[] = [];
+    const spawnOpts: {
+      cwd: string;
+      env: NodeJS.ProcessEnv;
+      shell: boolean;
+      windowsHide?: boolean;
+    } = {
+      cwd,
+      env: { ...process.env, TERM: 'xterm-256color' },
+      shell: false,
+    };
+
+    if (process.platform === 'win32') {
+      spawnOpts.windowsHide = true;
+    }
+
+    let child: ChildProcess;
+    try {
+      child = spawn(shellCmd, spawnArgs, spawnOpts);
+    } catch (err) {
+      console.error('[Terminal] Failed to spawn shell process:', err);
+      throw new Error(`Failed to spawn terminal: ${err}`);
+    }
+
+    if (!child.pid) {
+      // If spawn failed synchronously (bad command), handle the error event
+      return new Promise((_resolve, reject) => {
+        child.on('error', (err) => {
+          reject(new Error(`Failed to spawn terminal: ${err.message}`));
+        });
+        // Give it a moment for the error event to fire
+        setTimeout(() => reject(new Error('Failed to spawn terminal: no PID assigned')), 1000);
+      });
+    }
+
+    const sessionInfo: TerminalSessionInfo = {
+      id: sessionId,
+      pid: child.pid,
+      shell: shellCmd,
+      cwd,
+      createdAt: new Date().toISOString(),
+      process: child,
+    };
+
+    terminalSessions.set(sessionId, sessionInfo);
+
+    // Find the BrowserWindow that initiated the request to send output events to it
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+
+    // Forward stdout to the renderer via IPC
+    child.stdout?.on('data', (data: Buffer) => {
+      if (senderWindow && !senderWindow.isDestroyed()) {
+        senderWindow.webContents.send(`terminal:output:${sessionId}`, data.toString('utf8'));
+      }
+    });
+
+    // Forward stderr to the renderer via the same output channel
+    child.stderr?.on('data', (data: Buffer) => {
+      if (senderWindow && !senderWindow.isDestroyed()) {
+        senderWindow.webContents.send(`terminal:output:${sessionId}`, data.toString('utf8'));
+      }
+    });
+
+    // Handle process exit — notify renderer and clean up
+    child.on('exit', (code, signal) => {
+      const exitMsg = `\r\n[Process exited with code ${code ?? 'null'}, signal ${signal ?? 'none'}]\r\n`;
+      if (senderWindow && !senderWindow.isDestroyed()) {
+        senderWindow.webContents.send(`terminal:output:${sessionId}`, exitMsg);
+      }
+      terminalSessions.delete(sessionId);
+      log.info(`[Terminal] Session ${sessionId} (PID ${sessionInfo.pid}) exited: code=${code}, signal=${signal}`);
+    });
+
+    child.on('error', (err) => {
+      const errMsg = `\r\n[Process error: ${err.message}]\r\n`;
+      if (senderWindow && !senderWindow.isDestroyed()) {
+        senderWindow.webContents.send(`terminal:output:${sessionId}`, errMsg);
+      }
+      terminalSessions.delete(sessionId);
+      log.error(`[Terminal] Session ${sessionId} error:`, err);
+    });
+
+    log.info(`[Terminal] Created session ${sessionId}: shell=${shellCmd}, cwd=${cwd}, pid=${child.pid}`);
+
+    // Return session metadata (without the ChildProcess reference)
+    return {
+      id: sessionInfo.id,
+      pid: sessionInfo.pid,
+      shell: sessionInfo.shell,
+      cwd: sessionInfo.cwd,
+      createdAt: sessionInfo.createdAt,
+    };
+  }
+);
+
+/**
+ * terminal:input — Write data to the stdin of an existing terminal session.
+ *
+ * Expects: { sessionId: string, data: string }
+ */
+ipcMain.handle('terminal:input', async (_event, args: { sessionId: string; data: string }) => {
+  const session = terminalSessions.get(args.sessionId);
+  if (!session) {
+    throw new Error(`Terminal session not found: ${args.sessionId}`);
+  }
+
+  if (!session.process.stdin || session.process.stdin.destroyed) {
+    throw new Error(`Terminal session stdin is not writable: ${args.sessionId}`);
+  }
+
+  session.process.stdin.write(args.data);
+});
+
+/**
+ * terminal:resize — Resize the terminal.
+ *
+ * With child_process.spawn (no PTY), we cannot actually resize the process.
+ * This is a no-op but does not error, so the frontend resize flow works cleanly.
+ *
+ * Expects: { sessionId: string, cols: number, rows: number }
+ */
+ipcMain.handle(
+  'terminal:resize',
+  async (_event, args: { sessionId: string; cols: number; rows: number }) => {
+    const session = terminalSessions.get(args.sessionId);
+    if (!session) {
+      throw new Error(`Terminal session not found: ${args.sessionId}`);
+    }
+    // No-op: child_process does not support resize.
+    // If node-pty is added later, call session.process.resize(args.cols, args.rows) here.
+    log.info(`[Terminal] Resize requested for session ${args.sessionId}: ${args.cols}x${args.rows} (no-op without PTY)`);
+  }
+);
+
+/**
+ * terminal:close — Kill the shell process and remove the session.
+ *
+ * Expects: { sessionId: string }
+ */
+ipcMain.handle('terminal:close', async (_event, args: { sessionId: string }) => {
+  const session = terminalSessions.get(args.sessionId);
+  if (!session) {
+    // Already closed — not an error
+    return;
+  }
+
+  try {
+    if (!session.process.killed) {
+      session.process.kill();
+    }
+  } catch (err) {
+    log.error(`[Terminal] Error killing session ${args.sessionId}:`, err);
+  }
+
+  terminalSessions.delete(args.sessionId);
+  log.info(`[Terminal] Closed session ${args.sessionId}`);
+});
+
+/** Kill all active terminal sessions (called on app quit) */
+function cleanupTerminalSessions(): void {
+  for (const [sessionId, session] of terminalSessions.entries()) {
+    try {
+      if (!session.process.killed) {
+        session.process.kill();
+      }
+      log.info(`[Terminal] Cleaned up session ${sessionId} on shutdown`);
+    } catch (err) {
+      log.error(`[Terminal] Error cleaning up session ${sessionId}:`, err);
+    }
+  }
+  terminalSessions.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Other IPC Handlers
+// ---------------------------------------------------------------------------
 
 ipcMain.handle('check-ollama', async () => {
   try {
@@ -2403,6 +2811,12 @@ app.on('will-quit', async () => {
     }
   }
   windowPowerSaveBlockers.clear();
+
+  // Clean up all active terminal sessions
+  cleanupTerminalSessions();
+
+  // Clean up any lingering CLI child processes
+  cleanupCLI();
 
   globalShortcut.unregisterAll();
 });

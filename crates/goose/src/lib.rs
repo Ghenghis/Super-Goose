@@ -46,6 +46,7 @@ pub mod status;
 pub mod subagents;
 pub mod subprocess;
 pub mod tasks;
+pub mod timewarp;
 pub mod test_parsers;
 pub mod token_counter;
 pub mod tool_inspection;

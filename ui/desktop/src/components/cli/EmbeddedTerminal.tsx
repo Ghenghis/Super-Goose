@@ -18,6 +18,11 @@ import {
   GripHorizontal,
 } from 'lucide-react';
 import { useCLI } from './CLIContext';
+import {
+  getTerminalManager,
+  type TerminalSession,
+  type TerminalOutput,
+} from '../../utils/terminalManager';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -107,6 +112,10 @@ export default function EmbeddedTerminal() {
   // Track the user's own input history for Up/Down arrow navigation.
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
 
+  // Track the active terminal session
+  const [terminalSession, setTerminalSession] = useState<TerminalSession | null>(null);
+  const [terminalOutputBuffer, setTerminalOutputBuffer] = useState<string>('');
+
   // -- Refs ------------------------------------------------------------------
   const inputRef = useRef<HTMLInputElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
@@ -116,12 +125,61 @@ export default function EmbeddedTerminal() {
   } | null>(null);
 
   // -- Derived values --------------------------------------------------------
-  // Simple connection heuristic: if we have a version string we are "connected".
-  const connectionStatus: 'connected' | 'connecting' | 'disconnected' = installedVersion
+  // Connection status based on terminal session
+  const connectionStatus: 'connected' | 'connecting' | 'disconnected' = terminalSession
     ? 'connected'
+    : isTerminalOpen
+    ? 'connecting'
     : 'disconnected';
 
+  // Check if using real terminal or mock
+  const isRealTerminal = terminalSession && getTerminalManager().isUsingElectron();
+
   // -- Effects ---------------------------------------------------------------
+
+  /** Create terminal session when terminal opens, cleanup on close */
+  useEffect(() => {
+    if (!isTerminalOpen) {
+      // Clean up session when terminal closes
+      if (terminalSession) {
+        const manager = getTerminalManager();
+        manager.closeSession(terminalSession.id).catch((err) => {
+          console.error('[EmbeddedTerminal] Failed to close session:', err);
+        });
+        setTerminalSession(null);
+        setTerminalOutputBuffer('');
+      }
+      return;
+    }
+
+    // Create a new terminal session when opening
+    const manager = getTerminalManager();
+
+    manager
+      .createSession()
+      .then((session) => {
+        setTerminalSession(session);
+
+        // Subscribe to output
+        const unsubscribe = manager.onOutput(session.id, (output: TerminalOutput) => {
+          setTerminalOutputBuffer((prev) => prev + output.data);
+        });
+
+        // Cleanup on unmount
+        return () => {
+          unsubscribe();
+          manager.closeSession(session.id).catch((err) => {
+            console.error('[EmbeddedTerminal] Failed to close session on unmount:', err);
+          });
+        };
+      })
+      .catch((err) => {
+        console.error('[EmbeddedTerminal] Failed to create terminal session:', err);
+        // Fall back to context-based terminal
+      });
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTerminalOpen]);
 
   /** Auto-focus the input whenever the terminal opens. */
   useEffect(() => {
@@ -154,11 +212,23 @@ export default function EmbeddedTerminal() {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
 
-    sendCommand(trimmed);
+    // If we have a real terminal session, send to it
+    if (terminalSession) {
+      const manager = getTerminalManager();
+      manager.sendInput(terminalSession.id, trimmed + '\n').catch((err) => {
+        console.error('[EmbeddedTerminal] Failed to send input:', err);
+        // Fall back to context
+        sendCommand(trimmed);
+      });
+    } else {
+      // Fall back to context-based command sending
+      sendCommand(trimmed);
+    }
+
     setCommandHistory((prev) => [trimmed, ...prev]);
     setInputValue('');
     setHistoryIndex(-1);
-  }, [inputValue, sendCommand]);
+  }, [inputValue, terminalSession, sendCommand]);
 
   /** Handle special key events on the input field. */
   const handleKeyDown = useCallback(
@@ -215,12 +285,24 @@ export default function EmbeddedTerminal() {
   /** Run a quick command from the button bar. */
   const handleQuickCommand = useCallback(
     (cmd: string) => {
-      sendCommand(cmd);
+      // If we have a real terminal session, send to it
+      if (terminalSession) {
+        const manager = getTerminalManager();
+        manager.sendInput(terminalSession.id, cmd + '\n').catch((err) => {
+          console.error('[EmbeddedTerminal] Failed to send quick command:', err);
+          // Fall back to context
+          sendCommand(cmd);
+        });
+      } else {
+        // Fall back to context-based command sending
+        sendCommand(cmd);
+      }
+
       setCommandHistory((prev) => [cmd, ...prev]);
       // Re-focus the input after clicking a quick-command button.
       inputRef.current?.focus();
     },
-    [sendCommand],
+    [terminalSession, sendCommand],
   );
 
   /** Toggle maximize state for the terminal. */
@@ -281,13 +363,23 @@ export default function EmbeddedTerminal() {
       {/* Header bar                                                         */}
       {/* ------------------------------------------------------------------ */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-800 border-b border-zinc-700">
-        {/* Left: title + version + connection dot */}
+        {/* Left: title + version + connection dot + terminal type badge */}
         <div className="flex items-center gap-2">
           <Terminal className="w-4 h-4 text-zinc-400" />
           <span className="text-xs font-medium text-zinc-300">Super-Goose CLI</span>
           {installedVersion && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400 font-mono">
-              v{installedVersion}
+              {installedVersion.startsWith('v') ? installedVersion : `v${installedVersion}`}
+            </span>
+          )}
+          {isRealTerminal && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/40 text-green-400 font-mono">
+              PTY
+            </span>
+          )}
+          {terminalSession && !isRealTerminal && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-900/40 text-yellow-400 font-mono">
+              MOCK
             </span>
           )}
           <Circle
@@ -344,14 +436,22 @@ export default function EmbeddedTerminal() {
         className="flex-1 overflow-y-auto px-3 py-2 font-mono text-xs leading-relaxed bg-zinc-900"
         onClick={() => inputRef.current?.focus()}
       >
-        {terminalHistory.map((entry: TerminalEntry) => (
-          <div key={entry.id} className={`whitespace-pre-wrap break-all ${colorForEntryType(entry.type)}`}>
-            {entry.type === 'input' && (
-              <span className="text-green-500 select-none">goose&gt; </span>
-            )}
-            {entry.content}
+        {/* Show real terminal output if we have a session */}
+        {terminalSession && terminalOutputBuffer ? (
+          <div className="whitespace-pre-wrap break-all text-zinc-300">
+            {terminalOutputBuffer}
           </div>
-        ))}
+        ) : (
+          /* Otherwise show context-based history */
+          terminalHistory.map((entry: TerminalEntry) => (
+            <div key={entry.id} className={`whitespace-pre-wrap break-all ${colorForEntryType(entry.type)}`}>
+              {entry.type === 'input' && (
+                <span className="text-green-500 select-none">goose&gt; </span>
+              )}
+              {entry.content}
+            </div>
+          ))
+        )}
       </div>
 
       {/* ------------------------------------------------------------------ */}

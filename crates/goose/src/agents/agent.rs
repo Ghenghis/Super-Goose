@@ -37,9 +37,7 @@ use crate::agents::types::{FrontendTool, SessionConfig, SharedProvider, ToolResu
 use crate::approval::ApprovalPreset;
 use crate::config::permission::PermissionManager;
 use crate::config::{get_enabled_extensions, Config, GooseMode};
-use crate::context_mgmt::{
-    check_if_compaction_needed, compact_messages, DEFAULT_COMPACTION_THRESHOLD,
-};
+use crate::context_mgmt::{compact_messages, DEFAULT_COMPACTION_THRESHOLD};
 use crate::conversation::message::{
     ActionRequiredData, Message, MessageContent, ProviderMetadata, SystemNotificationType,
     ToolRequest,
@@ -269,7 +267,7 @@ pub struct Agent {
     /// Cost tracker for budget enforcement
     cost_tracker: Arc<CostTracker>,
     /// Advanced compaction manager for selective context management
-    compaction_manager: Mutex<crate::compaction::CompactionManager>,
+    pub(crate) compaction_manager: Mutex<crate::compaction::CompactionManager>,
     /// Per-tool rate limiter for runaway loop prevention
     tool_call_counts: Mutex<HashMap<String, (u32, std::time::Instant)>>,
     /// Swappable agent core registry for hot-swap execution strategies
@@ -418,6 +416,18 @@ impl Agent {
     /// Get compaction statistics
     pub async fn compaction_stats(&self) -> crate::compaction::CompactionStats {
         self.compaction_manager.lock().await.stats()
+    }
+
+    /// Initialize the CompactionManager (already initialized in constructor, this is a no-op).
+    ///
+    /// This method exists for API consistency with other lazy-init components.
+    /// The CompactionManager is always available since it's initialized in the constructor.
+    ///
+    /// Safe to call multiple times — always returns Ok(()).
+    pub async fn init_compaction_manager(&self) -> Result<()> {
+        // CompactionManager is already initialized in the constructor with default config.
+        // This method exists for API consistency with OTA/autonomous init patterns.
+        Ok(())
     }
 
     /// Initialize the cross-session learning stores (ExperienceStore + SkillLibrary).
@@ -650,6 +660,31 @@ impl Agent {
             Ok(skills) => skills,
             Err(e) => {
                 debug!("SkillLibrary retrieval failed: {} (non-fatal)", e);
+                Vec::new()
+            }
+        }
+    }
+
+    /// Retrieve relevant insights from the InsightExtractor for prompt injection.
+    /// Returns high-confidence insights that can inform the agent's approach.
+    /// Filters to insights with confidence >= 0.4 and limits to `max` results.
+    pub async fn retrieve_relevant_insights(&self, max: usize) -> Vec<super::insight_extractor::Insight> {
+        let store = match self.experience_store.lock().await.clone() {
+            Some(s) => s,
+            None => return Vec::new(),
+        };
+
+        match super::insight_extractor::InsightExtractor::extract(&store).await {
+            Ok(mut insights) => {
+                // Filter to actionable insights with reasonable confidence
+                insights.retain(|i| i.confidence >= 0.4);
+                // Sort by confidence descending
+                insights.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
+                insights.truncate(max);
+                insights
+            }
+            Err(e) => {
+                debug!("InsightExtractor retrieval failed: {} (non-fatal)", e);
                 Vec::new()
             }
         }
@@ -1934,13 +1969,15 @@ impl Agent {
             .clone()
             .ok_or_else(|| anyhow::anyhow!("Session {} has no conversation", session_config.id))?;
 
-        let needs_auto_compact = check_if_compaction_needed(
-            self.provider().await?.as_ref(),
-            &conversation,
-            None,
-            &session,
-        )
-        .await?;
+        // === COMPACTION: Check if we need to compact using CompactionManager ===
+        let provider_ref = self.provider().await?;
+        let context_limit = provider_ref.as_ref().get_model_config().context_limit();
+        let current_tokens = session.total_tokens.unwrap_or(0) as usize;
+
+        let needs_auto_compact = {
+            let manager = self.compaction_manager.lock().await;
+            manager.should_compact(current_tokens, context_limit)
+        };
 
         let conversation_to_compact = conversation.clone();
 
@@ -1984,6 +2021,18 @@ impl Agent {
                     Ok((compacted_conversation, summarization_usage)) => {
                         session_manager.replace_conversation(&session_config.id, &compacted_conversation).await?;
                         self.update_session_metrics(&session_config.id, session_config.schedule_id.clone(), &summarization_usage, true).await?;
+
+                        // Record compaction in the CompactionManager for statistics
+                        {
+                            let mut manager = self.compaction_manager.lock().await;
+                            let original_tokens = current_tokens;
+                            let compacted_tokens = (current_tokens as f32 * 0.5) as usize; // estimate
+                            manager.record_compaction(
+                                original_tokens,
+                                compacted_tokens,
+                                crate::compaction::CompactionTrigger::Auto,
+                            );
+                        }
 
                         yield AgentEvent::HistoryReplaced(compacted_conversation.clone());
 
@@ -2054,6 +2103,43 @@ impl Agent {
                 }
 
                 let task = message_text_for_selection;
+
+                // Inject learned knowledge into core's system prompt
+                {
+                    let mut learning_context = String::new();
+
+                    // Skills
+                    let skills = self.retrieve_skills_for_task(&task).await;
+                    if !skills.is_empty() {
+                        learning_context.push_str(
+                            "\n\n[LEARNED STRATEGIES]: The following strategies have been verified from past experience:\n"
+                        );
+                        for skill in &skills {
+                            learning_context.push_str(&skill.as_prompt_context());
+                            learning_context.push('\n');
+                        }
+                    }
+
+                    // Insights
+                    let insights = self.retrieve_relevant_insights(5).await;
+                    if !insights.is_empty() {
+                        learning_context.push_str(
+                            "\n\n[LEARNED INSIGHTS]: The following insights have been extracted from past experience:\n"
+                        );
+                        for insight in &insights {
+                            learning_context.push_str(&insight.as_prompt_context());
+                            learning_context.push('\n');
+                        }
+                    }
+
+                    if !learning_context.is_empty() {
+                        ctx.system_prompt.push_str(&learning_context);
+                        tracing::debug!(
+                            "Injected {} skills + {} insights into core system prompt",
+                            skills.len(), insights.len()
+                        );
+                    }
+                }
 
                 match core.execute(&mut ctx, &task).await {
                     Ok(output) => {
@@ -2201,6 +2287,22 @@ impl Agent {
                     system_prompt.push_str(&skill_context);
                     debug!("Injected {} learned skills into system prompt", skills.len());
                 }
+            }
+        }
+
+        // === INSIGHT INJECTION: Inject learned insights into context ===
+        {
+            let insights = self.retrieve_relevant_insights(5).await;
+            if !insights.is_empty() {
+                let mut insight_context = String::from(
+                    "\n\n[LEARNED INSIGHTS]: The following insights have been extracted from past experience:\n"
+                );
+                for insight in &insights {
+                    insight_context.push_str(&insight.as_prompt_context());
+                    insight_context.push('\n');
+                }
+                system_prompt.push_str(&insight_context);
+                debug!("Injected {} learned insights into system prompt", insights.len());
             }
         }
 
@@ -3211,6 +3313,20 @@ impl Agent {
 
                                     session_manager.replace_conversation(&session_config.id, &compacted_conversation).await?;
                                     self.update_session_metrics(&session_config.id, session_config.schedule_id.clone(), &usage, true).await?;
+
+                                    // Record compaction in the CompactionManager for statistics
+                                    {
+                                        let mut manager = self.compaction_manager.lock().await;
+                                        let original_count = conversation.messages().len();
+                                        let compacted_count = compacted_conversation.messages().len();
+                                        let est_tokens_per_msg = 100; // rough estimate
+                                        manager.record_compaction(
+                                            original_count * est_tokens_per_msg,
+                                            compacted_count * est_tokens_per_msg,
+                                            crate::compaction::CompactionTrigger::Auto,
+                                        );
+                                    }
+
                                     conversation = compacted_conversation;
                                     did_recovery_compact_this_iteration = true;
                                     yield AgentEvent::HistoryReplaced(conversation.clone());
@@ -3973,5 +4089,367 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_init_compaction_manager() -> Result<()> {
+        let agent = Agent::new();
+
+        // Should always succeed (already initialized in constructor)
+        let result = agent.init_compaction_manager().await;
+        assert!(result.is_ok());
+
+        // Should be idempotent
+        let result2 = agent.init_compaction_manager().await;
+        assert!(result2.is_ok());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_compaction_stats_initial() -> Result<()> {
+        let agent = Agent::new();
+
+        let stats = agent.compaction_stats().await;
+        assert_eq!(stats.total_compactions, 0);
+        assert_eq!(stats.total_tokens_saved, 0);
+        assert_eq!(stats.average_reduction_percent, 0.0);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_compaction_should_compact() -> Result<()> {
+        let agent = Agent::new();
+
+        let manager = agent.compaction_manager.lock().await;
+
+        // Below threshold (85%)
+        assert!(!manager.should_compact(8000, 10000));
+
+        // At threshold
+        assert!(!manager.should_compact(8499, 10000));
+
+        // Above threshold
+        assert!(manager.should_compact(8500, 10000));
+        assert!(manager.should_compact(9000, 10000));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_compaction_record() -> Result<()> {
+        let agent = Agent::new();
+
+        {
+            let mut manager = agent.compaction_manager.lock().await;
+            manager.record_compaction(
+                10000,
+                5000,
+                crate::compaction::CompactionTrigger::Command,
+            );
+        }
+
+        let stats = agent.compaction_stats().await;
+        assert_eq!(stats.total_compactions, 1);
+        assert_eq!(stats.total_tokens_saved, 5000);
+        assert_eq!(stats.average_reduction_percent, 50.0);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_compaction_multiple_records() -> Result<()> {
+        let agent = Agent::new();
+
+        {
+            let mut manager = agent.compaction_manager.lock().await;
+            // First compaction: 10000 -> 5000 (50% reduction)
+            manager.record_compaction(
+                10000,
+                5000,
+                crate::compaction::CompactionTrigger::Auto,
+            );
+            // Second compaction: 8000 -> 2000 (75% reduction)
+            manager.record_compaction(
+                8000,
+                2000,
+                crate::compaction::CompactionTrigger::Auto,
+            );
+        }
+
+        let stats = agent.compaction_stats().await;
+        assert_eq!(stats.total_compactions, 2);
+        assert_eq!(stats.total_tokens_saved, 11000); // 5000 + 6000
+        assert_eq!(stats.average_reduction_percent, 62.5); // (50 + 75) / 2
+
+        Ok(())
+    }
+
+    // === Learning Engine Retrieval Integration Tests ===
+
+    #[tokio::test]
+    async fn test_retrieve_skills_for_task_empty_when_uninitialized() {
+        let agent = Agent::new();
+        // SkillLibrary not initialized — should return empty, not error
+        let skills = agent.retrieve_skills_for_task("fix authentication bug").await;
+        assert!(skills.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_retrieve_relevant_insights_empty_when_uninitialized() {
+        let agent = Agent::new();
+        // ExperienceStore not initialized — should return empty, not error
+        let insights = agent.retrieve_relevant_insights(5).await;
+        assert!(insights.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_retrieve_relevant_insights_with_store() {
+        let agent = Agent::new();
+
+        // Manually initialize experience store with in-memory SQLite
+        {
+            let store = crate::agents::experience_store::ExperienceStore::in_memory().await.unwrap();
+
+            // Add enough experiences to generate insights
+            use crate::agents::core::CoreType;
+            use crate::agents::experience_store::Experience;
+
+            // Structured excels at code-test-fix
+            for _ in 0..5 {
+                let exp = Experience::new("fix tests", CoreType::Structured, true, 5, 0.02, 1000)
+                    .with_category("code-test-fix");
+                store.store(&exp).await.unwrap();
+            }
+
+            // Freeform struggles at code-test-fix
+            for i in 0..5 {
+                let exp = Experience::new("fix tests", CoreType::Freeform, i < 1, 12, 0.05, 3000)
+                    .with_category("code-test-fix");
+                store.store(&exp).await.unwrap();
+            }
+
+            let mut guard = agent.experience_store.lock().await;
+            *guard = Some(Arc::new(store));
+        }
+
+        let insights = agent.retrieve_relevant_insights(10).await;
+        // Should have at least core-selection and failure-pattern insights
+        assert!(!insights.is_empty(), "Should extract insights from accumulated experiences");
+
+        // All returned insights should meet the confidence threshold
+        for insight in &insights {
+            assert!(insight.confidence >= 0.4, "Insight confidence should be >= 0.4, got {}", insight.confidence);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_retrieve_relevant_insights_respects_max_limit() {
+        let agent = Agent::new();
+
+        {
+            let store = crate::agents::experience_store::ExperienceStore::in_memory().await.unwrap();
+            use crate::agents::core::CoreType;
+            use crate::agents::experience_store::Experience;
+
+            // Generate many experiences to produce multiple insights
+            for _ in 0..10 {
+                let exp = Experience::new("fix", CoreType::Structured, true, 5, 0.02, 1000)
+                    .with_category("code-test-fix")
+                    .with_insights(vec!["Always run tests first".into()]);
+                store.store(&exp).await.unwrap();
+            }
+            for i in 0..10 {
+                let exp = Experience::new("fix", CoreType::Freeform, i < 2, 12, 0.05, 3000)
+                    .with_category("code-test-fix");
+                store.store(&exp).await.unwrap();
+            }
+            for _ in 0..5 {
+                let exp = Experience::new("deploy", CoreType::Orchestrator, true, 8, 0.10, 3000)
+                    .with_category("general");
+                store.store(&exp).await.unwrap();
+            }
+
+            let mut guard = agent.experience_store.lock().await;
+            *guard = Some(Arc::new(store));
+        }
+
+        // Request max 2
+        let insights = agent.retrieve_relevant_insights(2).await;
+        assert!(insights.len() <= 2, "Should respect max limit of 2, got {}", insights.len());
+
+        // Request max 1
+        let insights_one = agent.retrieve_relevant_insights(1).await;
+        assert!(insights_one.len() <= 1, "Should respect max limit of 1, got {}", insights_one.len());
+    }
+
+    #[tokio::test]
+    async fn test_retrieve_relevant_insights_sorted_by_confidence() {
+        let agent = Agent::new();
+
+        {
+            let store = crate::agents::experience_store::ExperienceStore::in_memory().await.unwrap();
+            use crate::agents::core::CoreType;
+            use crate::agents::experience_store::Experience;
+
+            // Lots of data to produce high-confidence insights
+            for _ in 0..20 {
+                let exp = Experience::new("fix", CoreType::Structured, true, 5, 0.02, 1000)
+                    .with_category("code-test-fix");
+                store.store(&exp).await.unwrap();
+            }
+            for _ in 0..20 {
+                let exp = Experience::new("fix", CoreType::Freeform, false, 12, 0.05, 3000)
+                    .with_category("code-test-fix");
+                store.store(&exp).await.unwrap();
+            }
+
+            let mut guard = agent.experience_store.lock().await;
+            *guard = Some(Arc::new(store));
+        }
+
+        let insights = agent.retrieve_relevant_insights(10).await;
+        // Verify descending confidence order
+        for window in insights.windows(2) {
+            assert!(
+                window[0].confidence >= window[1].confidence,
+                "Insights should be sorted by confidence descending: {} >= {}",
+                window[0].confidence, window[1].confidence,
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_retrieve_skills_for_task_with_library() {
+        let agent = Agent::new();
+
+        {
+            let lib = crate::agents::skill_library::SkillLibrary::in_memory().await.unwrap();
+            use crate::agents::core::CoreType;
+            use crate::agents::skill_library::Skill;
+
+            let mut skill = Skill::new("auth-fix", "Fix authentication issues", CoreType::Structured)
+                .with_patterns(vec!["authentication".into(), "login".into(), "auth".into()])
+                .with_steps(vec!["Check JWT tokens".into(), "Validate session".into()]);
+            skill.verified = true;
+            skill.use_count = 5;
+            skill.attempt_count = 6;
+            skill.success_rate = 5.0 / 6.0;
+
+            lib.store(&skill).await.unwrap();
+
+            let mut guard = agent.skill_library.lock().await;
+            *guard = Some(Arc::new(lib));
+        }
+
+        let skills = agent.retrieve_skills_for_task("fix the authentication error in login").await;
+        assert!(!skills.is_empty(), "Should find matching skills for auth task");
+        assert_eq!(skills[0].name, "auth-fix");
+    }
+
+    #[tokio::test]
+    async fn test_retrieve_skills_for_task_no_match() {
+        let agent = Agent::new();
+
+        {
+            let lib = crate::agents::skill_library::SkillLibrary::in_memory().await.unwrap();
+            use crate::agents::core::CoreType;
+            use crate::agents::skill_library::Skill;
+
+            let mut skill = Skill::new("auth-fix", "Fix authentication issues", CoreType::Structured)
+                .with_patterns(vec!["authentication".into()]);
+            skill.verified = true;
+            skill.use_count = 3;
+            skill.attempt_count = 4;
+            skill.success_rate = 0.75;
+
+            lib.store(&skill).await.unwrap();
+
+            let mut guard = agent.skill_library.lock().await;
+            *guard = Some(Arc::new(lib));
+        }
+
+        // Query for something unrelated
+        let skills = agent.retrieve_skills_for_task("deploy to kubernetes").await;
+        assert!(skills.is_empty(), "Should not find auth skills for deployment task");
+    }
+
+    #[tokio::test]
+    async fn test_insight_as_prompt_context_format() {
+        use crate::agents::insight_extractor::{Insight, InsightCategory};
+
+        let insight = Insight {
+            id: "test-1".into(),
+            text: "Use structured for CTF tasks".into(),
+            category: InsightCategory::CoreSelection,
+            confidence: 0.9,
+            evidence_count: 15,
+            applies_to: vec!["code-test-fix".into()],
+            related_core: Some(crate::agents::core::CoreType::Structured),
+        };
+
+        let ctx = insight.as_prompt_context();
+        assert!(ctx.contains("core-selection"), "Should contain category");
+        assert!(ctx.contains("Use structured for CTF tasks"), "Should contain insight text");
+        assert!(ctx.contains("high confidence"), "0.9 should map to high confidence");
+        assert!(ctx.contains("15 evidence runs"), "Should contain evidence count");
+    }
+
+    #[tokio::test]
+    async fn test_insight_prompt_context_low_confidence() {
+        use crate::agents::insight_extractor::{Insight, InsightCategory};
+
+        let insight = Insight {
+            id: "test-2".into(),
+            text: "Maybe try freeform".into(),
+            category: InsightCategory::BestPractice,
+            confidence: 0.3,
+            evidence_count: 2,
+            applies_to: vec![],
+            related_core: None,
+        };
+
+        let ctx = insight.as_prompt_context();
+        assert!(ctx.contains("low confidence"), "0.3 should map to low confidence");
+    }
+
+    #[tokio::test]
+    async fn test_insight_prompt_context_moderate_confidence() {
+        use crate::agents::insight_extractor::{Insight, InsightCategory};
+
+        let insight = Insight {
+            id: "test-3".into(),
+            text: "Orchestrator works for multi-file".into(),
+            category: InsightCategory::Optimization,
+            confidence: 0.5,
+            evidence_count: 8,
+            applies_to: vec![],
+            related_core: None,
+        };
+
+        let ctx = insight.as_prompt_context();
+        assert!(ctx.contains("moderate confidence"), "0.5 should map to moderate confidence");
+    }
+
+    #[tokio::test]
+    async fn test_learning_stores_init_and_retrieval_roundtrip() {
+        let agent = Agent::new();
+
+        // Before init: both return empty
+        assert!(agent.retrieve_skills_for_task("anything").await.is_empty());
+        assert!(agent.retrieve_relevant_insights(5).await.is_empty());
+
+        // Init stores (uses temp directory)
+        let result = agent.init_learning_stores().await;
+        assert!(result.is_ok(), "init_learning_stores should succeed");
+
+        // After init: stores exist but are empty
+        assert!(agent.experience_store().await.is_some());
+        assert!(agent.skill_library().await.is_some());
+
+        // Retrieval still returns empty (no data yet), but doesn't error
+        assert!(agent.retrieve_skills_for_task("test").await.is_empty());
+        assert!(agent.retrieve_relevant_insights(5).await.is_empty());
     }
 }

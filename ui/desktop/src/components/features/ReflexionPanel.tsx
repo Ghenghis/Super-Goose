@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Brain, AlertTriangle, Lightbulb, ChevronDown, ChevronRight } from 'lucide-react';
 import { Switch } from '../ui/switch';
 import { ScrollArea } from '../ui/scroll-area';
 import { MainPanelLayout } from '../Layout/MainPanelLayout';
+import { backendApi } from '../../utils/backendApi';
+import { useSettingsBridge } from '../../utils/settingsBridge';
+import type { LearningExperience } from '../../utils/backendApi';
 
 interface ReflexionEntry {
   id: string;
@@ -78,11 +81,53 @@ const severityColors: Record<string, string> = {
   high: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
 };
 
-const ReflexionPanel: React.FC = () => {
+/** Map API experience to local ReflexionEntry shape. */
+function mapExperienceToEntry(exp: LearningExperience, idx: number): ReflexionEntry {
+  return {
+    id: exp.id || `exp-${idx}`,
+    timestamp: exp.timestamp,
+    failure: exp.task || 'Unknown task',
+    lesson: (exp.insights && exp.insights.length > 0) ? exp.insights.join(' ') : 'No lesson recorded.',
+    sessionName: exp.core_type || 'Unknown',
+    severity: exp.outcome === 'failure' ? 'high' : exp.outcome === 'partial' ? 'medium' : 'low',
+    applied: exp.outcome === 'success',
+  };
+}
+
+const ReflexionPanel = () => {
+  const { value: reflexionEnabled, setValue: setReflexionEnabled } =
+    useSettingsBridge<boolean>('super_goose_reflexion_enabled', true);
   const [enabled, setEnabled] = useState(true);
   const [expandedEntries, setExpandedEntries] = useState<Record<string, boolean>>({});
+  const [entries, setEntries] = useState<ReflexionEntry[]>(MOCK_REFLEXION_ENTRIES);
 
-  const appliedCount = MOCK_REFLEXION_ENTRIES.filter((e) => e.applied).length;
+  // Sync local state with settings bridge value
+  useEffect(() => {
+    setEnabled(reflexionEnabled);
+  }, [reflexionEnabled]);
+
+  const fetchExperiences = useCallback(async () => {
+    try {
+      const experiences = await backendApi.getLearningExperiences(20, 0);
+      if (experiences && experiences.length > 0) {
+        setEntries(experiences.map(mapExperienceToEntry));
+      }
+      // If empty or null, keep mock data
+    } catch {
+      // Fallback to mock data
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchExperiences();
+  }, [fetchExperiences]);
+
+  const handleEnabledChange = useCallback(async (checked: boolean) => {
+    setEnabled(checked);
+    await setReflexionEnabled(checked);
+  }, [setReflexionEnabled]);
+
+  const appliedCount = entries.filter((e) => e.applied).length;
 
   const toggleEntry = (id: string) => {
     setExpandedEntries((prev) => ({
@@ -117,7 +162,7 @@ const ReflexionPanel: React.FC = () => {
               </div>
               <Switch
                 checked={enabled}
-                onCheckedChange={setEnabled}
+                onCheckedChange={handleEnabledChange}
                 variant="mono"
               />
             </div>
@@ -127,7 +172,7 @@ const ReflexionPanel: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-purple-500" />
                 <span className="text-xs text-text-muted">
-                  {MOCK_REFLEXION_ENTRIES.length} total entries
+                  {entries.length} total entries
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -143,7 +188,7 @@ const ReflexionPanel: React.FC = () => {
         {/* Entries */}
         <ScrollArea className="flex-1 px-6">
           <div className="space-y-3 pb-8">
-            {MOCK_REFLEXION_ENTRIES.map((entry) => {
+            {entries.map((entry) => {
               const isExpanded = expandedEntries[entry.id];
               return (
                 <div

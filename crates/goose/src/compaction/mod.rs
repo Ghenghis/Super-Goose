@@ -284,6 +284,17 @@ impl CompactionManager {
             average_reduction_percent: avg_reduction,
         }
     }
+
+    /// Record a manual compaction result (for tracking compactions done via legacy compact_messages)
+    pub fn record_compaction(&mut self, original_tokens: usize, compacted_tokens: usize, trigger: CompactionTrigger) {
+        let result = CompactionResult::new(
+            original_tokens,
+            compacted_tokens,
+            "Legacy compaction via context_mgmt".to_string(),
+            trigger,
+        );
+        self.history.push(result);
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -348,5 +359,41 @@ mod tests {
 
         let result = manager.compact(messages).await;
         assert!(result.success);
+    }
+
+    #[test]
+    fn test_record_compaction() {
+        let mut manager = CompactionManager::new(CompactionConfig::default());
+
+        assert_eq!(manager.total_tokens_saved(), 0);
+        assert_eq!(manager.history().len(), 0);
+
+        manager.record_compaction(10000, 5000, CompactionTrigger::Command);
+
+        assert_eq!(manager.history().len(), 1);
+        assert_eq!(manager.total_tokens_saved(), 5000);
+
+        let stats = manager.stats();
+        assert_eq!(stats.total_compactions, 1);
+        assert_eq!(stats.total_tokens_saved, 5000);
+        assert_eq!(stats.average_reduction_percent, 50.0);
+    }
+
+    #[test]
+    fn test_record_multiple_compactions() {
+        let mut manager = CompactionManager::new(CompactionConfig::default());
+
+        manager.record_compaction(10000, 5000, CompactionTrigger::Auto);
+        manager.record_compaction(8000, 2000, CompactionTrigger::Command);
+        manager.record_compaction(6000, 4000, CompactionTrigger::Threshold);
+
+        assert_eq!(manager.history().len(), 3);
+        assert_eq!(manager.total_tokens_saved(), 11000); // 5000 + 6000 + 2000
+
+        let stats = manager.stats();
+        assert_eq!(stats.total_compactions, 3);
+        assert_eq!(stats.total_tokens_saved, 11000);
+        // (50% + 75% + 33.33%) / 3 ≈ 52.78%
+        assert!((stats.average_reduction_percent - 52.78).abs() < 0.5);
     }
 }

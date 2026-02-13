@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { GitBranch, ChevronDown, Check } from 'lucide-react';
 import { useTimeWarp } from './TimeWarpContext';
 
@@ -12,6 +12,7 @@ const BranchSelector: React.FC<BranchSelectorProps> = ({ compact = false }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const activeBranch = state.branches.find((b) => b.id === state.activeBranchId);
+  const hasBranches = state.branches.length > 0;
 
   // Close on outside click
   useEffect(() => {
@@ -59,6 +60,9 @@ const BranchSelector: React.FC<BranchSelectorProps> = ({ compact = false }) => {
       {isOpen && (
         <div className="absolute bottom-full mb-1 left-0 min-w-[160px] z-50 bg-neutral-900/95 backdrop-blur border border-white/10 rounded-lg shadow-xl overflow-hidden">
           <div className="py-1">
+            {!hasBranches && (
+              <div className="px-3 py-2 text-xs text-text-muted">No branches</div>
+            )}
             {state.branches.map((branch) => {
               const isActive = branch.id === state.activeBranchId;
               const eventCount = state.events.filter((e) => e.branchId === branch.id).length;

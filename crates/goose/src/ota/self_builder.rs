@@ -444,4 +444,128 @@ mod tests {
         // dir exists but no Cargo.toml
         assert!(builder.validate_prerequisites().await.is_err());
     }
+
+    // === Production hardening edge-case tests ===
+
+    #[tokio::test]
+    async fn test_validate_prerequisites_succeeds_with_cargo_toml() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("Cargo.toml"), b"[package]\nname = \"test\"").unwrap();
+
+        let config = test_config(dir.path());
+        let builder = SelfBuilder::new(config);
+        assert!(builder.validate_prerequisites().await.is_ok());
+    }
+
+    #[test]
+    fn test_build_config_with_empty_extra_args() {
+        let dir = TempDir::new().unwrap();
+        let config = test_config(dir.path());
+        assert!(config.extra_args.is_empty());
+        let builder = SelfBuilder::new(config);
+        let args = builder.build_cargo_args();
+        // Should just be build + package, no extra args
+        assert_eq!(args, vec!["build", "-p", "goose-cli"]);
+    }
+
+    #[test]
+    fn test_build_config_with_multiple_extra_args() {
+        let dir = TempDir::new().unwrap();
+        let mut config = test_config(dir.path());
+        config.extra_args = vec![
+            "--features".into(),
+            "memory,bookmarks".into(),
+            "--jobs".into(),
+            "4".into(),
+        ];
+        let builder = SelfBuilder::new(config);
+        let args = builder.build_cargo_args();
+        assert_eq!(
+            args,
+            vec!["build", "-p", "goose-cli", "--features", "memory,bookmarks", "--jobs", "4"]
+        );
+    }
+
+    #[test]
+    fn test_expected_binary_path_debug_vs_release() {
+        let dir = TempDir::new().unwrap();
+        let mut config_debug = test_config(dir.path());
+        config_debug.profile = BuildProfile::Debug;
+
+        let mut config_release = test_config(dir.path());
+        config_release.profile = BuildProfile::Release;
+
+        let debug_path = config_debug.expected_binary_path();
+        let release_path = config_release.expected_binary_path();
+
+        assert!(debug_path.to_string_lossy().contains("debug"));
+        assert!(release_path.to_string_lossy().contains("release"));
+        assert_ne!(debug_path, release_path);
+    }
+
+    #[test]
+    fn test_verify_binary_with_minimal_content() {
+        // Edge case: binary exists with exactly 1 byte (should pass -- exists and non-empty)
+        let dir = TempDir::new().unwrap();
+        let binary_path = dir.path().join("tiny_binary");
+        std::fs::write(&binary_path, b"x").unwrap();
+
+        let result = SelfBuilder::verify_binary(&binary_path);
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[test]
+    fn test_dry_run_build_has_correct_profile() {
+        let dir = TempDir::new().unwrap();
+        let mut config = test_config(dir.path());
+        config.profile = BuildProfile::Release;
+        let builder = SelfBuilder::new(config);
+        let result = builder.build_dry_run();
+
+        assert!(result.success);
+        assert_eq!(result.profile, BuildProfile::Release);
+        assert!(result.output.contains("DRY RUN"));
+        assert!(result.output.contains("--release"));
+        assert!(result.git_hash.is_none());
+    }
+
+    #[test]
+    fn test_build_result_failed_serialization() {
+        // Edge case: serialize a failed build result with no binary path
+        let result = BuildResult {
+            success: false,
+            binary_path: None,
+            output: "error[E0308]: mismatched types".to_string(),
+            duration_secs: 12.3,
+            built_at: Utc::now(),
+            git_hash: None,
+            profile: BuildProfile::Debug,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: BuildResult = serde_json::from_str(&json).unwrap();
+        assert!(!deserialized.success);
+        assert!(deserialized.binary_path.is_none());
+        assert!(deserialized.git_hash.is_none());
+        assert!(deserialized.output.contains("E0308"));
+    }
+
+    #[test]
+    fn test_build_profile_serialization_roundtrip() {
+        for profile in &[BuildProfile::Debug, BuildProfile::Release] {
+            let json = serde_json::to_string(profile).unwrap();
+            let deserialized: BuildProfile = serde_json::from_str(&json).unwrap();
+            assert_eq!(&deserialized, profile);
+        }
+    }
+
+    #[test]
+    fn test_config_accessor() {
+        let dir = TempDir::new().unwrap();
+        let config = test_config(dir.path());
+        let builder = SelfBuilder::new(config.clone());
+        assert_eq!(builder.config().package, "goose-cli");
+        assert_eq!(builder.config().binary_name, "goose");
+    }
 }

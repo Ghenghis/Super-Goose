@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures';
+import { skipWithoutBackend } from './skip-utils';
 import { Page } from '@playwright/test';
 
 /**
@@ -12,13 +13,14 @@ import { Page } from '@playwright/test';
  * 4. Asks the agent to show the file contents
  * 5. Verifies the generated code contains expected game elements
  */
-// SKIP: This test requires a running goose-server backend with LLM provider.
+// This test requires a running goose-server backend with LLM provider.
 // It sends a prompt asking Goose to create a tic-tac-toe game and waits for
 // AI-generated code. Run with: GOOSE_BACKEND=1 npx playwright test
-test.describe.skip('Tic-Tac-Toe Game Creation', () => {
+test.describe('Tic-Tac-Toe Game Creation', () => {
   let mainWindow: Page;
 
   test.beforeEach(async ({ goosePage }) => {
+    skipWithoutBackend(test);
     mainWindow = goosePage;
     // Wait for the app to be ready with the chat interface
     console.log('Waiting for chat interface to be ready...');

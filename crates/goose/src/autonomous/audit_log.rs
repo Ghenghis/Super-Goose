@@ -507,4 +507,338 @@ mod tests {
         assert_eq!(ActionOutcome::from_str("failure"), ActionOutcome::Failure);
         assert_eq!(ActionOutcome::from_str("unknown"), ActionOutcome::Failure);
     }
+
+    // === Production hardening edge-case tests ===
+
+    #[tokio::test]
+    async fn test_large_details_field() {
+        // Edge case: store an entry with a very large details string
+        let log = AuditLog::in_memory().await.unwrap();
+
+        let large_details = "x".repeat(100_000);
+        let entry = AuditEntry::new(
+            "bulk_operation",
+            "Large data operation",
+            ActionOutcome::Success,
+            "test",
+        )
+        .with_details(&large_details);
+
+        log.record(&entry).await.unwrap();
+
+        let recent = log.recent(1).await.unwrap();
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].details.len(), 100_000);
+    }
+
+    #[tokio::test]
+    async fn test_special_characters_in_fields() {
+        // Edge case: SQL injection-like characters in fields
+        let log = AuditLog::in_memory().await.unwrap();
+
+        let entry = AuditEntry::new(
+            "action'; DROP TABLE audit_entries; --",
+            "Description with 'quotes' and \"double quotes\"",
+            ActionOutcome::Success,
+            "source<>&\"\n\ttabs",
+        )
+        .with_details("{\"key\": \"value with 'quotes'\"}");
+
+        log.record(&entry).await.unwrap();
+
+        let recent = log.recent(1).await.unwrap();
+        assert_eq!(recent.len(), 1);
+        assert!(recent[0].action_type.contains("DROP TABLE"));
+        assert!(recent[0].description.contains("quotes"));
+    }
+
+    #[tokio::test]
+    async fn test_duplicate_entry_id_is_error() {
+        // Edge case: inserting an entry with the same ID should fail
+        // (PRIMARY KEY constraint)
+        let log = AuditLog::in_memory().await.unwrap();
+
+        let entry = AuditEntry::new(
+            "action",
+            "First",
+            ActionOutcome::Success,
+            "test",
+        );
+        log.record(&entry).await.unwrap();
+
+        // Try to insert same entry_id again
+        let duplicate = AuditEntry {
+            entry_id: entry.entry_id.clone(),
+            action_type: "different".into(),
+            description: "Different".into(),
+            outcome: ActionOutcome::Failure,
+            details: String::new(),
+            source: "test".into(),
+            timestamp: Utc::now(),
+            duration_ms: None,
+            error: None,
+        };
+        // Should fail due to primary key constraint
+        let result = log.record(&duplicate).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_empty_recent_returns_empty_vec() {
+        let log = AuditLog::in_memory().await.unwrap();
+        let recent = log.recent(100).await.unwrap();
+        assert!(recent.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_recent_limit_zero() {
+        // Edge case: requesting 0 recent entries
+        let log = AuditLog::in_memory().await.unwrap();
+        log.record_success("a", "d", "s").await.unwrap();
+
+        let recent = log.recent(0).await.unwrap();
+        assert!(recent.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_count_by_outcome_all_variants() {
+        let log = AuditLog::in_memory().await.unwrap();
+
+        // Record entries with all outcome types
+        let entry_success = AuditEntry::new("a", "d", ActionOutcome::Success, "s");
+        let entry_failure = AuditEntry::new("a", "d", ActionOutcome::Failure, "s");
+        let entry_skipped = AuditEntry::new("a", "d", ActionOutcome::Skipped, "s");
+        let entry_blocked = AuditEntry::new("a", "d", ActionOutcome::Blocked, "s");
+
+        log.record(&entry_success).await.unwrap();
+        log.record(&entry_failure).await.unwrap();
+        log.record(&entry_skipped).await.unwrap();
+        log.record(&entry_blocked).await.unwrap();
+
+        assert_eq!(log.count_by_outcome(&ActionOutcome::Success).await.unwrap(), 1);
+        assert_eq!(log.count_by_outcome(&ActionOutcome::Failure).await.unwrap(), 1);
+        assert_eq!(log.count_by_outcome(&ActionOutcome::Skipped).await.unwrap(), 1);
+        assert_eq!(log.count_by_outcome(&ActionOutcome::Blocked).await.unwrap(), 1);
+        assert_eq!(log.count().await.unwrap(), 4);
+    }
+
+    #[tokio::test]
+    async fn test_clear_on_empty_log() {
+        let log = AuditLog::in_memory().await.unwrap();
+        let deleted = log.clear().await.unwrap();
+        assert_eq!(deleted, 0);
+        assert_eq!(log.count().await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_entry_builder_chain() {
+        // Edge case: full builder chain with all optional fields
+        let log = AuditLog::in_memory().await.unwrap();
+
+        let entry = AuditEntry::new(
+            "deploy",
+            "Deployed v2.0",
+            ActionOutcome::Failure,
+            "release_manager",
+        )
+        .with_details("{\"version\": \"2.0\", \"env\": \"prod\"}")
+        .with_duration(45000)
+        .with_error("Connection timeout after 45s");
+
+        log.record(&entry).await.unwrap();
+
+        let recent = log.recent(1).await.unwrap();
+        assert_eq!(recent[0].action_type, "deploy");
+        assert_eq!(recent[0].duration_ms, Some(45000));
+        assert_eq!(recent[0].error.as_deref(), Some("Connection timeout after 45s"));
+        assert!(recent[0].details.contains("version"));
+    }
+
+    #[tokio::test]
+    async fn test_by_action_type_no_matches() {
+        // Edge case: query for a type that doesn't exist
+        let log = AuditLog::in_memory().await.unwrap();
+        log.record_success("branch", "desc", "src").await.unwrap();
+
+        let results = log.by_action_type("nonexistent_action", 10).await.unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_many_entries_ordering() {
+        // Edge case: verify ordering is newest-first with many entries
+        let log = AuditLog::in_memory().await.unwrap();
+
+        for i in 0..20 {
+            log.record_success("action", &format!("Entry {}", i), "test")
+                .await
+                .unwrap();
+        }
+
+        let recent = log.recent(5).await.unwrap();
+        assert_eq!(recent.len(), 5);
+        // Most recent should be entry 19
+        assert_eq!(recent[0].description, "Entry 19");
+    }
+
+    #[test]
+    fn test_action_outcome_from_str_all_valid() {
+        assert_eq!(ActionOutcome::from_str("success"), ActionOutcome::Success);
+        assert_eq!(ActionOutcome::from_str("failure"), ActionOutcome::Failure);
+        assert_eq!(ActionOutcome::from_str("skipped"), ActionOutcome::Skipped);
+        assert_eq!(ActionOutcome::from_str("blocked"), ActionOutcome::Blocked);
+    }
+
+    #[test]
+    fn test_action_outcome_serialization_roundtrip() {
+        let outcomes = vec![
+            ActionOutcome::Success,
+            ActionOutcome::Failure,
+            ActionOutcome::Skipped,
+            ActionOutcome::Blocked,
+        ];
+        for outcome in outcomes {
+            let json = serde_json::to_string(&outcome).unwrap();
+            let deserialized: ActionOutcome = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, outcome);
+        }
+    }
+
+    #[test]
+    fn test_audit_entry_serialization() {
+        let entry = AuditEntry::new("test", "Test entry", ActionOutcome::Success, "unit_test")
+            .with_details("details")
+            .with_duration(100)
+            .with_error("minor issue");
+
+        let json = serde_json::to_string(&entry).unwrap();
+        let deserialized: AuditEntry = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.action_type, "test");
+        assert_eq!(deserialized.outcome, ActionOutcome::Success);
+        assert_eq!(deserialized.duration_ms, Some(100));
+        assert_eq!(deserialized.error.as_deref(), Some("minor issue"));
+    }
+
+    // === Production hardening: concurrent writes, rapid inserts, boundary tests ===
+
+    #[tokio::test]
+    async fn test_concurrent_writes_unique_ids() {
+        // Edge case: many concurrent writes with unique IDs should all succeed
+        let log = AuditLog::in_memory().await.unwrap();
+
+        let mut handles = Vec::new();
+        // Prepare entries first (each with unique UUID)
+        let entries: Vec<AuditEntry> = (0..20)
+            .map(|i| {
+                AuditEntry::new(
+                    format!("concurrent_{}", i),
+                    format!("Concurrent write {}", i),
+                    if i % 2 == 0 { ActionOutcome::Success } else { ActionOutcome::Failure },
+                    "concurrent_test",
+                )
+            })
+            .collect();
+
+        // Write them all sequentially (in-memory SQLite doesn't support true
+        // concurrent connections, but rapid sequential writes test the same path)
+        for entry in &entries {
+            log.record(entry).await.unwrap();
+        }
+
+        assert_eq!(log.count().await.unwrap(), 20);
+        assert_eq!(log.count_by_outcome(&ActionOutcome::Success).await.unwrap(), 10);
+        assert_eq!(log.count_by_outcome(&ActionOutcome::Failure).await.unwrap(), 10);
+    }
+
+    #[tokio::test]
+    async fn test_rapid_sequential_inserts() {
+        // Edge case: rapid back-to-back inserts
+        let log = AuditLog::in_memory().await.unwrap();
+
+        for i in 0..100 {
+            let entry = AuditEntry::new(
+                "rapid",
+                format!("Rapid insert {}", i),
+                ActionOutcome::Success,
+                "speed_test",
+            );
+            log.record(&entry).await.unwrap();
+        }
+
+        assert_eq!(log.count().await.unwrap(), 100);
+
+        // Verify ordering: most recent first
+        let recent = log.recent(3).await.unwrap();
+        assert_eq!(recent.len(), 3);
+        assert_eq!(recent[0].description, "Rapid insert 99");
+    }
+
+    #[tokio::test]
+    async fn test_by_outcome_no_matches() {
+        // Edge case: filter by outcome that has zero entries
+        let log = AuditLog::in_memory().await.unwrap();
+        log.record_success("a", "d", "s").await.unwrap();
+
+        let blocked = log.by_outcome(&ActionOutcome::Blocked, 10).await.unwrap();
+        assert!(blocked.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_entry_with_none_optionals() {
+        // Edge case: entry with no duration_ms and no error (Option<> fields are None)
+        let log = AuditLog::in_memory().await.unwrap();
+
+        let entry = AuditEntry::new("simple", "Simple action", ActionOutcome::Success, "test");
+        assert!(entry.duration_ms.is_none());
+        assert!(entry.error.is_none());
+
+        log.record(&entry).await.unwrap();
+
+        let recent = log.recent(1).await.unwrap();
+        assert!(recent[0].duration_ms.is_none());
+        assert!(recent[0].error.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_clear_then_reinsert() {
+        // Edge case: clear all entries then insert again
+        let log = AuditLog::in_memory().await.unwrap();
+
+        log.record_success("a", "d", "s").await.unwrap();
+        log.record_success("b", "d", "s").await.unwrap();
+        assert_eq!(log.count().await.unwrap(), 2);
+
+        log.clear().await.unwrap();
+        assert_eq!(log.count().await.unwrap(), 0);
+
+        // Reinserting should work fine
+        log.record_success("c", "d", "s").await.unwrap();
+        assert_eq!(log.count().await.unwrap(), 1);
+        let recent = log.recent(1).await.unwrap();
+        assert_eq!(recent[0].action_type, "c");
+    }
+
+    #[tokio::test]
+    async fn test_recent_more_than_available() {
+        // Edge case: request more entries than exist
+        let log = AuditLog::in_memory().await.unwrap();
+        log.record_success("a", "d", "s").await.unwrap();
+
+        let recent = log.recent(1000).await.unwrap();
+        assert_eq!(recent.len(), 1);
+    }
+
+    #[test]
+    fn test_action_outcome_from_str_empty_string() {
+        // Edge case: empty string defaults to Failure
+        assert_eq!(ActionOutcome::from_str(""), ActionOutcome::Failure);
+    }
+
+    #[test]
+    fn test_action_outcome_from_str_case_sensitive() {
+        // Edge case: ActionOutcome::from_str is case-sensitive — "Success" != "success"
+        assert_eq!(ActionOutcome::from_str("Success"), ActionOutcome::Failure);
+        assert_eq!(ActionOutcome::from_str("SUCCESS"), ActionOutcome::Failure);
+        assert_eq!(ActionOutcome::from_str("BLOCKED"), ActionOutcome::Failure);
+    }
 }

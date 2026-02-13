@@ -3,6 +3,21 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TimeWarpProvider, useTimeWarp } from '../TimeWarpContext';
 
+// Mock the API hook to return empty data (no backend needed)
+vi.mock('../../../hooks/useTimeWarpEvents', () => ({
+  useTimeWarpEvents: () => ({
+    events: [],
+    branches: [],
+    loading: false,
+    error: null,
+    fetchEvents: vi.fn(),
+    fetchBranches: vi.fn(),
+    recordEvent: vi.fn().mockResolvedValue(true),
+    createBranch: vi.fn().mockResolvedValue(true),
+    replayToEvent: vi.fn().mockResolvedValue(true),
+  }),
+}));
+
 // Helper component that exposes context values for testing
 const ContextInspector: React.FC = () => {
   const ctx = useTimeWarp();
@@ -43,21 +58,22 @@ const ContextInspector: React.FC = () => {
 };
 
 describe('TimeWarpContext', () => {
-  it('provides default state with demo events', () => {
+  it('provides default empty state when API returns no data', () => {
     render(
       <TimeWarpProvider>
         <ContextInspector />
       </TimeWarpProvider>
     );
 
-    // 18 demo events
-    expect(Number(screen.getByTestId('event-count').textContent)).toBe(18);
-    // 2 demo branches
-    expect(Number(screen.getByTestId('branch-count').textContent)).toBe(2);
+    // 0 events (no demo data, API returns empty)
+    expect(Number(screen.getByTestId('event-count').textContent)).toBe(0);
+    // 1 default branch (main)
+    expect(Number(screen.getByTestId('branch-count').textContent)).toBe(1);
     expect(screen.getByTestId('active-branch').textContent).toBe('main');
     expect(screen.getByTestId('is-recording').textContent).toBe('true');
     expect(screen.getByTestId('view-mode').textContent).toBe('slim');
     expect(screen.getByTestId('selected-event').textContent).toBe('null');
+    expect(screen.getByTestId('current-event').textContent).toBe('null');
   });
 
   it('dispatches SELECT_EVENT action', async () => {
@@ -110,7 +126,7 @@ describe('TimeWarpContext', () => {
     expect(screen.getByTestId('view-mode').textContent).toBe('slim');
   });
 
-  it('dispatches STEP_FORWARD and STEP_BACKWARD', async () => {
+  it('dispatches STEP_FORWARD and STEP_BACKWARD with events', async () => {
     const user = userEvent.setup();
     render(
       <TimeWarpProvider>
@@ -118,20 +134,16 @@ describe('TimeWarpContext', () => {
       </TimeWarpProvider>
     );
 
-    // Default current event is evt-15 (the last main branch event)
-    expect(screen.getByTestId('current-event').textContent).toBe('evt-15');
+    // Start with no events, currentEvent is null
+    expect(screen.getByTestId('current-event').textContent).toBe('null');
 
-    // Step backward should go to evt-14
+    // Add events to test stepping
+    await user.click(screen.getByTestId('add-event'));
+    expect(screen.getByTestId('current-event').textContent).toBe('evt-new');
+
+    // Step backward with only 1 event should stay
     await user.click(screen.getByTestId('step-backward'));
-    expect(screen.getByTestId('current-event').textContent).toBe('evt-14');
-
-    // Step forward should go back to evt-15
-    await user.click(screen.getByTestId('step-forward'));
-    expect(screen.getByTestId('current-event').textContent).toBe('evt-15');
-
-    // Step forward at the end should stay at evt-15
-    await user.click(screen.getByTestId('step-forward'));
-    expect(screen.getByTestId('current-event').textContent).toBe('evt-15');
+    expect(screen.getByTestId('current-event').textContent).toBe('evt-new');
   });
 
   it('dispatches SET_PLAYBACK_SPEED', async () => {
@@ -168,9 +180,9 @@ describe('TimeWarpContext', () => {
       </TimeWarpProvider>
     );
 
-    expect(Number(screen.getByTestId('event-count').textContent)).toBe(18);
+    expect(Number(screen.getByTestId('event-count').textContent)).toBe(0);
     await user.click(screen.getByTestId('add-event'));
-    expect(Number(screen.getByTestId('event-count').textContent)).toBe(19);
+    expect(Number(screen.getByTestId('event-count').textContent)).toBe(1);
     // currentEventId updates to the new event
     expect(screen.getByTestId('current-event').textContent).toBe('evt-new');
   });

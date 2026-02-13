@@ -1,5 +1,4 @@
-import React from 'react';
-import { Play, Pause, SkipBack, SkipForward, CircleDot } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, CircleDot, RotateCcw } from 'lucide-react';
 import { useTimeWarp } from './TimeWarpContext';
 
 const SPEED_OPTIONS = [0.5, 1, 2, 4];
@@ -9,7 +8,8 @@ interface TransportControlsProps {
 }
 
 const TransportControls: React.FC<TransportControlsProps> = ({ compact = false }) => {
-  const { state, stepBackward, stepForward, setRecording, setPlaybackSpeed } = useTimeWarp();
+  const { state, stepBackward, stepForward, setRecording, setPlaybackSpeed, replayToEvent } =
+    useTimeWarp();
 
   const btnBase = [
     'flex items-center justify-center rounded transition-colors',
@@ -19,6 +19,12 @@ const TransportControls: React.FC<TransportControlsProps> = ({ compact = false }
 
   const btnSize = compact ? 'w-6 h-6' : 'w-7 h-7';
   const iconSize = compact ? 'w-3 h-3' : 'w-3.5 h-3.5';
+
+  const handleReplay = () => {
+    if (state.selectedEventId) {
+      replayToEvent(state.selectedEventId);
+    }
+  };
 
   return (
     <div className="flex items-center gap-0.5">
@@ -51,6 +57,16 @@ const TransportControls: React.FC<TransportControlsProps> = ({ compact = false }
         title="Step forward"
       >
         <SkipForward className={iconSize} />
+      </button>
+
+      {/* Replay to selected event */}
+      <button
+        className={`${btnBase} ${btnSize} ${state.selectedEventId ? 'text-blue-400 hover:text-blue-300' : 'opacity-30 cursor-not-allowed'}`}
+        onClick={handleReplay}
+        disabled={!state.selectedEventId}
+        title={state.selectedEventId ? 'Replay to selected event' : 'Select an event to replay'}
+      >
+        <RotateCcw className={iconSize} />
       </button>
 
       {/* Recording indicator */}

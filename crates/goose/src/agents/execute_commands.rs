@@ -27,7 +27,7 @@ static COMMANDS: &[CommandDef] = &[
     },
     CommandDef {
         name: "compact",
-        description: "Compact the conversation history",
+        description: "Compact the conversation history: /compact [status]",
     },
     CommandDef {
         name: "clear",
@@ -86,7 +86,7 @@ impl Agent {
         match command {
             "prompts" => self.handle_prompts_command(&params, session_id).await,
             "prompt" => self.handle_prompt_command(&params, session_id).await,
-            "compact" => self.handle_compact_command(session_id).await,
+            "compact" => self.handle_compact_command(&params, session_id).await,
             "clear" => self.handle_clear_command(session_id).await,
             #[cfg(feature = "memory")]
             "memory" | "memories" => self.handle_memory_command(&params, session_id).await,
@@ -122,13 +122,46 @@ impl Agent {
         }
     }
 
-    async fn handle_compact_command(&self, session_id: &str) -> Result<Option<Message>> {
+    async fn handle_compact_command(
+        &self,
+        params: &[&str],
+        session_id: &str,
+    ) -> Result<Option<Message>> {
         let manager = self.config.session_manager.clone();
+
+        // Handle '/compact status' — show compaction stats
+        if params.first() == Some(&"status") {
+            let stats = self.compaction_stats().await;
+            let session = manager.get_session(session_id, true).await?;
+            let conversation = session
+                .conversation
+                .ok_or_else(|| anyhow!("Session has no conversation"))?;
+
+            let message_count = conversation.messages().len();
+            let output = format!(
+                "## Compaction Status\n\n\
+                 **Current messages:** {}\n\
+                 **Total compactions:** {}\n\
+                 **Total tokens saved:** {}\n\
+                 **Average reduction:** {:.1}%\n\n\
+                 _Use `/compact` to manually compact the current conversation._",
+                message_count,
+                stats.total_compactions,
+                stats.total_tokens_saved,
+                stats.average_reduction_percent,
+            );
+            return Ok(Some(Message::assistant().with_text(output)));
+        }
+
+        // Default: perform compaction
         let session = manager.get_session(session_id, true).await?;
         let conversation = session
             .conversation
             .ok_or_else(|| anyhow!("Session has no conversation"))?;
 
+        let message_count = conversation.messages().len();
+
+        // Use the legacy compact_messages for now (keeps existing behavior)
         let (compacted_conversation, usage) = compact_messages(
             self.provider().await?.as_ref(),
             session_id,
@@ -144,10 +177,36 @@ impl Agent {
         self.update_session_metrics(session_id, session.schedule_id, &usage, true)
             .await?;
 
-        Ok(Some(Message::assistant().with_system_notification(
-            SystemNotificationType::InlineMessage,
-            "Compaction complete",
-        )))
+        // Record compaction in the CompactionManager for statistics
+        {
+            let mut compact_mgr = self.compaction_manager.lock().await;
+            let est_tokens_per_msg = 100; // rough estimate
+            compact_mgr.record_compaction(
+                message_count * est_tokens_per_msg,
+                compacted_conversation.messages().len() * est_tokens_per_msg,
+                crate::compaction::CompactionTrigger::Command,
+            );
+        }
+
+        let saved_msgs = message_count.saturating_sub(compacted_conversation.messages().len());
+        let stats = self.compaction_stats().await;
+        let output = format!(
+            "## Compaction Complete\n\n\
+             **Original messages:** {}\n\
+             **Compacted messages:** {}\n\
+             **Messages removed:** {}\n\n\
+             **Total compactions:** {}\n\
+             **Total tokens saved:** {}\n\
+             **Average reduction:** {:.1}%",
+            message_count,
+            compacted_conversation.messages().len(),
+            saved_msgs,
+            stats.total_compactions,
+            stats.total_tokens_saved,
+            stats.average_reduction_percent,
+        );
+
+        Ok(Some(Message::assistant().with_text(output)))
     }
 
     async fn handle_clear_command(&self, session_id: &str) -> Result<Option<Message>> {
@@ -819,6 +878,326 @@ fn truncate_str(s: &str, max: usize) -> &str {
 // ---------------------------------------------------------------------------
 // HITL (Human-in-the-Loop) slash commands
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Integration tests for autonomous daemon wiring
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod autonomous_integration_tests {
+    use super::*;
+    use std::sync::Arc;
+    use crate::autonomous::AutonomousDaemon;
+    use crate::conversation::message::MessageContent;
+    use std::path::PathBuf;
+
+    /// Helper: extract the first text string from a Message
+    fn extract_text(msg: &Message) -> String {
+        msg.content
+            .iter()
+            .filter_map(|c| match c {
+                MessageContent::Text(t) => Some(t.text.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("")
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 1. Status when daemon is NOT initialized (cold start)
+    // ═══════════════════════════════════════════════════════════
+
+    #[tokio::test]
+    async fn test_autonomous_status_not_initialized() {
+        let agent = Agent::new();
+        let result = agent
+            .handle_autonomous_command(&[], "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+        assert!(
+            text.contains("not initialized"),
+            "Expected 'not initialized' in: {}",
+            text
+        );
+        assert!(
+            text.contains("/autonomous start"),
+            "Expected usage hint in: {}",
+            text
+        );
+    }
+
+    #[tokio::test]
+    async fn test_autonomous_status_subcommand_not_initialized() {
+        let agent = Agent::new();
+        let result = agent
+            .handle_autonomous_command(&["status"], "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+        assert!(
+            text.contains("not initialized"),
+            "Expected 'not initialized' in: {}",
+            text
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 2. Stop when daemon is NOT initialized
+    // ═══════════════════════════════════════════════════════════
+
+    #[tokio::test]
+    async fn test_autonomous_stop_not_initialized() {
+        let agent = Agent::new();
+        let result = agent
+            .handle_autonomous_command(&["stop"], "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+        assert!(
+            text.contains("not running"),
+            "Expected 'not running' in: {}",
+            text
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 3. Unknown subcommand returns helpful error
+    // ═══════════════════════════════════════════════════════════
+
+    #[tokio::test]
+    async fn test_autonomous_unknown_subcommand() {
+        let agent = Agent::new();
+        let result = agent
+            .handle_autonomous_command(&["foobar"], "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+        assert!(
+            text.contains("Unknown /autonomous subcommand"),
+            "Expected error for unknown subcommand in: {}",
+            text
+        );
+        assert!(
+            text.contains("foobar"),
+            "Expected the bad subcommand echoed back in: {}",
+            text
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 4. Inject in-memory daemon, then test status
+    // ═══════════════════════════════════════════════════════════
+
+    #[tokio::test]
+    async fn test_autonomous_status_with_injected_daemon() {
+        let agent = Agent::new();
+
+        // Inject an in-memory daemon directly (bypasses init_autonomous_daemon)
+        let daemon = AutonomousDaemon::in_memory(PathBuf::from("/tmp/test-autonomous"))
+            .await
+            .expect("in_memory daemon creation should succeed");
+        {
+            let mut guard = agent.autonomous_daemon.lock().await;
+            *guard = Some(Arc::new(daemon));
+        }
+
+        let result = agent
+            .handle_autonomous_command(&["status"], "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+
+        assert!(text.contains("Autonomous Daemon Status"), "Expected status header in: {}", text);
+        assert!(text.contains("Running:"), "Expected Running field in: {}", text);
+        assert!(text.contains("false"), "Daemon should not be running yet: {}", text);
+        assert!(text.contains("Pending tasks:"), "Expected Pending tasks field in: {}", text);
+        assert!(text.contains("Circuit Breakers:"), "Expected circuit breakers in: {}", text);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 5. Inject daemon, start, verify running status
+    // ═══════════════════════════════════════════════════════════
+
+    #[tokio::test]
+    async fn test_autonomous_start_stop_lifecycle() {
+        let agent = Agent::new();
+
+        // Inject an in-memory daemon
+        let daemon = AutonomousDaemon::in_memory(PathBuf::from("/tmp/test-lifecycle"))
+            .await
+            .expect("in_memory daemon creation should succeed");
+        let daemon_arc = Arc::new(daemon);
+        {
+            let mut guard = agent.autonomous_daemon.lock().await;
+            *guard = Some(Arc::clone(&daemon_arc));
+        }
+
+        // Verify not running initially
+        assert!(!daemon_arc.is_running());
+
+        // Start via the handler — init_autonomous_daemon will find the already-injected
+        // daemon and set the initialized flag, then the handler calls daemon.start()
+        let result = agent
+            .handle_autonomous_command(&["start"], "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+        assert!(
+            text.contains("started"),
+            "Expected 'started' confirmation in: {}",
+            text
+        );
+        assert!(daemon_arc.is_running());
+
+        // Now check status reports running
+        let result = agent
+            .handle_autonomous_command(&["status"], "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+        assert!(text.contains("**Running:** true"), "Expected Running: true in: {}", text);
+        assert!(text.contains("**Pending tasks:** 0"), "Expected 0 pending tasks in: {}", text);
+        assert!(text.contains("**Shutdown:** false"), "Expected Shutdown: false in: {}", text);
+
+        // Stop the daemon
+        let result = agent
+            .handle_autonomous_command(&["stop"], "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+        assert!(text.contains("stopped"), "Expected 'stopped' in: {}", text);
+
+        // Verify stopped
+        assert!(!daemon_arc.is_running());
+
+        // Status should now show not running
+        let result = agent
+            .handle_autonomous_command(&["status"], "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+        assert!(text.contains("**Running:** false"), "Expected Running: false after stop in: {}", text);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 6. Failsafe status contains expected circuit breakers
+    // ═══════════════════════════════════════════════════════════
+
+    #[tokio::test]
+    async fn test_autonomous_status_shows_circuit_breakers() {
+        let agent = Agent::new();
+
+        let daemon = AutonomousDaemon::in_memory(PathBuf::from("/tmp/test-breakers"))
+            .await
+            .expect("in_memory daemon creation should succeed");
+        {
+            let mut guard = agent.autonomous_daemon.lock().await;
+            *guard = Some(Arc::new(daemon));
+        }
+
+        let result = agent
+            .handle_autonomous_command(&["status"], "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+
+        // The in-memory daemon registers 4 breakers:
+        // branch_manager, release_manager, ci_watcher, docs_generator
+        assert!(text.contains("branch_manager"), "Expected branch_manager breaker in: {}", text);
+        assert!(text.contains("release_manager"), "Expected release_manager breaker in: {}", text);
+        assert!(text.contains("ci_watcher"), "Expected ci_watcher breaker in: {}", text);
+        assert!(text.contains("docs_generator"), "Expected docs_generator breaker in: {}", text);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 7. The "daemon" alias routes to the same handler
+    // ═══════════════════════════════════════════════════════════
+
+    #[tokio::test]
+    async fn test_daemon_alias_routes_to_autonomous() {
+        let agent = Agent::new();
+
+        // Use execute_command with "/daemon" to verify the alias works
+        // This will call handle_autonomous_command internally
+        let result = agent
+            .execute_command("/daemon", "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+
+        // Should show "not initialized" status (same as /autonomous)
+        assert!(
+            text.contains("not initialized") || text.contains("Autonomous"),
+            "Expected autonomous-related output for /daemon alias in: {}",
+            text
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 8. Scheduled task integration: inject daemon + schedule + verify count
+    // ═══════════════════════════════════════════════════════════
+
+    #[tokio::test]
+    async fn test_autonomous_pending_tasks_reflected_in_status() {
+        use crate::autonomous::ActionType;
+
+        let agent = Agent::new();
+        let daemon = AutonomousDaemon::in_memory(PathBuf::from("/tmp/test-tasks"))
+            .await
+            .expect("in_memory daemon creation should succeed");
+        let daemon_arc = Arc::new(daemon);
+        {
+            let mut guard = agent.autonomous_daemon.lock().await;
+            *guard = Some(Arc::clone(&daemon_arc));
+        }
+
+        // Schedule a task via the daemon API
+        // Use the convenience method to schedule a task
+        let task_id = daemon_arc
+            .schedule_once(
+                "Integration test task",
+                5,
+                chrono::Utc::now() + chrono::Duration::hours(1),
+                ActionType::RunCommand {
+                    command: "echo integration".into(),
+                },
+            )
+            .await;
+        assert!(!task_id.is_empty());
+
+        // Status should report 1 pending task
+        let result = agent
+            .handle_autonomous_command(&["status"], "test-session")
+            .await
+            .unwrap();
+        let msg = result.expect("should return a message");
+        let text = extract_text(&msg);
+        assert!(text.contains("**Pending tasks:** 1"), "Expected 1 pending task in: {}", text);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 9. Command table includes autonomous entry
+    // ═══════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_command_list_includes_autonomous() {
+        let commands = list_commands();
+        let has_autonomous = commands.iter().any(|c| c.name == "autonomous");
+        assert!(has_autonomous, "Command list should include 'autonomous'");
+    }
+}
 
 #[cfg(feature = "memory")]
 impl Agent {

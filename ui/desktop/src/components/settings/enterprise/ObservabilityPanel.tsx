@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Switch } from '../../ui/switch';
 import { Card, CardContent } from '../../ui/card';
 import { Button } from '../../ui/button';
+import { backendApi } from '../../../utils/backendApi';
 
 interface TokenUsage {
   totalTokens: number;
@@ -37,18 +38,31 @@ export default function ObservabilityPanel() {
   const fetchUsage = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/enterprise/observability/usage');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.usage) {
-          setUsage(data.usage);
-        }
-        if (typeof data.costTrackingEnabled === 'boolean') {
-          setCostTrackingEnabled(data.costTrackingEnabled);
+      // Try the enterprise observability endpoint first
+      const obsData = await backendApi.getObservabilityConfig();
+      if (obsData) {
+        setCostTrackingEnabled(obsData.costTrackingEnabled);
+        setUsage(obsData.usage);
+      } else {
+        // Fallback: try the cost summary endpoint for backward compatibility
+        const costData = await backendApi.getCostSummary();
+        if (costData && costData.model_breakdown) {
+          const totalInput = costData.model_breakdown.reduce((s, m) => s + m.input_tokens, 0);
+          const totalOutput = costData.model_breakdown.reduce((s, m) => s + m.output_tokens, 0);
+          setUsage({
+            totalTokens: totalInput + totalOutput,
+            promptTokens: totalInput,
+            completionTokens: totalOutput,
+            estimatedCost: `$${(costData.total_cost || 0).toFixed(2)}`,
+            period: 'current session',
+          });
+        } else {
+          setUsage(DEFAULT_USAGE);
         }
       }
     } catch {
-      console.debug('Enterprise observability data not available');
+      console.debug('Observability data not available, using defaults');
+      setUsage(DEFAULT_USAGE);
     } finally {
       setIsLoading(false);
     }
@@ -58,8 +72,13 @@ export default function ObservabilityPanel() {
     fetchUsage();
   }, [fetchUsage]);
 
-  const handleCostTrackingToggle = (enabled: boolean) => {
+  const handleCostTrackingToggle = async (enabled: boolean) => {
     setCostTrackingEnabled(enabled);
+    const result = await backendApi.updateObservabilityConfig({ costTrackingEnabled: enabled });
+    if (!result) {
+      // Revert on failure
+      setCostTrackingEnabled(!enabled);
+    }
   };
 
   const handleExport = (format: 'json' | 'csv') => {

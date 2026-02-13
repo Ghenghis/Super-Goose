@@ -3,6 +3,15 @@ import { render, screen } from '@testing-library/react';
 import { CostTracker } from '../CostTracker';
 import { useModelAndProvider } from '../../ModelAndProviderContext';
 
+// Track the mock return value so tests can override it
+const mockUseSettingsBridge = vi.fn();
+
+// Mock settingsBridge — must be before component import (hoisted by vitest)
+vi.mock('../../../utils/settingsBridge', () => ({
+  useSettingsBridge: (...args: unknown[]) => mockUseSettingsBridge(...args),
+  SettingsKeys: { ShowPricing: 'showPricing' },
+}));
+
 // Mock dependencies
 vi.mock('../../ModelAndProviderContext', () => ({
   useModelAndProvider: vi.fn(() => ({
@@ -44,6 +53,8 @@ describe('CostTracker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (window.localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    // Default: showPricing = true
+    mockUseSettingsBridge.mockReturnValue({ value: true, setValue: vi.fn(), isLoading: false });
   });
 
   it('renders loading state initially', () => {
@@ -72,7 +83,7 @@ describe('CostTracker', () => {
   });
 
   it('returns null when show_pricing is false', () => {
-    (window.localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('false');
+    mockUseSettingsBridge.mockReturnValue({ value: false, setValue: vi.fn(), isLoading: false });
     const { container } = render(<CostTracker />);
     // The component should return null — container is empty apart from wrapper div
     expect(container.innerHTML).toBe('');

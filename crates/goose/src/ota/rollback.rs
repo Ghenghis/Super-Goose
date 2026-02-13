@@ -484,4 +484,178 @@ mod tests {
         assert_eq!(deserialized.reason, RollbackReason::StartupCrash);
         assert!(deserialized.success);
     }
+
+    // === Production hardening edge-case tests ===
+
+    #[tokio::test]
+    async fn test_rollback_when_no_backup_exists_returns_failed_record() {
+        // Edge case: swap history exists but backup file was deleted externally
+        let dir = TempDir::new().unwrap();
+        let mut mgr = RollbackManager::with_defaults(dir.path().join("history"));
+
+        let backup_path = dir.path().join("deleted_backup");
+        // Intentionally do NOT create the backup file
+        let mut record = test_swap_record();
+        record.backup_path = backup_path.clone();
+        record.active_path = dir.path().join("active_bin");
+        std::fs::write(&record.active_path, b"current version").unwrap();
+        mgr.record_swap(record);
+
+        let result = mgr.rollback(RollbackReason::HealthCheckFailed).await.unwrap();
+        assert!(!result.success);
+        assert!(result.details.contains("Backup not found"));
+        // Active binary should remain untouched
+        let content = std::fs::read_to_string(dir.path().join("active_bin")).unwrap();
+        assert_eq!(content, "current version");
+    }
+
+    #[tokio::test]
+    async fn test_rollback_preserves_swap_history_after_failure() {
+        // Edge case: after a failed rollback, the swap history should still be intact
+        let dir = TempDir::new().unwrap();
+        let mut mgr = RollbackManager::with_defaults(dir.path().join("history"));
+
+        let mut record = test_swap_record();
+        record.backup_path = PathBuf::from("/nonexistent/backup");
+        mgr.record_swap(record);
+
+        assert_eq!(mgr.swap_count(), 1);
+        let _ = mgr.rollback(RollbackReason::UserRequested).await.unwrap();
+        // Swap history should remain (not cleared on failure)
+        assert_eq!(mgr.swap_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_consecutive_rollbacks_use_same_swap_record() {
+        // Edge case: multiple rollback attempts against the same swap
+        let dir = TempDir::new().unwrap();
+        let mut mgr = RollbackManager::with_defaults(dir.path().join("history"));
+
+        let active_path = dir.path().join("active_bin");
+        let backup_path = dir.path().join("backup_bin");
+        std::fs::write(&active_path, b"v2").unwrap();
+        std::fs::write(&backup_path, b"v1").unwrap();
+
+        let mut record = test_swap_record();
+        record.active_path = active_path.clone();
+        record.backup_path = backup_path;
+        mgr.record_swap(record);
+
+        // First rollback
+        let r1 = mgr.rollback(RollbackReason::HealthCheckFailed).await.unwrap();
+        assert!(r1.success);
+
+        // Second rollback attempt (backup still exists, so it should succeed)
+        let r2 = mgr.rollback(RollbackReason::UserRequested).await.unwrap();
+        assert!(r2.success);
+        assert_ne!(r1.rollback_id, r2.rollback_id);
+    }
+
+    #[test]
+    fn test_snapshot_max_history_limit() {
+        let dir = TempDir::new().unwrap();
+        let mut mgr = RollbackManager::new(dir.path().to_path_buf(), 3);
+
+        for i in 0..5 {
+            mgr.record_snapshot(format!("snap-{}", i));
+        }
+
+        assert_eq!(mgr.snapshot_count(), 3);
+        // Most recent should be first
+        assert_eq!(mgr.last_snapshot_id(), Some("snap-4"));
+    }
+
+    #[test]
+    fn test_can_rollback_with_nonexistent_backup_path() {
+        // Edge case: swap record exists but backup_path points to a deleted file
+        let dir = TempDir::new().unwrap();
+        let mut mgr = RollbackManager::with_defaults(dir.path().to_path_buf());
+
+        let mut record = test_swap_record();
+        record.backup_path = dir.path().join("gone_backup");
+        mgr.record_swap(record);
+
+        // can_rollback should return false since backup doesn't exist
+        assert!(!mgr.can_rollback());
+    }
+
+    #[tokio::test]
+    async fn test_load_history_ignores_corrupt_json_files() {
+        // Edge case: history directory contains corrupt/invalid JSON files
+        let dir = TempDir::new().unwrap();
+        let history_dir = dir.path().join("history");
+        std::fs::create_dir_all(&history_dir).unwrap();
+
+        // Write a valid rollback record
+        let record = RollbackRecord {
+            rollback_id: "rb-valid".to_string(),
+            swap_id: "swap-001".to_string(),
+            reason: RollbackReason::UserRequested,
+            rolled_back_at: Utc::now(),
+            success: true,
+            details: "OK".to_string(),
+        };
+        let valid_json = serde_json::to_string_pretty(&record).unwrap();
+        std::fs::write(history_dir.join("rollback_valid.json"), &valid_json).unwrap();
+
+        // Write a corrupt file
+        std::fs::write(
+            history_dir.join("rollback_corrupt.json"),
+            "{ not valid json !!!",
+        )
+        .unwrap();
+
+        // Write a non-rollback file (should be ignored)
+        std::fs::write(history_dir.join("other_file.txt"), "ignored").unwrap();
+
+        let mgr = RollbackManager::with_defaults(history_dir);
+        let history = mgr.load_history().await.unwrap();
+        // Only the valid record should be loaded
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].rollback_id, "rb-valid");
+    }
+
+    #[test]
+    fn test_clear_history_then_can_rollback() {
+        let dir = TempDir::new().unwrap();
+        let mut mgr = RollbackManager::with_defaults(dir.path().to_path_buf());
+
+        let backup_path = dir.path().join("backup");
+        std::fs::write(&backup_path, b"data").unwrap();
+        let mut record = test_swap_record();
+        record.backup_path = backup_path;
+        mgr.record_swap(record);
+        assert!(mgr.can_rollback());
+
+        mgr.clear_history();
+        assert!(!mgr.can_rollback());
+        assert_eq!(mgr.swap_count(), 0);
+        assert_eq!(mgr.snapshot_count(), 0);
+    }
+
+    #[test]
+    fn test_rollback_reason_all_variants_serialize_roundtrip() {
+        let reasons = vec![
+            RollbackReason::HealthCheckFailed,
+            RollbackReason::UserRequested,
+            RollbackReason::BuildValidationFailed,
+            RollbackReason::SwapVerificationFailed,
+            RollbackReason::StartupCrash,
+            RollbackReason::Custom("edge case reason with special chars: <>&\"".into()),
+        ];
+
+        for reason in reasons {
+            let json = serde_json::to_string(&reason).unwrap();
+            let deserialized: RollbackReason = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, reason);
+        }
+    }
+
+    #[test]
+    fn test_history_dir_accessor() {
+        let dir = TempDir::new().unwrap();
+        let history_path = dir.path().join("custom_history");
+        let mgr = RollbackManager::with_defaults(history_path.clone());
+        assert_eq!(mgr.history_dir(), history_path.as_path());
+    }
 }

@@ -2,6 +2,7 @@ import Electron, { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { Recipe } from './recipe';
 import { GooseApp } from './api';
 import type { Settings } from './utils/settings';
+import { cliAPI, type CLIPreloadAPI } from './cli-preload';
 
 interface NotificationData {
   title: string;
@@ -54,10 +55,12 @@ interface UpdaterEvent {
 // Define the API types in a single place
 type ElectronAPI = {
   platform: string;
+  arch: string;
   reactReady: () => void;
   getConfig: () => Record<string, unknown>;
   hideWindow: () => void;
   directoryChooser: () => Promise<Electron.OpenDialogReturnValue>;
+  invoke: (channel: string, ...args: any[]) => Promise<any>;
   createChatWindow: (
     query?: string,
     dir?: string,
@@ -130,6 +133,8 @@ type ElectronAPI = {
   refreshApp: (app: GooseApp) => Promise<void>;
   closeApp: (appName: string) => Promise<void>;
   addRecentDir: (dir: string) => Promise<boolean>;
+  // CLI bridge (from cli-preload.ts)
+  cli: CLIPreloadAPI;
 };
 
 type AppConfigAPI = {
@@ -139,7 +144,9 @@ type AppConfigAPI = {
 
 const electronAPI: ElectronAPI = {
   platform: process.platform,
+  arch: process.arch,
   reactReady: () => ipcRenderer.send('react-ready'),
+  invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
   getConfig: () => {
     if (!config || Object.keys(config).length === 0) {
       console.warn(
@@ -263,6 +270,7 @@ const electronAPI: ElectronAPI = {
   refreshApp: (app: GooseApp) => ipcRenderer.invoke('refresh-app', app),
   closeApp: (appName: string) => ipcRenderer.invoke('close-app', appName),
   addRecentDir: (dir: string) => ipcRenderer.invoke('add-recent-dir', dir),
+  cli: cliAPI,
 };
 
 const appConfigAPI: AppConfigAPI = {

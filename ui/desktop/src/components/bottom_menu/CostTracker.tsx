@@ -4,6 +4,7 @@ import { CoinIcon } from '../icons';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 import { fetchModelPricing } from '../../utils/pricing';
 import { PricingData } from '../../api';
+import { useSettingsBridge, SettingsKeys } from '../../utils/settingsBridge';
 
 interface CostTrackerProps {
   inputTokens?: number;
@@ -21,20 +22,8 @@ export function CostTracker({ inputTokens = 0, outputTokens = 0, sessionCosts }:
   const { currentModel, currentProvider } = useModelAndProvider();
   const [costInfo, setCostInfo] = useState<PricingData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [showPricing, setShowPricing] = useState(true);
+  const { value: showPricing } = useSettingsBridge<boolean>(SettingsKeys.ShowPricing, true);
   const [pricingFailed, setPricingFailed] = useState(false);
-
-  // Check if pricing is enabled
-  useEffect(() => {
-    const checkPricingSetting = () => {
-      const stored = localStorage.getItem('show_pricing');
-      setShowPricing(stored !== 'false');
-    };
-
-    checkPricingSetting();
-    window.addEventListener('storage', checkPricingSetting);
-    return () => window.removeEventListener('storage', checkPricingSetting);
-  }, []);
 
   useEffect(() => {
     const loadCostInfo = async () => {

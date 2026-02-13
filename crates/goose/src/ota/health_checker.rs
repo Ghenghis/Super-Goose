@@ -533,4 +533,264 @@ mod tests {
         let report = checker.run_all_checks().await.unwrap();
         assert!(!report.healthy);
     }
+
+    // === Production hardening edge-case tests ===
+
+    #[tokio::test]
+    async fn test_check_binary_size_missing_file() {
+        // Edge case: binary path does not exist at all
+        let config = HealthCheckConfig::minimal(PathBuf::from("/nonexistent/binary"));
+        let checker = HealthChecker::new(config);
+        let result = checker.check_binary_size().await;
+        assert!(!result.passed);
+        assert!(result.message.contains("Cannot read binary metadata"));
+    }
+
+    #[tokio::test]
+    async fn test_check_binary_size_exact_boundary_1kb() {
+        // Edge case: binary is exactly 1024 bytes (right at the boundary)
+        let dir = TempDir::new().unwrap();
+        let binary = dir.path().join("boundary_binary");
+        std::fs::write(&binary, vec![0u8; 1024]).unwrap();
+
+        let config = HealthCheckConfig::minimal(binary);
+        let checker = HealthChecker::new(config);
+        let result = checker.check_binary_size().await;
+        assert!(result.passed); // 1024 is >= 1024, should pass
+    }
+
+    #[tokio::test]
+    async fn test_check_binary_size_just_under_1kb() {
+        // Edge case: binary is 1023 bytes (just under the threshold)
+        let dir = TempDir::new().unwrap();
+        let binary = dir.path().join("under_boundary");
+        std::fs::write(&binary, vec![0u8; 1023]).unwrap();
+
+        let config = HealthCheckConfig::minimal(binary);
+        let checker = HealthChecker::new(config);
+        let result = checker.check_binary_size().await;
+        assert!(!result.passed);
+        assert!(result.message.contains("too small"));
+    }
+
+    #[tokio::test]
+    async fn test_health_report_all_fail() {
+        // Edge case: every single check fails
+        let checks = vec![
+            CheckResult::fail("a", "fail a", 0.1),
+            CheckResult::fail("b", "fail b", 0.2),
+            CheckResult::fail("c", "fail c", 0.3),
+        ];
+        let report = HealthReport::from_checks(checks);
+        assert!(!report.healthy);
+        assert_eq!(report.passed_count(), 0);
+        assert_eq!(report.failed_count(), 3);
+        // Summary should list all failed check names
+        assert!(report.summary.contains("a"));
+        assert!(report.summary.contains("b"));
+        assert!(report.summary.contains("c"));
+    }
+
+    #[test]
+    fn test_health_report_total_duration_accuracy() {
+        let checks = vec![
+            CheckResult::pass("a", "ok", 1.5),
+            CheckResult::pass("b", "ok", 2.3),
+            CheckResult::fail("c", "fail", 0.7),
+        ];
+        let report = HealthReport::from_checks(checks);
+        assert!((report.total_duration_secs - 4.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_health_report_single_failure_names_it() {
+        let checks = vec![
+            CheckResult::pass("binary_exists", "ok", 0.01),
+            CheckResult::fail("binary_version", "bad version", 1.0),
+            CheckResult::pass("binary_size", "ok", 0.01),
+        ];
+        let report = HealthReport::from_checks(checks);
+        assert!(!report.healthy);
+        assert!(report.summary.contains("binary_version"));
+        assert!(!report.summary.contains("binary_exists")); // Passing check not in summary
+    }
+
+    #[test]
+    fn test_check_result_serialization() {
+        let check = CheckResult::pass("test_check", "All good", 0.42);
+        let json = serde_json::to_string(&check).unwrap();
+        let deserialized: CheckResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.name, "test_check");
+        assert!(deserialized.passed);
+        assert_eq!(deserialized.duration_secs, 0.42);
+    }
+
+    #[tokio::test]
+    async fn test_run_all_checks_binary_exists_but_too_small() {
+        // Edge case: binary exists but is tiny (should fail size check)
+        let dir = TempDir::new().unwrap();
+        let binary = dir.path().join("tiny_bin");
+        std::fs::write(&binary, b"tiny").unwrap();
+
+        let config = HealthCheckConfig {
+            binary_path: binary,
+            workspace_path: PathBuf::from("."),
+            run_tests: false,
+            check_version: false,
+            check_api: false,
+            api_url: None,
+            check_timeout: Duration::from_secs(5),
+            test_package: None,
+            test_filter: None,
+        };
+        let checker = HealthChecker::new(config);
+        let report = checker.run_all_checks().await.unwrap();
+        // binary_exists passes, but binary_size should fail
+        assert!(!report.healthy);
+        assert_eq!(report.passed_count(), 1); // binary_exists
+        assert_eq!(report.failed_count(), 1); // binary_size
+    }
+
+    #[test]
+    fn test_config_accessor() {
+        let config = HealthCheckConfig::minimal(PathBuf::from("/usr/bin/goose"));
+        let checker = HealthChecker::new(config);
+        assert_eq!(checker.config().binary_path, PathBuf::from("/usr/bin/goose"));
+        assert!(checker.config().check_version);
+    }
+
+    #[test]
+    fn test_health_check_config_serialization() {
+        let config = HealthCheckConfig::full(
+            PathBuf::from("/usr/bin/goose"),
+            PathBuf::from("/workspace"),
+        );
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: HealthCheckConfig = serde_json::from_str(&json).unwrap();
+        assert!(deserialized.run_tests);
+        assert!(deserialized.check_version);
+        assert_eq!(deserialized.test_package.as_deref(), Some("goose"));
+    }
+
+    // === Production hardening: timeout, config edge cases, report boundary tests ===
+
+    #[test]
+    fn test_config_zero_timeout() {
+        // Edge case: zero-duration timeout
+        let mut config = HealthCheckConfig::minimal(PathBuf::from("/bin/goose"));
+        config.check_timeout = Duration::from_secs(0);
+        assert_eq!(config.check_timeout, Duration::from_secs(0));
+        // Should still construct a checker without panic
+        let checker = HealthChecker::new(config);
+        assert_eq!(checker.config().check_timeout, Duration::from_secs(0));
+    }
+
+    #[test]
+    fn test_config_custom_api_url() {
+        // Edge case: config with custom API URL
+        let mut config = HealthCheckConfig::minimal(PathBuf::from("/bin/goose"));
+        config.check_api = true;
+        config.api_url = Some("https://custom.api:8443/healthz".to_string());
+        assert_eq!(config.api_url.as_deref(), Some("https://custom.api:8443/healthz"));
+    }
+
+    #[test]
+    fn test_config_with_test_filter() {
+        // Edge case: full config with test filter pattern
+        let mut config = HealthCheckConfig::full(
+            PathBuf::from("/bin/goose"),
+            PathBuf::from("/workspace"),
+        );
+        config.test_filter = Some("test_health".to_string());
+        assert_eq!(config.test_filter.as_deref(), Some("test_health"));
+    }
+
+    #[tokio::test]
+    async fn test_run_all_checks_version_disabled_tests_disabled() {
+        // Edge case: all optional checks disabled — only binary_exists + binary_size run
+        let dir = TempDir::new().unwrap();
+        let binary = dir.path().join("good_binary");
+        std::fs::write(&binary, vec![0u8; 2048]).unwrap();
+
+        let config = HealthCheckConfig {
+            binary_path: binary,
+            workspace_path: PathBuf::from("."),
+            run_tests: false,
+            check_version: false,
+            check_api: false,
+            api_url: None,
+            check_timeout: Duration::from_secs(5),
+            test_package: None,
+            test_filter: None,
+        };
+        let checker = HealthChecker::new(config);
+        let report = checker.run_all_checks().await.unwrap();
+        // Only binary_exists and binary_size should run
+        assert_eq!(report.checks.len(), 2);
+        assert!(report.healthy);
+        assert_eq!(report.passed_count(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_check_binary_version_nonexistent_binary() {
+        // Edge case: --version check on nonexistent binary → should fail gracefully
+        let config = HealthCheckConfig::minimal(PathBuf::from("/nonexistent/bin/goosed_fake"));
+        let checker = HealthChecker::new(config);
+        let result = checker.check_binary_version().await;
+        assert!(!result.passed);
+        assert!(result.message.contains("Failed to execute binary"));
+    }
+
+    #[test]
+    fn test_health_report_from_single_check() {
+        // Edge case: report with exactly one check
+        let checks = vec![CheckResult::pass("only_check", "ok", 0.01)];
+        let report = HealthReport::from_checks(checks);
+        assert!(report.healthy);
+        assert_eq!(report.checks.len(), 1);
+        assert_eq!(report.passed_count(), 1);
+        assert_eq!(report.failed_count(), 0);
+        assert!(report.summary.contains("1/1"));
+    }
+
+    #[test]
+    fn test_health_report_from_single_failing_check() {
+        // Edge case: report with exactly one failing check
+        let checks = vec![CheckResult::fail("only_check", "broke", 0.5)];
+        let report = HealthReport::from_checks(checks);
+        assert!(!report.healthy);
+        assert_eq!(report.passed_count(), 0);
+        assert_eq!(report.failed_count(), 1);
+        assert!(report.summary.contains("only_check"));
+    }
+
+    #[test]
+    fn test_check_result_zero_duration() {
+        // Edge case: check completes in exactly zero seconds
+        let r = CheckResult::pass("instant", "Instant check", 0.0);
+        assert!(r.passed);
+        assert_eq!(r.duration_secs, 0.0);
+    }
+
+    #[test]
+    fn test_check_result_large_duration() {
+        // Edge case: extremely long-running check
+        let r = CheckResult::fail("slow", "Timed out", 86400.0);
+        assert!(!r.passed);
+        assert_eq!(r.duration_secs, 86400.0);
+    }
+
+    #[test]
+    fn test_health_report_many_failures_summary_lists_all() {
+        // Edge case: many failures — summary should list all failed check names
+        let checks: Vec<CheckResult> = (0..10)
+            .map(|i| CheckResult::fail(&format!("check_{}", i), "fail", 0.1))
+            .collect();
+        let report = HealthReport::from_checks(checks);
+        assert!(!report.healthy);
+        assert_eq!(report.failed_count(), 10);
+        for i in 0..10 {
+            assert!(report.summary.contains(&format!("check_{}", i)));
+        }
+    }
 }

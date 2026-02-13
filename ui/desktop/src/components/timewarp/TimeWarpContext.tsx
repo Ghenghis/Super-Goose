@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect, type ReactNode } from 'react';
 import type {
   TimeWarpState,
   TimeWarpEvent,
@@ -6,190 +6,54 @@ import type {
   ViewMode,
   DockPosition,
 } from './TimeWarpTypes';
+import { useTimeWarpEvents } from '../../hooks/useTimeWarpEvents';
+import type { TimeWarpEventAPI, TimeWarpBranchAPI } from '../../hooks/useTimeWarpEvents';
 
 // ---------------------------------------------------------------------------
-// Demo data
+// Helpers — convert API shapes to local TimeWarp shapes
 // ---------------------------------------------------------------------------
 
-const now = Date.now();
-const minute = 60_000;
+const BRANCH_COLORS = ['#3b82f6', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#6366f1'];
 
-const DEMO_BRANCHES: TimeWarpBranch[] = [
-  { id: 'main', name: 'main', color: '#3b82f6', isActive: true },
-  {
-    id: 'experiment-1',
-    name: 'experiment-1',
-    parentBranchId: 'main',
-    forkEventId: 'evt-08',
-    color: '#a855f7',
-    isActive: false,
-  },
-];
+function apiEventToLocal(e: TimeWarpEventAPI): TimeWarpEvent {
+  return {
+    id: e.id,
+    type: (e.event_type as TimeWarpEvent['type']) || 'message',
+    timestamp: new Date(e.timestamp).getTime(),
+    label: e.label,
+    detail: e.detail || undefined,
+    branchId: e.branch_id,
+    agentId: e.agent_id || undefined,
+    metadata: e.metadata,
+  };
+}
 
-const DEMO_EVENTS: TimeWarpEvent[] = [
-  {
-    id: 'evt-01',
-    type: 'message',
-    timestamp: now - 18 * minute,
-    label: 'User: set up project',
-    branchId: 'main',
-    agentId: 'user',
-  },
-  {
-    id: 'evt-02',
-    type: 'tool_call',
-    timestamp: now - 17 * minute,
-    label: 'Read package.json',
-    detail: 'developer.read_file("package.json")',
-    branchId: 'main',
-    agentId: 'goose',
-  },
-  {
-    id: 'evt-03',
-    type: 'tool_call',
-    timestamp: now - 16 * minute,
-    label: 'Read tsconfig.json',
-    detail: 'developer.read_file("tsconfig.json")',
-    branchId: 'main',
-    agentId: 'goose',
-  },
-  {
-    id: 'evt-04',
-    type: 'edit',
-    timestamp: now - 15 * minute,
-    label: 'Edit src/index.ts',
-    detail: '+24 / -3 lines',
-    branchId: 'main',
-    agentId: 'goose',
-  },
-  {
-    id: 'evt-05',
-    type: 'checkpoint',
-    timestamp: now - 14 * minute,
-    label: 'Checkpoint: scaffold complete',
-    branchId: 'main',
-  },
-  {
-    id: 'evt-06',
-    type: 'message',
-    timestamp: now - 13 * minute,
-    label: 'User: add tests',
-    branchId: 'main',
-    agentId: 'user',
-  },
-  {
-    id: 'evt-07',
-    type: 'tool_call',
-    timestamp: now - 12 * minute,
-    label: 'Run vitest',
-    detail: 'developer.shell("npx vitest --run")',
-    branchId: 'main',
-    agentId: 'goose',
-  },
-  {
-    id: 'evt-08',
-    type: 'branch_point',
-    timestamp: now - 11 * minute,
-    label: 'Branch: experiment-1',
-    detail: 'Exploring alternative approach',
-    branchId: 'main',
-  },
-  {
-    id: 'evt-09',
-    type: 'edit',
-    timestamp: now - 10 * minute,
-    label: 'Edit tests/index.test.ts',
-    detail: '+48 / -0 lines',
-    branchId: 'main',
-    agentId: 'goose',
-  },
-  {
-    id: 'evt-10',
-    type: 'error',
-    timestamp: now - 9 * minute,
-    label: 'Test failure',
-    detail: '2 of 5 tests failed',
-    branchId: 'main',
-    agentId: 'goose',
-    metadata: { failedTests: 2, totalTests: 5 },
-  },
-  {
-    id: 'evt-11',
-    type: 'edit',
-    timestamp: now - 8 * minute,
-    label: 'Fix failing tests',
-    detail: '+6 / -4 lines in src/index.ts',
-    branchId: 'main',
-    agentId: 'goose',
-  },
-  {
-    id: 'evt-12',
-    type: 'tool_call',
-    timestamp: now - 7 * minute,
-    label: 'Run vitest (retry)',
-    detail: '5/5 passed',
-    branchId: 'main',
-    agentId: 'goose',
-  },
-  {
-    id: 'evt-13',
-    type: 'milestone',
-    timestamp: now - 6 * minute,
-    label: 'All tests passing',
-    branchId: 'main',
-  },
-  {
-    id: 'evt-14',
-    type: 'message',
-    timestamp: now - 5 * minute,
-    label: 'User: deploy to staging',
-    branchId: 'main',
-    agentId: 'user',
-  },
-  {
-    id: 'evt-15',
-    type: 'tool_call',
-    timestamp: now - 4 * minute,
-    label: 'Shell: npm run build',
-    branchId: 'main',
-    agentId: 'goose',
-  },
-  // Events on experiment-1 branch
-  {
-    id: 'evt-b1',
-    type: 'edit',
-    timestamp: now - 10.5 * minute,
-    label: 'Refactor to functional style',
-    detail: '+32 / -18 lines',
-    branchId: 'experiment-1',
-    agentId: 'goose',
-  },
-  {
-    id: 'evt-b2',
-    type: 'tool_call',
-    timestamp: now - 9.5 * minute,
-    label: 'Run vitest on branch',
-    detail: '5/5 passed',
-    branchId: 'experiment-1',
-    agentId: 'goose',
-  },
-  {
-    id: 'evt-b3',
-    type: 'checkpoint',
-    timestamp: now - 8.5 * minute,
-    label: 'Checkpoint: functional refactor',
-    branchId: 'experiment-1',
-  },
-];
+function apiBranchToLocal(b: TimeWarpBranchAPI, index: number): TimeWarpBranch {
+  return {
+    id: b.id,
+    name: b.name,
+    parentBranchId: b.parent_branch_id || undefined,
+    forkEventId: b.fork_event_id || undefined,
+    color: BRANCH_COLORS[index % BRANCH_COLORS.length],
+    isActive: b.is_active,
+  };
+}
 
 // ---------------------------------------------------------------------------
-// Initial state
+// Default empty state (used when API has no data)
 // ---------------------------------------------------------------------------
+
+const DEFAULT_BRANCH: TimeWarpBranch = {
+  id: 'main',
+  name: 'main',
+  color: '#3b82f6',
+  isActive: true,
+};
 
 const INITIAL_STATE: TimeWarpState = {
-  events: DEMO_EVENTS,
-  branches: DEMO_BRANCHES,
-  currentEventId: 'evt-15',
+  events: [],
+  branches: [DEFAULT_BRANCH],
+  currentEventId: null,
   selectedEventId: null,
   activeBranchId: 'main',
   isRecording: true,
@@ -219,6 +83,7 @@ type Action =
   | { type: 'SET_SCROLL_POSITION'; position: number }
   | { type: 'SET_ACTIVE_BRANCH'; branchId: string }
   | { type: 'ADD_EVENT'; event: TimeWarpEvent }
+  | { type: 'SYNC_API_DATA'; events: TimeWarpEvent[]; branches: TimeWarpBranch[] }
   | { type: 'STEP_FORWARD' }
   | { type: 'STEP_BACKWARD' };
 
@@ -264,6 +129,18 @@ function reducer(state: TimeWarpState, action: Action): TimeWarpState {
 
     case 'ADD_EVENT':
       return { ...state, events: [...state.events, action.event], currentEventId: action.event.id };
+
+    case 'SYNC_API_DATA': {
+      const newEvents = action.events;
+      const newBranches = action.branches.length > 0 ? action.branches : state.branches;
+      const lastEvent = newEvents.length > 0 ? newEvents[newEvents.length - 1] : null;
+      return {
+        ...state,
+        events: newEvents,
+        branches: newBranches,
+        currentEventId: lastEvent ? lastEvent.id : state.currentEventId,
+      };
+    }
 
     case 'STEP_FORWARD': {
       const branchEvents = state.events
@@ -312,6 +189,9 @@ interface TimeWarpContextValue {
   stepForward: () => void;
   stepBackward: () => void;
   toggleViewMode: () => void;
+  replayToEvent: (eventId: string) => Promise<boolean>;
+  apiLoading: boolean;
+  apiError: string | null;
 }
 
 const TimeWarpContext = createContext<TimeWarpContextValue | null>(null);
@@ -320,8 +200,35 @@ const TimeWarpContext = createContext<TimeWarpContextValue | null>(null);
 // Provider
 // ---------------------------------------------------------------------------
 
-export const TimeWarpProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+interface TimeWarpProviderProps {
+  children: ReactNode;
+  sessionId?: string | null;
+}
+
+export const TimeWarpProvider: React.FC<TimeWarpProviderProps> = ({
+  children,
+  sessionId = null,
+}) => {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const {
+    events: apiEvents,
+    branches: apiBranches,
+    loading: apiLoading,
+    error: apiError,
+    replayToEvent: apiReplayToEvent,
+    recordEvent: apiRecordEvent,
+  } = useTimeWarpEvents(sessionId);
+
+  // Sync API data into reducer state when it arrives
+  useEffect(() => {
+    if (apiEvents.length > 0 || apiBranches.length > 0) {
+      dispatch({
+        type: 'SYNC_API_DATA',
+        events: apiEvents.map(apiEventToLocal),
+        branches: apiBranches.map(apiBranchToLocal),
+      });
+    }
+  }, [apiEvents, apiBranches]);
 
   const selectEvent = useCallback((eventId: string | null) => {
     dispatch({ type: 'SELECT_EVENT', eventId });
@@ -363,9 +270,24 @@ export const TimeWarpProvider: React.FC<{ children: ReactNode }> = ({ children }
     dispatch({ type: 'SET_ACTIVE_BRANCH', branchId });
   }, []);
 
-  const addEvent = useCallback((event: TimeWarpEvent) => {
-    dispatch({ type: 'ADD_EVENT', event });
-  }, []);
+  const addEvent = useCallback(
+    (event: TimeWarpEvent) => {
+      dispatch({ type: 'ADD_EVENT', event });
+      // Also attempt to persist via API
+      if (sessionId) {
+        apiRecordEvent({
+          session_id: sessionId,
+          branch_id: event.branchId,
+          event_type: event.type,
+          label: event.label,
+          detail: event.detail || '',
+          agent_id: event.agentId || null,
+          metadata: event.metadata || {},
+        });
+      }
+    },
+    [sessionId, apiRecordEvent]
+  );
 
   const stepForward = useCallback(() => {
     dispatch({ type: 'STEP_FORWARD' });
@@ -378,9 +300,25 @@ export const TimeWarpProvider: React.FC<{ children: ReactNode }> = ({ children }
   const toggleViewMode = useCallback(() => {
     dispatch({
       type: 'SET_VIEW_MODE',
-      mode: state.dock.viewMode === 'slim' ? 'expanded' : state.dock.viewMode === 'expanded' ? 'hidden' : 'slim',
+      mode:
+        state.dock.viewMode === 'slim'
+          ? 'expanded'
+          : state.dock.viewMode === 'expanded'
+            ? 'hidden'
+            : 'slim',
     });
   }, [state.dock.viewMode]);
+
+  const replayToEvent = useCallback(
+    async (eventId: string) => {
+      const ok = await apiReplayToEvent(eventId);
+      if (ok) {
+        dispatch({ type: 'SET_CURRENT_EVENT', eventId });
+      }
+      return ok;
+    },
+    [apiReplayToEvent]
+  );
 
   const value: TimeWarpContextValue = {
     state,
@@ -398,6 +336,9 @@ export const TimeWarpProvider: React.FC<{ children: ReactNode }> = ({ children }
     stepForward,
     stepBackward,
     toggleViewMode,
+    replayToEvent,
+    apiLoading,
+    apiError,
   };
 
   return <TimeWarpContext.Provider value={value}>{children}</TimeWarpContext.Provider>;

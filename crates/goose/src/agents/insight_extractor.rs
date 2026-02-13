@@ -62,6 +62,21 @@ impl std::fmt::Display for InsightCategory {
     }
 }
 
+impl Insight {
+    /// Format this insight as a readable string for injection into prompts.
+    pub fn as_prompt_context(&self) -> String {
+        let confidence_label = match (self.confidence * 10.0) as u32 {
+            0..=3 => "low confidence",
+            4..=6 => "moderate confidence",
+            _ => "high confidence",
+        };
+        format!(
+            "- [{}] {} ({}, {} evidence runs)",
+            self.category, self.text, confidence_label, self.evidence_count,
+        )
+    }
+}
+
 /// Extracts actionable insights from accumulated experiences.
 pub struct InsightExtractor;
 
@@ -527,5 +542,221 @@ mod tests {
 
         // Should be deduplicated to 1
         assert_eq!(stored.len(), 1);
+    }
+
+    // ── Edge-case tests ────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_no_core_selection_insight_with_single_core() {
+        // Core selection requires at least 2 cores tried in a category
+        let store = ExperienceStore::in_memory().await.unwrap();
+        for _ in 0..5 {
+            store
+                .store(&make_exp("task", CoreType::Structured, true, 5, 0.02, 1000, "coding"))
+                .await.unwrap();
+        }
+        let insights = InsightExtractor::extract(&store).await.unwrap();
+        let cs: Vec<_> = insights
+            .iter()
+            .filter(|i| i.category == InsightCategory::CoreSelection)
+            .collect();
+        assert!(cs.is_empty(), "No core selection insight with only one core tried");
+    }
+
+    #[tokio::test]
+    async fn test_no_failure_pattern_below_threshold() {
+        // Failure patterns require at least 3 executions per core
+        let store = ExperienceStore::in_memory().await.unwrap();
+        // Only 2 executions — under threshold
+        store.store(&make_exp("task", CoreType::Swarm, false, 8, 0.05, 2000, "x")).await.unwrap();
+        store.store(&make_exp("task", CoreType::Swarm, false, 8, 0.05, 2000, "x")).await.unwrap();
+
+        let insights = InsightExtractor::extract(&store).await.unwrap();
+        let fp: Vec<_> = insights
+            .iter()
+            .filter(|i| i.category == InsightCategory::FailurePattern)
+            .collect();
+        assert!(fp.is_empty(), "No failure pattern with < 3 executions");
+    }
+
+    #[tokio::test]
+    async fn test_no_optimization_with_single_effective_core() {
+        // Optimization insights need >= 2 effective (>=70% success, >=3 runs) cores
+        let store = ExperienceStore::in_memory().await.unwrap();
+        for _ in 0..5 {
+            store
+                .store(&make_exp("task", CoreType::Freeform, true, 4, 0.01, 500, "general"))
+                .await.unwrap();
+        }
+        // A second core that doesn't meet threshold (low success rate)
+        for i in 0..5 {
+            store
+                .store(&make_exp("task", CoreType::Swarm, i < 1, 8, 0.05, 2000, "general"))
+                .await.unwrap();
+        }
+
+        let insights = InsightExtractor::extract(&store).await.unwrap();
+        let opts: Vec<_> = insights
+            .iter()
+            .filter(|i| i.category == InsightCategory::Optimization)
+            .collect();
+        assert!(opts.is_empty(), "No optimization insight with only one effective core");
+    }
+
+    #[tokio::test]
+    async fn test_case_insensitive_dedup_stored_insights() {
+        let store = ExperienceStore::in_memory().await.unwrap();
+        let e1 = Experience::new("task1", CoreType::Freeform, true, 3, 0.01, 500)
+            .with_insights(vec!["Always Run Tests".into()]);
+        let e2 = Experience::new("task2", CoreType::Freeform, true, 3, 0.01, 500)
+            .with_insights(vec!["always run tests".into()]);
+        store.store(&e1).await.unwrap();
+        store.store(&e2).await.unwrap();
+
+        let insights = InsightExtractor::extract(&store).await.unwrap();
+        let stored: Vec<_> = insights
+            .iter()
+            .filter(|i| i.category == InsightCategory::BestPractice)
+            .collect();
+        // Case-insensitive dedup → should be 1
+        assert_eq!(stored.len(), 1);
+    }
+
+    #[test]
+    fn test_format_empty_insights() {
+        let out = InsightExtractor::format_insights(&[]);
+        assert_eq!(out, "No insights extracted yet. Run more tasks to build experience.");
+    }
+
+    #[tokio::test]
+    async fn test_core_selection_not_triggered_with_small_difference() {
+        // Two cores with similar success rates (< 0.2 gap) → no insight
+        let store = ExperienceStore::in_memory().await.unwrap();
+        for _ in 0..5 {
+            store
+                .store(&make_exp("task", CoreType::Structured, true, 5, 0.02, 1000, "coding"))
+                .await.unwrap();
+        }
+        // Freeform: 4/5 = 0.8, Structured: 5/5 = 1.0 → gap = 0.2, need > 0.2
+        for i in 0..5 {
+            store
+                .store(&make_exp("task", CoreType::Freeform, i < 4, 5, 0.02, 1000, "coding"))
+                .await.unwrap();
+        }
+
+        let insights = InsightExtractor::extract(&store).await.unwrap();
+        let cs: Vec<_> = insights
+            .iter()
+            .filter(|i| i.category == InsightCategory::CoreSelection)
+            .collect();
+        // 1.0 vs 0.8 = 0.2 difference, condition is > 0.2 so no insight
+        assert!(cs.is_empty(), "No core selection insight with gap == 0.2");
+    }
+
+    #[test]
+    fn test_insight_category_display() {
+        assert_eq!(InsightCategory::CoreSelection.to_string(), "core-selection");
+        assert_eq!(InsightCategory::FailurePattern.to_string(), "failure-pattern");
+        assert_eq!(InsightCategory::Optimization.to_string(), "optimization");
+        assert_eq!(InsightCategory::TaskDecomposition.to_string(), "task-decomposition");
+        assert_eq!(InsightCategory::BestPractice.to_string(), "best-practice");
+    }
+
+    #[tokio::test]
+    async fn test_high_turn_count_insight() {
+        // High avg turns (>15) with decent success rate triggers a failure pattern
+        let store = ExperienceStore::in_memory().await.unwrap();
+        for _ in 0..5 {
+            store
+                .store(&make_exp("task", CoreType::Orchestrator, true, 25, 0.10, 5000, "complex"))
+                .await.unwrap();
+        }
+
+        let insights = InsightExtractor::extract(&store).await.unwrap();
+        let fp: Vec<_> = insights
+            .iter()
+            .filter(|i| i.category == InsightCategory::FailurePattern && i.text.contains("turns"))
+            .collect();
+        assert!(!fp.is_empty(), "High turn count should generate a failure pattern insight");
+    }
+
+    #[test]
+    fn test_insight_as_prompt_context_confidence_labels() {
+        // Low confidence (0.2)
+        let low = Insight {
+            id: "l".into(), text: "test".into(),
+            category: InsightCategory::BestPractice,
+            confidence: 0.2, evidence_count: 1,
+            applies_to: vec![], related_core: None,
+        };
+        assert!(low.as_prompt_context().contains("low confidence"));
+
+        // Moderate confidence (0.5)
+        let med = Insight {
+            id: "m".into(), text: "test".into(),
+            category: InsightCategory::BestPractice,
+            confidence: 0.5, evidence_count: 5,
+            applies_to: vec![], related_core: None,
+        };
+        assert!(med.as_prompt_context().contains("moderate confidence"));
+
+        // High confidence (0.9)
+        let high = Insight {
+            id: "h".into(), text: "test".into(),
+            category: InsightCategory::BestPractice,
+            confidence: 0.9, evidence_count: 20,
+            applies_to: vec![], related_core: None,
+        };
+        assert!(high.as_prompt_context().contains("high confidence"));
+    }
+
+    #[test]
+    fn test_insight_serialization_roundtrip() {
+        let insight = Insight {
+            id: "test-ser".into(),
+            text: "Serialize me".into(),
+            category: InsightCategory::Optimization,
+            confidence: 0.75,
+            evidence_count: 10,
+            applies_to: vec!["coding".into()],
+            related_core: Some(CoreType::Structured),
+        };
+        let json = serde_json::to_string(&insight).unwrap();
+        let back: Insight = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "test-ser");
+        assert_eq!(back.evidence_count, 10);
+        assert_eq!(back.category, InsightCategory::Optimization);
+    }
+
+    #[test]
+    fn test_format_insights_groups_by_category() {
+        let insights = vec![
+            Insight {
+                id: "a".into(), text: "Core A is best".into(),
+                category: InsightCategory::CoreSelection,
+                confidence: 0.8, evidence_count: 10,
+                applies_to: vec![], related_core: None,
+            },
+            Insight {
+                id: "b".into(), text: "Failure X".into(),
+                category: InsightCategory::FailurePattern,
+                confidence: 0.6, evidence_count: 5,
+                applies_to: vec![], related_core: None,
+            },
+            Insight {
+                id: "c".into(), text: "Best practice Y".into(),
+                category: InsightCategory::BestPractice,
+                confidence: 0.4, evidence_count: 2,
+                applies_to: vec![], related_core: None,
+            },
+        ];
+        let formatted = InsightExtractor::format_insights(&insights);
+        assert!(formatted.contains("3 Insights Extracted"));
+        // Sections appear in order
+        let cs_pos = formatted.find("core-selection").unwrap();
+        let fp_pos = formatted.find("failure-pattern").unwrap();
+        let bp_pos = formatted.find("best-practice").unwrap();
+        assert!(cs_pos < fp_pos);
+        assert!(fp_pos < bp_pos);
     }
 }

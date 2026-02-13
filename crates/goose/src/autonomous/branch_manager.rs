@@ -507,4 +507,166 @@ mod tests {
         let fail = GitOpResult::fail("Failed", "git checkout bad");
         assert!(!fail.success);
     }
+
+    // === Production hardening: invalid git states, exhausted mocks, edge cases ===
+
+    #[test]
+    fn test_exhausted_mock_responses_error() {
+        // Edge case: mock executor runs out of responses
+        let (mut manager, _) = make_mock_manager(vec![]);
+        let result = manager.create_branch("feat/no-responses", None);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("No more mock responses") || err_msg.contains("Failed to create"));
+        // History should record the failure
+        assert_eq!(manager.history().len(), 1);
+        assert!(!manager.history()[0].success);
+    }
+
+    #[test]
+    fn test_switch_branch_failure() {
+        // Edge case: switch to nonexistent branch
+        let (mut manager, _) = make_mock_manager(vec![
+            Err(anyhow::anyhow!("error: pathspec 'nonexistent' did not match any file(s)")),
+        ]);
+
+        let result = manager.switch_branch("nonexistent");
+        assert!(result.is_err());
+        assert_eq!(manager.history().len(), 1);
+        assert!(!manager.history()[0].success);
+        assert!(manager.history()[0].description.contains("Failed to switch"));
+    }
+
+    #[test]
+    fn test_merge_branch_conflict() {
+        // Edge case: merge fails due to conflict
+        let (mut manager, _) = make_mock_manager(vec![
+            Err(anyhow::anyhow!("CONFLICT (content): Merge conflict in src/main.rs\nAutomatic merge failed; fix conflicts and then commit the result.")),
+        ]);
+
+        let result = manager.merge_branch("feat/conflicting", false);
+        assert!(result.is_err());
+        assert_eq!(manager.history().len(), 1);
+        assert!(!manager.history()[0].success);
+        assert!(manager.history()[0].description.contains("Failed to merge"));
+    }
+
+    #[test]
+    fn test_delete_branch_failure_unmerged() {
+        // Edge case: delete unmerged branch without force
+        let (mut manager, calls) = make_mock_manager(vec![
+            Err(anyhow::anyhow!("error: The branch 'feat/unmerged' is not fully merged")),
+        ]);
+
+        let result = manager.delete_branch("feat/unmerged", false);
+        assert!(result.is_err());
+
+        let recorded = calls.lock().unwrap();
+        assert_eq!(recorded[0], "branch -d feat/unmerged");
+    }
+
+    #[test]
+    fn test_force_delete_branch() {
+        // Edge case: force delete uses -D flag
+        let (mut manager, calls) = make_mock_manager(vec![
+            Ok("Deleted branch 'feat/unmerged'".into()),
+        ]);
+
+        manager.delete_branch("feat/unmerged", true).unwrap();
+
+        let recorded = calls.lock().unwrap();
+        assert_eq!(recorded[0], "branch -D feat/unmerged");
+        assert!(manager.history()[0].success);
+    }
+
+    #[test]
+    fn test_multiple_sequential_failures() {
+        // Edge case: all operations fail in sequence
+        let (mut manager, _) = make_mock_manager(vec![
+            Err(anyhow::anyhow!("fail 1")),
+            Err(anyhow::anyhow!("fail 2")),
+            Err(anyhow::anyhow!("fail 3")),
+        ]);
+
+        let _ = manager.create_branch("a", None);
+        let _ = manager.switch_branch("b");
+        let _ = manager.merge_branch("c", false);
+
+        assert_eq!(manager.history().len(), 3);
+        assert!(manager.history().iter().all(|h| !h.success));
+    }
+
+    #[test]
+    fn test_list_branches_empty() {
+        // Edge case: no branches returned (empty string)
+        let (manager, _) = make_mock_manager(vec![
+            Ok("".into()),
+        ]);
+
+        let branches = manager.list_branches().unwrap();
+        assert!(branches.is_empty());
+    }
+
+    #[test]
+    fn test_current_branch_failure() {
+        // Edge case: current_branch fails (not a git repo, etc.)
+        let (manager, _) = make_mock_manager(vec![
+            Err(anyhow::anyhow!("fatal: not a git repository")),
+        ]);
+
+        let result = manager.current_branch();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_branch_with_special_characters() {
+        // Edge case: branch name with slashes and dots
+        let (mut manager, calls) = make_mock_manager(vec![
+            Ok("ok".into()),
+        ]);
+
+        manager.create_branch("user/fix-v1.2.3", Some("release/1.2")).unwrap();
+
+        let recorded = calls.lock().unwrap();
+        assert_eq!(recorded[0], "checkout -b user/fix-v1.2.3 release/1.2");
+    }
+
+    #[test]
+    fn test_git_op_result_serialization() {
+        let op = GitOpResult::ok("Created branch", "git checkout -b test");
+        let json = serde_json::to_string(&op).unwrap();
+        let deserialized: GitOpResult = serde_json::from_str(&json).unwrap();
+        assert!(deserialized.success);
+        assert_eq!(deserialized.description, "Created branch");
+        assert_eq!(deserialized.command, "git checkout -b test");
+    }
+
+    #[test]
+    fn test_pull_request_spec_serialization() {
+        let spec = PullRequestSpec::new("Fix bug", "feat/fix", "main")
+            .with_body("Body text")
+            .with_labels(vec!["bug".into(), "priority".into()])
+            .as_draft();
+
+        let json = serde_json::to_string(&spec).unwrap();
+        let deserialized: PullRequestSpec = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.title, "Fix bug");
+        assert!(deserialized.draft);
+        assert_eq!(deserialized.labels.len(), 2);
+    }
+
+    #[test]
+    fn test_pull_request_spec_defaults() {
+        // Edge case: minimal PR spec has empty body, no labels, not draft
+        let spec = PullRequestSpec::new("Title", "head", "base");
+        assert!(spec.body.is_empty());
+        assert!(spec.labels.is_empty());
+        assert!(!spec.draft);
+    }
+
+    #[test]
+    fn test_history_empty_initially() {
+        let (manager, _) = make_mock_manager(vec![]);
+        assert!(manager.history().is_empty());
+    }
 }

@@ -22,6 +22,7 @@ import { Switch } from '../ui/switch';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { detectPlatform, getInstallPath } from './CLIDownloadService';
+import { useSettingsBridge, SettingsKeys } from '../../utils/settingsBridge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,23 +67,26 @@ const SCROLLBACK_DEFAULT = 5_000;
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Load preferences from localStorage with sensible defaults. */
-function loadPreferences(): CLIPreferences {
+/** UI-only terminal display preferences (kept in localStorage). */
+interface TerminalDisplayPrefs {
+  cliPath: string;
+  fontSize: number;
+  maxScrollback: number;
+  showTimestamps: boolean;
+}
+
+/** Load UI-only terminal display prefs from localStorage. */
+function loadTerminalDisplayPrefs(): TerminalDisplayPrefs {
   const platform = detectPlatform();
   return {
     cliPath: localStorage.getItem('cli_path') || getInstallPath(platform),
-    autoUpdate: localStorage.getItem('cli_auto_update') !== 'false',
-    defaultProvider: localStorage.getItem('cli_default_provider') || 'anthropic',
-    shellIntegration: localStorage.getItem('cli_shell_integration') === 'true',
     fontSize: Number(localStorage.getItem('cli_font_size')) || FONT_SIZE_DEFAULT,
     maxScrollback: Number(localStorage.getItem('cli_max_scrollback')) || SCROLLBACK_DEFAULT,
     showTimestamps: localStorage.getItem('cli_show_timestamps') === 'true',
-    customArgs: localStorage.getItem('cli_custom_args') || '',
-    debugMode: localStorage.getItem('cli_debug_mode') === 'true',
   };
 }
 
-/** Persist a single preference key to localStorage. */
+/** Persist a single UI-only preference key to localStorage. */
 function savePref(key: string, value: string): void {
   localStorage.setItem(key, value);
 }
@@ -92,37 +96,54 @@ function savePref(key: string, value: string): void {
 // ---------------------------------------------------------------------------
 
 export default function CLIPreferencesPanel() {
-  const [prefs, setPrefs] = useState<CLIPreferences>(loadPreferences);
+  // -- Bridged settings (persisted via Electron settings API + backend) ------
+  const { value: autoUpdate, setValue: setAutoUpdate } =
+    useSettingsBridge<boolean>(SettingsKeys.CliAutoUpdate, true);
+  const { value: defaultProvider, setValue: setDefaultProvider } =
+    useSettingsBridge<string>(SettingsKeys.CliDefaultProvider, 'anthropic');
+  const { value: customArgs, setValue: setCustomArgs } =
+    useSettingsBridge<string>(SettingsKeys.CliCustomArgs, '');
+  const { value: debugMode, setValue: setDebugMode } =
+    useSettingsBridge<boolean>(SettingsKeys.CliDebugMode, false);
+  const { value: shellIntegration, setValue: setShellIntegration } =
+    useSettingsBridge<boolean>(SettingsKeys.CliShellIntegration, false);
+
+  // -- UI-only terminal display prefs (localStorage only) --------------------
+  const [displayPrefs, setDisplayPrefs] = useState<TerminalDisplayPrefs>(loadTerminalDisplayPrefs);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // -- Updater helpers --------------------------------------------------------
 
-  /** Generic setter that also persists the value. */
-  const update = useCallback(
-    <K extends keyof CLIPreferences>(key: K, storageKey: string, value: CLIPreferences[K]) => {
-      setPrefs((prev) => ({ ...prev, [key]: value }));
+  /** Generic setter for UI-only display prefs that also persists to localStorage. */
+  const updateDisplay = useCallback(
+    <K extends keyof TerminalDisplayPrefs>(key: K, storageKey: string, value: TerminalDisplayPrefs[K]) => {
+      setDisplayPrefs((prev) => ({ ...prev, [key]: value }));
       savePref(storageKey, String(value));
     },
     [],
   );
 
   /** Reset all CLI preferences to defaults. */
-  const handleReset = useCallback(() => {
-    const keys = [
+  const handleReset = useCallback(async () => {
+    // Reset UI-only localStorage keys
+    const localKeys = [
       'cli_path',
-      'cli_auto_update',
-      'cli_default_provider',
-      'cli_shell_integration',
       'cli_font_size',
       'cli_max_scrollback',
       'cli_show_timestamps',
-      'cli_custom_args',
-      'cli_debug_mode',
     ];
-    keys.forEach((k) => localStorage.removeItem(k));
-    setPrefs(loadPreferences());
+    localKeys.forEach((k) => localStorage.removeItem(k));
+    setDisplayPrefs(loadTerminalDisplayPrefs());
+
+    // Reset bridged settings to defaults
+    await setAutoUpdate(true);
+    await setDefaultProvider('anthropic');
+    await setCustomArgs('');
+    await setDebugMode(false);
+    await setShellIntegration(false);
+
     setShowResetConfirm(false);
-  }, []);
+  }, [setAutoUpdate, setDefaultProvider, setCustomArgs, setDebugMode, setShellIntegration]);
 
   // -- Render -----------------------------------------------------------------
 
@@ -144,7 +165,7 @@ export default function CLIPreferencesPanel() {
             <input
               type="text"
               readOnly
-              value={prefs.cliPath}
+              value={displayPrefs.cliPath}
               className="flex-1 px-3 py-1.5 text-xs font-mono border rounded bg-background-default text-text-default border-border-default"
             />
             <Button variant="secondary" size="sm" disabled title="Browse for CLI binary (not available in mock)">
@@ -176,8 +197,8 @@ export default function CLIPreferencesPanel() {
             </div>
             <div className="flex items-center">
               <Switch
-                checked={prefs.autoUpdate}
-                onCheckedChange={(checked: boolean) => update('autoUpdate', 'cli_auto_update', checked)}
+                checked={autoUpdate}
+                onCheckedChange={(checked: boolean) => setAutoUpdate(checked)}
                 variant="mono"
               />
             </div>
@@ -193,8 +214,8 @@ export default function CLIPreferencesPanel() {
             </div>
             <div className="flex items-center">
               <select
-                value={prefs.defaultProvider}
-                onChange={(e) => update('defaultProvider', 'cli_default_provider', e.target.value)}
+                value={defaultProvider}
+                onChange={(e) => setDefaultProvider(e.target.value)}
                 className="px-2 py-1 text-sm border rounded bg-background-default text-text-default border-border-default"
               >
                 {PROVIDER_OPTIONS.map((opt) => (
@@ -230,10 +251,8 @@ export default function CLIPreferencesPanel() {
             </div>
             <div className="flex items-center">
               <Switch
-                checked={prefs.shellIntegration}
-                onCheckedChange={(checked: boolean) =>
-                  update('shellIntegration', 'cli_shell_integration', checked)
-                }
+                checked={shellIntegration}
+                onCheckedChange={(checked: boolean) => setShellIntegration(checked)}
                 variant="mono"
               />
             </div>
@@ -266,12 +285,12 @@ export default function CLIPreferencesPanel() {
                 type="range"
                 min={FONT_SIZE_MIN}
                 max={FONT_SIZE_MAX}
-                value={prefs.fontSize}
-                onChange={(e) => update('fontSize', 'cli_font_size', Number(e.target.value))}
+                value={displayPrefs.fontSize}
+                onChange={(e) => updateDisplay('fontSize', 'cli_font_size', Number(e.target.value))}
                 className="w-24 accent-zinc-500"
               />
               <span className="text-xs font-mono text-text-muted w-8 text-right">
-                {prefs.fontSize}px
+                {displayPrefs.fontSize}px
               </span>
             </div>
           </div>
@@ -291,10 +310,10 @@ export default function CLIPreferencesPanel() {
                 min={SCROLLBACK_MIN}
                 max={SCROLLBACK_MAX}
                 step={500}
-                value={prefs.maxScrollback}
+                value={displayPrefs.maxScrollback}
                 onChange={(e) => {
                   const val = Math.max(SCROLLBACK_MIN, Math.min(SCROLLBACK_MAX, Number(e.target.value)));
-                  update('maxScrollback', 'cli_max_scrollback', val);
+                  updateDisplay('maxScrollback', 'cli_max_scrollback', val);
                 }}
                 className="w-24 px-2 py-1 text-sm border rounded bg-background-default text-text-default border-border-default text-right"
               />
@@ -311,9 +330,9 @@ export default function CLIPreferencesPanel() {
             </div>
             <div className="flex items-center">
               <Switch
-                checked={prefs.showTimestamps}
+                checked={displayPrefs.showTimestamps}
                 onCheckedChange={(checked: boolean) =>
-                  update('showTimestamps', 'cli_show_timestamps', checked)
+                  updateDisplay('showTimestamps', 'cli_show_timestamps', checked)
                 }
                 variant="mono"
               />
@@ -345,8 +364,8 @@ export default function CLIPreferencesPanel() {
             <div className="flex items-center">
               <input
                 type="text"
-                value={prefs.customArgs}
-                onChange={(e) => update('customArgs', 'cli_custom_args', e.target.value)}
+                value={customArgs}
+                onChange={(e) => setCustomArgs(e.target.value)}
                 placeholder="--verbose --no-color"
                 className="w-48 px-2 py-1 text-xs font-mono border rounded bg-background-default text-text-default border-border-default placeholder:text-text-muted"
               />
@@ -363,8 +382,8 @@ export default function CLIPreferencesPanel() {
             </div>
             <div className="flex items-center">
               <Switch
-                checked={prefs.debugMode}
-                onCheckedChange={(checked: boolean) => update('debugMode', 'cli_debug_mode', checked)}
+                checked={debugMode}
+                onCheckedChange={(checked: boolean) => setDebugMode(checked)}
                 variant="mono"
               />
             </div>

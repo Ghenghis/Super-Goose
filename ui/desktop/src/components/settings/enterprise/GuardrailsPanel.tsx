@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Switch } from '../../ui/switch';
 import { Card, CardContent } from '../../ui/card';
 import CustomRadio from '../../ui/CustomRadio';
+import { backendApi, type EnterpriseGuardrailsConfig } from '../../../utils/backendApi';
 
 interface DetectorConfig {
   id: string;
@@ -9,11 +10,6 @@ interface DetectorConfig {
   description: string;
   enabled: boolean;
   sensitivity: 'low' | 'medium' | 'high';
-}
-
-interface GuardrailsConfig {
-  detectors: DetectorConfig[];
-  failMode: 'open' | 'closed';
 }
 
 const DEFAULT_DETECTORS: DetectorConfig[] = [
@@ -73,14 +69,21 @@ export default function GuardrailsPanel() {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch('/enterprise/guardrails/config');
-      if (response.ok) {
-        const data: GuardrailsConfig = await response.json();
-        if (data.detectors && data.detectors.length > 0) {
-          setDetectors(data.detectors);
+      // Use the enterprise guardrails endpoint
+      const config: EnterpriseGuardrailsConfig | null = await backendApi.getEnterpriseGuardrails();
+      if (config) {
+        // Map backend mode to failMode: 'block' -> 'closed', 'warn' -> 'open'
+        if (config.mode === 'block') {
+          setFailMode('closed');
+        } else if (config.mode === 'warn') {
+          setFailMode('open');
         }
-        if (data.failMode) {
-          setFailMode(data.failMode);
+        // If the API returns rules with detector configs, apply them
+        if (config.rules && Array.isArray(config.rules) && config.rules.length > 0) {
+          const apiDetectors = config.rules as DetectorConfig[];
+          if (apiDetectors[0]?.id) {
+            setDetectors(apiDetectors);
+          }
         }
       }
     } catch (err) {
@@ -97,15 +100,36 @@ export default function GuardrailsPanel() {
   }, [fetchConfig]);
 
   const handleDetectorToggle = (id: string, enabled: boolean) => {
-    setDetectors((prev) => prev.map((d) => (d.id === id ? { ...d, enabled } : d)));
+    setDetectors((prev) => {
+      const updated = prev.map((d) => (d.id === id ? { ...d, enabled } : d));
+      // Persist to enterprise guardrails backend
+      const anyEnabled = updated.some((d) => d.enabled);
+      backendApi.updateEnterpriseGuardrails({
+        enabled: anyEnabled,
+        mode: failMode === 'closed' ? 'block' : 'warn',
+        rules: updated as unknown[],
+      });
+      return updated;
+    });
   };
 
   const handleSensitivityChange = (id: string, sensitivity: 'low' | 'medium' | 'high') => {
-    setDetectors((prev) => prev.map((d) => (d.id === id ? { ...d, sensitivity } : d)));
+    setDetectors((prev) => {
+      const updated = prev.map((d) => (d.id === id ? { ...d, sensitivity } : d));
+      // Persist to enterprise guardrails backend
+      backendApi.updateEnterpriseGuardrails({
+        rules: updated as unknown[],
+      });
+      return updated;
+    });
   };
 
   const handleFailModeChange = (mode: 'open' | 'closed') => {
     setFailMode(mode);
+    // Persist to enterprise guardrails backend: 'closed' -> 'block', 'open' -> 'warn'
+    backendApi.updateEnterpriseGuardrails({
+      mode: mode === 'closed' ? 'block' : 'warn',
+    });
   };
 
   if (isLoading) {

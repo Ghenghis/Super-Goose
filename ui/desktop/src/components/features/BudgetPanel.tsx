@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, TrendingUp, AlertTriangle, Settings2 } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
 import { MainPanelLayout } from '../Layout/MainPanelLayout';
+import { backendApi } from '../../utils/backendApi';
+import { useSettingsBridge } from '../../utils/settingsBridge';
+import type { CostModelBreakdown } from '../../utils/backendApi';
 
 interface CostBreakdown {
   model: string;
@@ -36,24 +39,80 @@ const MOCK_DAILY_USAGE: DailyUsage[] = [
   { date: '02/10', cost: 0.79 },
 ];
 
+/** Map API model breakdown to local CostBreakdown shape. */
+function mapApiBreakdown(items: CostModelBreakdown[]): CostBreakdown[] {
+  return items.map((item) => ({
+    model: item.model,
+    provider: item.provider,
+    inputTokens: item.input_tokens,
+    outputTokens: item.output_tokens,
+    cost: item.cost,
+    calls: item.calls,
+  }));
+}
+
 function formatTokens(count: number): string {
   if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
   if (count >= 1000) return `${(count / 1000).toFixed(0)}K`;
   return count.toString();
 }
 
-const BudgetPanel: React.FC = () => {
+const BudgetPanel = () => {
+  const { value: budgetLimitValue, setValue: setBudgetLimitValue, isLoading: budgetLoading } =
+    useSettingsBridge<number>('super_goose_budget_limit', 10.00);
   const [budgetLimit, setBudgetLimit] = useState('10.00');
   const [isEditing, setIsEditing] = useState(false);
+  const [costBreakdown, setCostBreakdown] = useState<CostBreakdown[]>(MOCK_COST_BREAKDOWN);
+  const [dailyUsage] = useState<DailyUsage[]>(MOCK_DAILY_USAGE);
+  // Daily usage remains mock until a daily usage history endpoint is available
 
-  const totalCost = MOCK_COST_BREAKDOWN.reduce((sum, item) => sum + item.cost, 0);
+  // Sync budgetLimit display value with hook value
+  useEffect(() => {
+    if (!budgetLoading) {
+      setBudgetLimit(budgetLimitValue.toFixed(2));
+    }
+  }, [budgetLimitValue, budgetLoading]);
+
+  const fetchCostData = useCallback(async () => {
+    try {
+      const [summary, budget] = await Promise.all([
+        backendApi.getCostSummary(),
+        backendApi.getCostBudget(),
+      ]);
+
+      if (summary && summary.model_breakdown && summary.model_breakdown.length > 0) {
+        setCostBreakdown(mapApiBreakdown(summary.model_breakdown));
+      }
+      // If the API returns a budget limit, sync it with our settings
+      if (budget && budget.limit !== null && budget.limit !== undefined) {
+        setBudgetLimit(budget.limit.toFixed(2));
+        await setBudgetLimitValue(budget.limit);
+      }
+    } catch {
+      // Fallback to mock data -- already set as defaults
+    }
+  }, [setBudgetLimitValue]);
+
+  useEffect(() => {
+    fetchCostData();
+  }, [fetchCostData]);
+
+  const totalCost = costBreakdown.reduce((sum, item) => sum + item.cost, 0);
   const budgetNum = parseFloat(budgetLimit) || 0;
   const budgetPct = budgetNum > 0 ? Math.min((totalCost / budgetNum) * 100, 100) : 0;
   const isOverBudget = totalCost > budgetNum && budgetNum > 0;
-  const maxDaily = Math.max(...MOCK_DAILY_USAGE.map((d) => d.cost));
+  const maxDaily = Math.max(...dailyUsage.map((d) => d.cost));
 
-  const handleSaveBudget = () => {
+  const handleSaveBudget = async () => {
     setIsEditing(false);
+    const limit = parseFloat(budgetLimit);
+    if (!isNaN(limit)) {
+      // Persist to both backend API and settings bridge
+      await Promise.all([
+        backendApi.setBudgetLimit(limit),
+        setBudgetLimitValue(limit),
+      ]);
+    }
   };
 
   return (
@@ -148,7 +207,7 @@ const BudgetPanel: React.FC = () => {
               </div>
               <div className="border border-border-default rounded-lg bg-background-default p-4">
                 <div className="flex items-end gap-2 h-32">
-                  {MOCK_DAILY_USAGE.map((day) => {
+                  {dailyUsage.map((day) => {
                     const heightPct = maxDaily > 0 ? (day.cost / maxDaily) * 100 : 0;
                     return (
                       <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
@@ -180,11 +239,11 @@ const BudgetPanel: React.FC = () => {
                   <span className="text-right">Cost</span>
                 </div>
                 {/* Table rows */}
-                {MOCK_COST_BREAKDOWN.map((item, idx) => (
+                {costBreakdown.map((item, idx) => (
                   <div
                     key={item.model}
                     className={`grid grid-cols-6 gap-2 px-4 py-2.5 ${
-                      idx < MOCK_COST_BREAKDOWN.length - 1 ? 'border-b border-border-default/50' : ''
+                      idx < costBreakdown.length - 1 ? 'border-b border-border-default/50' : ''
                     } hover:bg-background-muted/30 transition-colors`}
                   >
                     <div className="col-span-2 min-w-0">
@@ -209,13 +268,13 @@ const BudgetPanel: React.FC = () => {
                 <div className="grid grid-cols-6 gap-2 px-4 py-2.5 border-t border-border-default bg-background-muted/30">
                   <span className="col-span-2 text-sm font-medium text-text-default">Total</span>
                   <span className="text-xs text-text-muted text-right self-center">
-                    {formatTokens(MOCK_COST_BREAKDOWN.reduce((s, i) => s + i.inputTokens, 0))}
+                    {formatTokens(costBreakdown.reduce((s, i) => s + i.inputTokens, 0))}
                   </span>
                   <span className="text-xs text-text-muted text-right self-center">
-                    {formatTokens(MOCK_COST_BREAKDOWN.reduce((s, i) => s + i.outputTokens, 0))}
+                    {formatTokens(costBreakdown.reduce((s, i) => s + i.outputTokens, 0))}
                   </span>
                   <span className="text-xs text-text-muted text-right self-center">
-                    {MOCK_COST_BREAKDOWN.reduce((s, i) => s + i.calls, 0)}
+                    {costBreakdown.reduce((s, i) => s + i.calls, 0)}
                   </span>
                   <span className="text-sm font-semibold text-text-default text-right self-center">
                     ${totalCost.toFixed(2)}

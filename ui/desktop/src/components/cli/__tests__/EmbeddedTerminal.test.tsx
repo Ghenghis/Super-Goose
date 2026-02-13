@@ -3,6 +3,28 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import EmbeddedTerminal from '../EmbeddedTerminal';
 
+// Mock TerminalManager
+const mockTerminalManager = {
+  createSession: vi.fn().mockResolvedValue({
+    id: 'test-session',
+    pid: 12345,
+    shell: 'cmd.exe',
+    cwd: 'C:\\Users\\Test',
+    createdAt: new Date().toISOString(),
+  }),
+  sendInput: vi.fn().mockResolvedValue(undefined),
+  onOutput: vi.fn().mockReturnValue(() => {}), // Return unsubscribe function
+  resize: vi.fn().mockResolvedValue(undefined),
+  closeSession: vi.fn().mockResolvedValue(undefined),
+  getActiveSessions: vi.fn().mockReturnValue([]),
+  isUsingElectron: vi.fn().mockReturnValue(false),
+};
+
+vi.mock('../../../utils/terminalManager', () => ({
+  getTerminalManager: () => mockTerminalManager,
+  resetTerminalManager: vi.fn(),
+}));
+
 // Mutable mock state
 const mockState = {
   isInstalled: true,
@@ -58,6 +80,17 @@ describe('EmbeddedTerminal', () => {
       ],
       installedVersion: 'v1.24.05',
     });
+
+    // Reset terminal manager mocks
+    mockTerminalManager.createSession.mockResolvedValue({
+      id: 'test-session',
+      pid: 12345,
+      shell: 'cmd.exe',
+      cwd: 'C:\\Users\\Test',
+      createdAt: new Date().toISOString(),
+    });
+    mockTerminalManager.sendInput.mockResolvedValue(undefined);
+    mockTerminalManager.onOutput.mockReturnValue(() => {});
   });
 
   it('should render terminal when isTerminalOpen is true', () => {
@@ -88,11 +121,17 @@ describe('EmbeddedTerminal', () => {
     const user = userEvent.setup();
     render(<EmbeddedTerminal />);
 
+    // Wait for terminal session to be created
+    await vi.waitFor(() => {
+      expect(mockTerminalManager.createSession).toHaveBeenCalled();
+    });
+
     const input = screen.getByPlaceholderText('Type a command...');
     await user.type(input, 'goose features');
     await user.keyboard('{Enter}');
 
-    expect(mockSendCommand).toHaveBeenCalledWith('goose features');
+    // Should send to terminal manager
+    expect(mockTerminalManager.sendInput).toHaveBeenCalledWith('test-session', 'goose features\n');
   });
 
   it('should clear input after submitting', async () => {
@@ -130,8 +169,15 @@ describe('EmbeddedTerminal', () => {
     const user = userEvent.setup();
     render(<EmbeddedTerminal />);
 
+    // Wait for terminal session to be created
+    await vi.waitFor(() => {
+      expect(mockTerminalManager.createSession).toHaveBeenCalled();
+    });
+
     await user.click(screen.getByText('features'));
-    expect(mockSendCommand).toHaveBeenCalledWith('goose features');
+
+    // Should send to terminal manager
+    expect(mockTerminalManager.sendInput).toHaveBeenCalledWith('test-session', 'goose features\n');
   });
 
   it('should render close button that calls closeTerminal', async () => {
@@ -145,6 +191,6 @@ describe('EmbeddedTerminal', () => {
 
   it('should display version badge when installedVersion is available', () => {
     render(<EmbeddedTerminal />);
-    expect(screen.getByText('vv1.24.05')).toBeInTheDocument();
+    expect(screen.getByText('v1.24.05')).toBeInTheDocument();
   });
 });

@@ -14,12 +14,14 @@ use crate::agents::orchestrator::{AgentRole, TaskResult};
 pub mod code_agent;
 pub mod deploy_agent;
 pub mod docs_agent;
+pub mod roles;
 pub mod security_agent;
 pub mod test_agent;
 
 pub use code_agent::CodeAgent;
 pub use deploy_agent::DeployAgent;
 pub use docs_agent::DocsAgent;
+pub use roles::{best_role_for_task, default_specialists, RoleConfig, SpecialistRole};
 pub use security_agent::SecurityAgent;
 pub use test_agent::TestAgent;
 

@@ -28,6 +28,9 @@ pub mod registry;
 pub mod metrics;
 pub mod selector;
 
+#[cfg(test)]
+mod integration_tests;
+
 pub use context::{AgentContext, TaskHint, TaskCategory};
 pub use freeform::FreeformCore;
 pub use structured::StructuredCore;

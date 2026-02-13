@@ -26,14 +26,34 @@
  *   - #/conscious (ConsciousPanel)
  *   - #/enterprise (EnterpriseRoutePanel)
  *
- * If @axe-core/playwright is not installed, these tests will fail at import
- * time with a clear error. Run: npm install --save-dev @axe-core/playwright
+ * SKIPPED: AxeBuilder uses browserContext.newPage() internally which is NOT
+ * supported in Electron CDP connections. The error is:
+ *   "Protocol error (Target.createTarget): Not supported"
+ * These tests require a full browser context, not Electron via CDP.
+ * Re-enable when running against a web build (e.g., Playwright + localhost server).
  */
 import { test as base, expect } from '../fixtures';
 import { Page } from '@playwright/test';
 import { showTestName, clearTestName } from '../test-overlay';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-import AxeBuilder from '@axe-core/playwright';
+// Conditionally import @axe-core/playwright — it may not be installed.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let AxeBuilder: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const axeModule = require('@axe-core/playwright');
+  AxeBuilder = axeModule.default ?? axeModule;
+} catch {
+  // @axe-core/playwright not installed — tests will be skipped below
+}
+
+/**
+ * Detect whether axe-core can run in the current environment.
+ * Two conditions must both be true:
+ *   1. @axe-core/playwright is installed
+ *   2. The environment variable AXE_ENABLED=1 is set (signalling a web build
+ *      or a non-Electron Playwright target that supports newPage()).
+ */
+const AXE_AVAILABLE = AxeBuilder != null && process.env.AXE_ENABLED === '1';
 
 const test = base;
 
@@ -84,6 +104,9 @@ async function navigateAndWait(route: string) {
  * div injected by the E2E test harness.
  */
 async function runAxeScan() {
+  if (!AxeBuilder) {
+    throw new Error('@axe-core/playwright is not installed. Run: npm install --save-dev @axe-core/playwright');
+  }
   const results = await new AxeBuilder({ page: mainWindow })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .exclude('#test-overlay')   // Exclude E2E test harness overlay
@@ -117,12 +140,17 @@ function logViolations(violations: any[]) {
 // Tests
 // ---------------------------------------------------------------------------
 
-// SKIP ALL: AxeBuilder uses browserContext.newPage() internally which is NOT
-// supported in Electron CDP connections. The error is:
-//   "Protocol error (Target.createTarget): Not supported"
-// These tests require a full browser context, not Electron via CDP.
-// TODO: Re-enable when running against a web build (e.g., Playwright + localhost server).
-test.describe.skip('Accessibility - Panel Routes', () => {
+test.describe('Accessibility - Panel Routes', () => {
+  // Skip all tests in this block when axe-core is unavailable.
+  // Reason: AxeBuilder requires browserContext.newPage() which Electron CDP
+  // does not support ("Protocol error (Target.createTarget): Not supported").
+  // Set AXE_ENABLED=1 when running against a web build (Playwright + localhost).
+  test.beforeEach(() => {
+    test.skip(!AXE_AVAILABLE,
+      'Skipped: @axe-core/playwright requires a full browser context (not Electron CDP). ' +
+      'Set AXE_ENABLED=1 and run against a web build to enable these tests.'
+    );
+  });
   test.describe('Sidebar Panels (chat view)', () => {
     test('chat view with sidebar passes WCAG 2.0 AA', async () => {
       await navigateAndWait('#/chat/new');

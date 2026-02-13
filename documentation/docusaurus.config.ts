@@ -350,7 +350,8 @@ const config: Config = {
     // Replace with your project's social card
     image: "img/home-banner.png",
     colorMode: {
-      respectPrefersColorScheme: true
+      defaultMode: 'dark',
+      respectPrefersColorScheme: true,
     },
     navbar: {
       title: "Super-Goose",

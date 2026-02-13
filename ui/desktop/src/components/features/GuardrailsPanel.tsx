@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Shield,
   ShieldCheck,
@@ -9,25 +9,17 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  Loader2,
 } from 'lucide-react';
 import { Switch } from '../ui/switch';
 import { ScrollArea } from '../ui/scroll-area';
 import { MainPanelLayout } from '../Layout/MainPanelLayout';
+import { backendApi } from '../../utils/backendApi';
+import type { GuardrailsScanEntry, ScanResultType } from '../../utils/backendApi';
+import { useSettingsBridge } from '../../utils/settingsBridge';
 
-type ScanResult = 'pass' | 'warn' | 'block';
-type ScanDirection = 'input' | 'output';
-
-interface ScanEntry {
-  id: string;
-  timestamp: string;
-  direction: ScanDirection;
-  detector: string;
-  result: ScanResult;
-  message: string;
-  sessionName: string;
-}
-
-const MOCK_SCANS: ScanEntry[] = [
+// Fallback data used when the backend API is unreachable.
+const FALLBACK_SCANS: GuardrailsScanEntry[] = [
   {
     id: 'scan-001',
     timestamp: '2026-02-10T14:35:12Z',
@@ -131,7 +123,7 @@ function formatTimestamp(iso: string): string {
   });
 }
 
-const resultConfig: Record<ScanResult, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
+const resultConfig: Record<ScanResultType, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   pass: {
     label: 'Pass',
     color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
@@ -149,14 +141,80 @@ const resultConfig: Record<ScanResult, { label: string; color: string; icon: Rea
   },
 };
 
-const GuardrailsPanel: React.FC = () => {
+const GuardrailsPanel = () => {
+  const { value: guardrailsEnabled, setValue: setGuardrailsEnabled } =
+    useSettingsBridge<boolean>('super_goose_guardrails_enabled', true);
+  const { value: guardrailsMode, setValue: setGuardrailsMode } =
+    useSettingsBridge<'warn' | 'block'>('super_goose_guardrails_mode', 'warn');
   const [enabled, setEnabled] = useState(true);
   const [mode, setMode] = useState<'warn' | 'block'>('warn');
   const [expandedEntries, setExpandedEntries] = useState<Record<string, boolean>>({});
+  const [scans, setScans] = useState<GuardrailsScanEntry[]>(FALLBACK_SCANS);
+  const [scansLoading, setScansLoading] = useState(true);
 
-  const passCount = MOCK_SCANS.filter((s) => s.result === 'pass').length;
-  const warnCount = MOCK_SCANS.filter((s) => s.result === 'warn').length;
-  const blockCount = MOCK_SCANS.filter((s) => s.result === 'block').length;
+  // Sync local state with settings bridge values
+  useEffect(() => {
+    setEnabled(guardrailsEnabled);
+    setMode(guardrailsMode);
+  }, [guardrailsEnabled, guardrailsMode]);
+
+  // Fetch guardrails config from backend on mount
+  const fetchConfig = useCallback(async () => {
+    try {
+      const config = await backendApi.getGuardrails();
+      if (config) {
+        setEnabled(config.enabled);
+        setMode(config.mode);
+        await setGuardrailsEnabled(config.enabled);
+        await setGuardrailsMode(config.mode);
+      }
+    } catch {
+      // Fallback to settings bridge values (already loaded)
+    }
+  }, [setGuardrailsEnabled, setGuardrailsMode]);
+
+  // Fetch scan history from backend, falling back to FALLBACK_SCANS
+  const fetchScans = useCallback(async () => {
+    setScansLoading(true);
+    try {
+      const data = await backendApi.getGuardrailsScans();
+      if (data && data.length > 0) {
+        setScans(data);
+      }
+      // If data is null or empty, keep the fallback scans already in state
+    } catch {
+      // Keep fallback data on error
+    } finally {
+      setScansLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchConfig();
+    fetchScans();
+  }, [fetchConfig, fetchScans]);
+
+  // Persist enabled toggle to both backend and settings bridge
+  const handleEnabledChange = useCallback(async (checked: boolean) => {
+    setEnabled(checked);
+    await Promise.all([
+      backendApi.updateGuardrailsConfig({ enabled: checked, mode }),
+      setGuardrailsEnabled(checked),
+    ]);
+  }, [mode, setGuardrailsEnabled]);
+
+  // Persist mode change to both backend and settings bridge
+  const handleModeChange = useCallback(async (newMode: 'warn' | 'block') => {
+    setMode(newMode);
+    await Promise.all([
+      backendApi.updateGuardrailsConfig({ enabled, mode: newMode }),
+      setGuardrailsMode(newMode),
+    ]);
+  }, [enabled, setGuardrailsMode]);
+
+  const passCount = scans.filter((s) => s.result === 'pass').length;
+  const warnCount = scans.filter((s) => s.result === 'warn').length;
+  const blockCount = scans.filter((s) => s.result === 'block').length;
 
   const toggleEntry = (id: string) => {
     setExpandedEntries((prev) => ({
@@ -191,7 +249,7 @@ const GuardrailsPanel: React.FC = () => {
               </div>
               <Switch
                 checked={enabled}
-                onCheckedChange={setEnabled}
+                onCheckedChange={handleEnabledChange}
                 variant="mono"
               />
             </div>
@@ -200,7 +258,7 @@ const GuardrailsPanel: React.FC = () => {
             <div className="flex items-center gap-2 mt-3">
               <span className="text-xs text-text-muted">Mode:</span>
               <button
-                onClick={() => setMode('warn')}
+                onClick={() => handleModeChange('warn')}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                   mode === 'warn'
                     ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
@@ -210,7 +268,7 @@ const GuardrailsPanel: React.FC = () => {
                 Warn Only
               </button>
               <button
-                onClick={() => setMode('block')}
+                onClick={() => handleModeChange('block')}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                   mode === 'block'
                     ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
@@ -241,8 +299,14 @@ const GuardrailsPanel: React.FC = () => {
 
         {/* Scan history */}
         <ScrollArea className="flex-1 px-6">
+          {scansLoading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-text-muted" />
+              <span className="ml-2 text-xs text-text-muted">Loading scan history...</span>
+            </div>
+          )}
           <div className="space-y-2 pb-8">
-            {MOCK_SCANS.map((scan) => {
+            {scans.map((scan) => {
               const isExpanded = expandedEntries[scan.id];
               const rc = resultConfig[scan.result];
               const ResultIcon = rc.icon;

@@ -112,8 +112,8 @@ pub use reflexion::{
     TaskAttempt,
 };
 pub use specialists::{
-    CodeAgent, DeployAgent, DocsAgent, SecurityAgent, SpecialistAgent, SpecialistConfig,
-    SpecialistContext, SpecialistFactory, TestAgent,
+    CodeAgent, DeployAgent, DocsAgent, RoleConfig, SecurityAgent, SpecialistAgent, SpecialistConfig,
+    SpecialistContext, SpecialistFactory, SpecialistRole, TestAgent,
 };
 pub use subagent_task_config::TaskConfig;
 pub use team::{

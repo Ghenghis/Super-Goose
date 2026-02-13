@@ -7,6 +7,7 @@ const mockStepForward = vi.fn();
 const mockStepBackward = vi.fn();
 const mockSetRecording = vi.fn();
 const mockSetPlaybackSpeed = vi.fn();
+const mockReplayToEvent = vi.fn().mockResolvedValue(true);
 
 let mockState: TimeWarpState = {
   events: [],
@@ -38,6 +39,7 @@ vi.mock('../TimeWarpContext', () => ({
     setActiveBranch: vi.fn(),
     addEvent: vi.fn(),
     toggleViewMode: vi.fn(),
+    replayToEvent: mockReplayToEvent,
   }),
 }));
 

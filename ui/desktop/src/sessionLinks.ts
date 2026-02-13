@@ -1,6 +1,7 @@
 import { fetchSharedSessionDetails, SharedSessionDetails } from './sharedSessions';
 import { View, ViewOptions } from './utils/navigationUtils';
 import { errorMessage } from './utils/conversionUtils';
+import { loadSettingFromBackend, SettingsKeys } from './utils/settingsBridge';
 
 /**
  * Handles opening a shared session from a deep link
@@ -26,27 +27,37 @@ export async function openSharedSessionFromDeepLink(
       throw new Error('Invalid URL: Missing share token');
     }
 
-    // If no baseUrl is provided, check if there's one in localStorage
+    // If no baseUrl is provided, try the settings bridge backend first,
+    // then fall back to localStorage.
     if (!baseUrl) {
-      const savedSessionConfig = localStorage.getItem('session_sharing_config');
-      if (savedSessionConfig) {
-        try {
-          const config = JSON.parse(savedSessionConfig);
-          if (config.enabled && config.baseUrl) {
-            baseUrl = config.baseUrl;
-          } else {
+      // Try settings bridge (backend API)
+      const bridgeEnabled = await loadSettingFromBackend<boolean>(SettingsKeys.SessionSharingEnabled);
+      const bridgeUrl = await loadSettingFromBackend<string>(SettingsKeys.SessionSharingBaseUrl);
+
+      if (bridgeEnabled && bridgeUrl) {
+        baseUrl = bridgeUrl;
+      } else {
+        // Fall back to localStorage (cross-module compat)
+        const savedSessionConfig = localStorage.getItem('session_sharing_config');
+        if (savedSessionConfig) {
+          try {
+            const config = JSON.parse(savedSessionConfig);
+            if (config.enabled && config.baseUrl) {
+              baseUrl = config.baseUrl;
+            } else {
+              throw new Error(
+                'Session sharing is not enabled or base URL is not configured. Check the settings page.'
+              );
+            }
+          } catch (error) {
+            console.error('Error parsing session sharing config:', error);
             throw new Error(
               'Session sharing is not enabled or base URL is not configured. Check the settings page.'
             );
           }
-        } catch (error) {
-          console.error('Error parsing session sharing config:', error);
-          throw new Error(
-            'Session sharing is not enabled or base URL is not configured. Check the settings page.'
-          );
+        } else {
+          throw new Error('Session sharing is not configured');
         }
-      } else {
-        throw new Error('Session sharing is not configured');
       }
     }
 

@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures';
+import { skipWithoutBackend } from './skip-utils';
 import { Page } from '@playwright/test';
 
 /**
@@ -10,13 +11,14 @@ import { Page } from '@playwright/test';
  * - Refactoring functions
  * - Verifying tool usage and code block formatting
  */
-// SKIP: These tests require a running goose-server backend with LLM provider.
+// These tests require a running goose-server backend with LLM provider.
 // They send actual prompts and wait for AI-generated code responses.
 // Run with: GOOSE_BACKEND=1 npx playwright test
-test.describe.skip('Coding Workflow', () => {
+test.describe('Coding Workflow', () => {
   let mainWindow: Page;
 
   test.beforeEach(async ({ goosePage }) => {
+    skipWithoutBackend(test);
     mainWindow = goosePage;
     // Wait for the app to be ready with the chat interface
     console.log('Waiting for chat interface to be ready...');

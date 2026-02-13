@@ -1,14 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Switch } from '../../ui/switch';
 import { Card, CardContent } from '../../ui/card';
+import { backendApi, type HookEvent } from '../../../utils/backendApi';
 
-interface LifecycleEvent {
-  id: string;
-  name: string;
-  category: 'session' | 'tools' | 'flow';
-  enabled: boolean;
-  recentCount: number;
-}
+type LifecycleEvent = HookEvent;
 
 const DEFAULT_EVENTS: LifecycleEvent[] = [
   // Session events
@@ -51,15 +46,16 @@ export default function HooksPanel() {
   const fetchHooks = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/enterprise/hooks/config');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.events && data.events.length > 0) {
-          setEvents(data.events);
-        }
+      const data = await backendApi.fetchHooksConfig();
+      if (data?.events && data.events.length > 0) {
+        setEvents(data.events);
+      } else {
+        // Fallback to defaults if API not available
+        setEvents(DEFAULT_EVENTS);
       }
     } catch {
       console.debug('Enterprise hooks config not available');
+      setEvents(DEFAULT_EVENTS);
     } finally {
       setIsLoading(false);
     }
@@ -69,8 +65,15 @@ export default function HooksPanel() {
     fetchHooks();
   }, [fetchHooks]);
 
-  const handleToggle = (id: string, enabled: boolean) => {
+  const handleToggle = async (id: string, enabled: boolean) => {
+    // Optimistically update UI
     setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, enabled } : e)));
+
+    const success = await backendApi.toggleHook(id, enabled);
+    if (!success) {
+      // Revert on failure
+      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, enabled: !enabled } : e)));
+    }
   };
 
   if (isLoading) {

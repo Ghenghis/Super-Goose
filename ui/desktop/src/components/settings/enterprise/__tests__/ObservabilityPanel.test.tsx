@@ -116,8 +116,16 @@ describe('ObservabilityPanel', () => {
       expect(screen.getByTestId('cost-switch')).toBeInTheDocument();
     });
 
+    // Mock fetch to succeed for the update call (so toggle doesn't revert)
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ costTrackingEnabled: true }),
+    } as Response);
+
     await user.click(screen.getByTestId('cost-switch'));
-    expect(screen.getByTestId('cost-switch')).toHaveAttribute('aria-checked', 'true');
+    await waitFor(() => {
+      expect(screen.getByTestId('cost-switch')).toHaveAttribute('aria-checked', 'true');
+    });
   });
 
   it('displays data from API response', async () => {

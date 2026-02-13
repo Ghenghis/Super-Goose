@@ -131,6 +131,16 @@ describe('GatewayPanel', () => {
   });
 
   it('toggles audit logging when switch is clicked', async () => {
+    // The toggle handler calls backendApi.updateGatewayAuditLogging which uses fetch.
+    // If fetch rejects, the toggle reverts. So we need fetch to succeed for toggles.
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const urlStr = typeof url === 'string' ? url : (url as Request).url;
+      if (urlStr.includes('/audit')) {
+        return Promise.resolve({ ok: true } as Response);
+      }
+      return Promise.reject(new Error('Not available'));
+    });
+
     const user = userEvent.setup();
     render(<GatewayPanel />);
 
@@ -139,7 +149,10 @@ describe('GatewayPanel', () => {
     });
 
     await user.click(screen.getByTestId('audit-switch'));
-    expect(screen.getByTestId('audit-switch')).toHaveAttribute('aria-checked', 'true');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('audit-switch')).toHaveAttribute('aria-checked', 'true');
+    });
   });
 
   it('renders Permissions Summary section', async () => {
@@ -174,6 +187,10 @@ describe('GatewayPanel', () => {
     fetchSpy.mockClear();
     await user.click(screen.getByText('Refresh Status'));
 
-    expect(fetchSpy).toHaveBeenCalledWith('/enterprise/gateway/status');
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalled();
+    });
+    // The component calls backendApi.fetchGatewayStatus() which uses the full URL
+    expect(fetchSpy.mock.calls[0][0]).toContain('/api/enterprise/gateway/status');
   });
 });

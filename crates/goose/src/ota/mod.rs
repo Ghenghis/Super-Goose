@@ -36,6 +36,9 @@ pub mod policy_engine;
 pub mod safety_envelope;
 pub mod sandbox_runner;
 
+#[cfg(test)]
+mod integration_tests;
+
 pub use code_applier::{CodeApplier, CodeChange, ChangeType, ApplyResult};
 pub use state_saver::{StateSaver, StateSnapshot};
 pub use self_builder::{SelfBuilder, BuildConfig, BuildProfile, BuildResult};

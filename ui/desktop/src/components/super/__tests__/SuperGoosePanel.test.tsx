@@ -1,6 +1,23 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import SuperGoosePanel from '../SuperGoosePanel';
+
+// Mock fetch and EventSource for child panels that use hooks
+class MockEventSource {
+  onopen: (() => void) | null = null;
+  onmessage: ((e: { data: string }) => void) | null = null;
+  onerror: (() => void) | null = null;
+  close = vi.fn();
+}
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+  vi.stubGlobal('EventSource', MockEventSource);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('SuperGoosePanel', () => {
   it('renders the sidebar with all 8 navigation items', () => {

@@ -670,4 +670,219 @@ mod tests {
         engine.evaluate_file_change("Cargo.toml", 100);
         assert!(!engine.violations().is_empty());
     }
+
+    // === Production hardening edge-case tests ===
+
+    #[test]
+    fn test_evaluate_file_change_blocked_path_and_oversized_combined() {
+        // Edge case: a change that triggers BOTH blocked path and file size violations
+        let mut engine = PolicyEngine::new();
+        let eval = engine.evaluate_file_change("Cargo.toml", 200_000);
+        assert!(!eval.allowed);
+        // Should have at least 2 violations (blocked path + file size)
+        assert!(eval.violations.len() >= 2);
+        let rule_ids: Vec<&str> = eval.violations.iter().map(|v| v.rule_id.as_str()).collect();
+        assert!(rule_ids.contains(&"blocked-path"));
+        assert!(rule_ids.contains(&"file-size-limit"));
+    }
+
+    #[test]
+    fn test_rate_limit_not_incremented_on_deny() {
+        // Edge case: when a change is denied (e.g., blocked path), it should NOT
+        // count against the rate limit
+        let mut engine = PolicyEngine::new();
+        let initial_count = engine.changes_this_hour();
+
+        // Try a blocked path change
+        engine.evaluate_file_change("Cargo.toml", 100);
+        // Should NOT increment the counter since it was denied
+        assert_eq!(engine.changes_this_hour(), initial_count);
+
+        // An allowed change should increment
+        engine.evaluate_file_change("src/new_file.rs", 100);
+        assert_eq!(engine.changes_this_hour(), initial_count + 1);
+    }
+
+    #[test]
+    fn test_rate_limit_exact_boundary() {
+        // Edge case: the 10th change (at the limit) should be allowed,
+        // the 11th should be denied
+        let mut engine = PolicyEngine::new();
+        for i in 0..10 {
+            let eval = engine.evaluate_file_change(
+                &format!("src/file_{}.rs", i),
+                100,
+            );
+            assert!(eval.allowed, "Change {} should be allowed", i);
+        }
+        assert_eq!(engine.changes_this_hour(), 10);
+
+        // 11th should be denied by rate limit
+        let eval = engine.evaluate_file_change("src/one_more.rs", 100);
+        assert!(!eval.allowed);
+
+        // Counter should not have incremented past 10
+        assert_eq!(engine.changes_this_hour(), 10);
+    }
+
+    #[test]
+    fn test_evaluate_risk_level_unknown_defaults_to_allow() {
+        // Edge case: unknown risk level string should default to allow
+        let engine = PolicyEngine::new();
+        let eval = engine.evaluate_risk_level("banana");
+        assert!(eval.allowed);
+        assert!(eval.violations.is_empty());
+    }
+
+    #[test]
+    fn test_evaluate_risk_level_case_insensitive() {
+        let engine = PolicyEngine::new();
+
+        let eval_upper = engine.evaluate_risk_level("HIGH");
+        assert!(eval_upper.allowed); // RequireApproval, not Deny
+        assert_eq!(eval_upper.violations[0].action, PolicyAction::RequireApproval);
+
+        let eval_mixed = engine.evaluate_risk_level("Critical");
+        assert!(!eval_mixed.allowed);
+
+        let eval_low = engine.evaluate_risk_level("LOW");
+        assert!(eval_low.allowed);
+        assert!(eval_low.violations.is_empty());
+    }
+
+    #[test]
+    fn test_evaluate_risk_level_none_is_allowed() {
+        let engine = PolicyEngine::new();
+        let eval = engine.evaluate_risk_level("none");
+        assert!(eval.allowed);
+        assert!(eval.violations.is_empty());
+    }
+
+    #[test]
+    fn test_path_blocked_windows_backslash_normalization() {
+        // Edge case: Windows-style backslash paths should be normalized
+        let engine = PolicyEngine::new();
+        assert!(engine.is_path_blocked("crates\\goose\\Cargo.toml"));
+        assert!(engine.is_path_blocked("src\\lib.rs"));
+        assert!(engine.is_path_blocked(".git\\config"));
+    }
+
+    #[test]
+    fn test_path_not_blocked_partial_name_match() {
+        // Edge case: "Cargo.toml.bak" should NOT be blocked (partial name match)
+        // The current implementation blocks on filename component match
+        let engine = PolicyEngine::new();
+        // "my_lib.rs" should not be blocked (not exactly "lib.rs")
+        assert!(!engine.is_path_blocked("src/my_lib.rs"));
+        assert!(!engine.is_path_blocked("src/core/utils.rs"));
+    }
+
+    #[test]
+    fn test_file_size_exactly_at_limit() {
+        // Edge case: content size exactly at the limit should be allowed
+        let mut engine = PolicyEngine::new();
+        let eval = engine.evaluate_file_change("src/file.rs", 100_000);
+        assert!(eval.allowed); // 100_000 == limit, not exceeded
+    }
+
+    #[test]
+    fn test_file_size_one_over_limit() {
+        // Edge case: content size one byte over the limit should be denied
+        let mut engine = PolicyEngine::new();
+        let eval = engine.evaluate_file_change("src/file.rs", 100_001);
+        assert!(!eval.allowed);
+    }
+
+    #[test]
+    fn test_file_size_zero_bytes() {
+        // Edge case: empty file change should be allowed
+        let mut engine = PolicyEngine::new();
+        let eval = engine.evaluate_file_change("src/file.rs", 0);
+        assert!(eval.allowed);
+    }
+
+    #[test]
+    fn test_evaluation_with_multiple_deny_and_warn() {
+        // Edge case: mix of Deny, Warn, and RequireApproval violations
+        let violations = vec![
+            PolicyViolation {
+                rule_id: "a".into(),
+                rule_name: "Rule A".into(),
+                action: PolicyAction::Warn,
+                severity: Severity::Info,
+                message: "warn".into(),
+                timestamp: Utc::now(),
+            },
+            PolicyViolation {
+                rule_id: "b".into(),
+                rule_name: "Rule B".into(),
+                action: PolicyAction::Deny,
+                severity: Severity::Critical,
+                message: "deny".into(),
+                timestamp: Utc::now(),
+            },
+            PolicyViolation {
+                rule_id: "c".into(),
+                rule_name: "Rule C".into(),
+                action: PolicyAction::RequireApproval,
+                severity: Severity::Warning,
+                message: "approve".into(),
+                timestamp: Utc::now(),
+            },
+        ];
+        let eval = PolicyEvaluation::from_violations(violations);
+        assert!(!eval.allowed); // Deny takes precedence
+        assert!(eval.summary.contains("BLOCKED"));
+        assert!(eval.summary.contains("Rule B"));
+    }
+
+    #[test]
+    fn test_evaluation_require_approval_only() {
+        let violations = vec![PolicyViolation {
+            rule_id: "gate".into(),
+            rule_name: "Gate".into(),
+            action: PolicyAction::RequireApproval,
+            severity: Severity::Warning,
+            message: "needs approval".into(),
+            timestamp: Utc::now(),
+        }];
+        let eval = PolicyEvaluation::from_violations(violations);
+        assert!(eval.allowed); // RequireApproval does not deny
+        assert!(eval.summary.contains("approval required"));
+    }
+
+    #[test]
+    fn test_reset_hourly_counter_and_changes_resume() {
+        let mut engine = PolicyEngine::new();
+        // Exhaust rate limit
+        for i in 0..10 {
+            engine.evaluate_file_change(&format!("src/f{}.rs", i), 100);
+        }
+        assert_eq!(engine.changes_this_hour(), 10);
+
+        // Denied
+        let eval = engine.evaluate_file_change("src/extra.rs", 100);
+        assert!(!eval.allowed);
+
+        // Reset
+        engine.reset_hourly_counter();
+        assert_eq!(engine.changes_this_hour(), 0);
+
+        // Should work again
+        let eval = engine.evaluate_file_change("src/after_reset.rs", 100);
+        assert!(eval.allowed);
+        assert_eq!(engine.changes_this_hour(), 1);
+    }
+
+    #[test]
+    fn test_violations_accumulate_across_evaluations() {
+        let mut engine = PolicyEngine::new();
+        assert_eq!(engine.violations().len(), 0);
+
+        engine.evaluate_file_change("Cargo.toml", 100); // 1 violation (blocked path)
+        engine.evaluate_file_change("src/big.rs", 200_000); // 1 violation (file size)
+
+        // Should accumulate all violations
+        assert!(engine.violations().len() >= 2);
+    }
 }

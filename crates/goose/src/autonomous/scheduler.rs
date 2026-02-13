@@ -543,4 +543,202 @@ mod tests {
         );
         assert_eq!(task.priority, 1);
     }
+
+    // === Production hardening edge-case tests ===
+
+    #[test]
+    fn test_schedule_task_future_not_due() {
+        // Edge case: task scheduled far in the future should never be due
+        let mut scheduler = TaskScheduler::with_defaults();
+        scheduler.schedule_once(
+            "Future task",
+            5,
+            Utc::now() + chrono::Duration::days(365),
+            make_action(),
+        );
+
+        assert!(scheduler.next_due().is_none());
+        let due = scheduler.all_due();
+        assert!(due.is_empty());
+        assert_eq!(scheduler.pending_count(), 1);
+    }
+
+    #[test]
+    fn test_all_due_returns_in_priority_order() {
+        // Edge case: multiple due tasks should come out in priority order
+        let mut scheduler = TaskScheduler::with_defaults();
+        let past = Utc::now() - chrono::Duration::seconds(10);
+
+        scheduler.schedule_once("P1", 1, past, make_action());
+        scheduler.schedule_once("P5", 5, past, make_action());
+        scheduler.schedule_once("P10", 10, past, make_action());
+        scheduler.schedule_once("P3", 3, past, make_action());
+
+        let due = scheduler.all_due();
+        assert_eq!(due.len(), 4);
+        assert_eq!(due[0].priority, 10);
+        assert_eq!(due[1].priority, 5);
+        assert_eq!(due[2].priority, 3);
+        assert_eq!(due[3].priority, 1);
+    }
+
+    #[test]
+    fn test_complete_one_shot_moves_to_history() {
+        let mut scheduler = TaskScheduler::with_defaults();
+        let past = Utc::now() - chrono::Duration::seconds(10);
+        scheduler.schedule_once("One shot", 5, past, make_action());
+
+        let task = scheduler.next_due().unwrap();
+        assert_eq!(task.execution_count, 0);
+
+        scheduler.complete_task(task);
+        assert_eq!(scheduler.pending_count(), 0);
+        assert_eq!(scheduler.completed_count(), 1);
+        assert_eq!(scheduler.completed_tasks()[0].execution_count, 1);
+    }
+
+    #[test]
+    fn test_fail_task_increments_execution_count() {
+        let mut scheduler = TaskScheduler::with_defaults();
+        let past = Utc::now() - chrono::Duration::seconds(10);
+        scheduler.schedule_once("Failing", 5, past, make_action());
+
+        let task = scheduler.next_due().unwrap();
+        scheduler.fail_task(task, "timeout".into());
+
+        assert_eq!(scheduler.completed_count(), 1);
+        let failed = &scheduler.completed_tasks()[0];
+        assert_eq!(failed.execution_count, 1);
+        assert!(matches!(&failed.status, TaskStatus::Failed { error } if error == "timeout"));
+    }
+
+    #[test]
+    fn test_cancel_nonexistent_task_is_error() {
+        let mut scheduler = TaskScheduler::with_defaults();
+        let result = scheduler.cancel_task("does-not-exist");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_cancel_preserves_other_tasks() {
+        let mut scheduler = TaskScheduler::with_defaults();
+        let future = Utc::now() + chrono::Duration::hours(1);
+
+        let id1 = scheduler.schedule_once("Task A", 5, future, make_action());
+        let _id2 = scheduler.schedule_once("Task B", 3, future, make_action());
+        let _id3 = scheduler.schedule_once("Task C", 7, future, make_action());
+
+        assert_eq!(scheduler.pending_count(), 3);
+        scheduler.cancel_task(&id1).unwrap();
+        assert_eq!(scheduler.pending_count(), 2);
+        assert_eq!(scheduler.completed_count(), 1);
+
+        // Remaining tasks should still be there
+        let pending: Vec<String> = scheduler.pending_tasks().iter().map(|t| t.description.clone()).collect();
+        assert!(pending.contains(&"Task B".to_string()));
+        assert!(pending.contains(&"Task C".to_string()));
+    }
+
+    #[test]
+    fn test_max_history_eviction() {
+        // Edge case: completed tasks should be evicted when max_history is exceeded
+        let mut scheduler = TaskScheduler::new(3);
+        let past = Utc::now() - chrono::Duration::seconds(10);
+
+        for i in 0..5 {
+            scheduler.schedule_once(
+                format!("Task {}", i),
+                5,
+                past,
+                make_action(),
+            );
+        }
+
+        // Complete all tasks
+        while let Some(task) = scheduler.next_due() {
+            scheduler.complete_task(task);
+        }
+
+        // History should be capped at 3
+        assert_eq!(scheduler.completed_count(), 3);
+    }
+
+    #[test]
+    fn test_task_status_display() {
+        assert_eq!(TaskStatus::Pending.to_string(), "pending");
+        assert_eq!(TaskStatus::Running.to_string(), "running");
+        assert_eq!(TaskStatus::Completed.to_string(), "completed");
+        assert_eq!(TaskStatus::Cancelled.to_string(), "cancelled");
+        assert_eq!(
+            TaskStatus::Failed { error: "oops".into() }.to_string(),
+            "failed: oops"
+        );
+    }
+
+    #[test]
+    fn test_scheduled_task_is_due_only_when_pending() {
+        // Edge case: a completed task should not be due even if time has passed
+        let mut task = ScheduledTask::new(
+            "Test",
+            5,
+            Schedule::Once {
+                at: Utc::now() - chrono::Duration::seconds(10),
+            },
+            make_action(),
+        );
+        assert!(task.is_due()); // Pending + past time
+
+        task.status = TaskStatus::Completed;
+        assert!(!task.is_due()); // Not pending
+
+        task.status = TaskStatus::Running;
+        assert!(!task.is_due()); // Not pending
+
+        task.status = TaskStatus::Cancelled;
+        assert!(!task.is_due()); // Not pending
+    }
+
+    #[test]
+    fn test_cron_schedule_sets_next_run_to_now() {
+        // Cron schedule should use Utc::now() as initial next_run
+        let before = Utc::now();
+        let task = ScheduledTask::new(
+            "Cron task",
+            5,
+            Schedule::Cron {
+                expression: "0 * * * *".into(),
+            },
+            make_action(),
+        );
+        let after = Utc::now();
+
+        assert!(task.next_run >= before);
+        assert!(task.next_run <= after);
+    }
+
+    #[test]
+    fn test_action_type_serialization_roundtrip() {
+        let actions = vec![
+            ActionType::CreateBranch { name: "feat/x".into() },
+            ActionType::CreatePR { title: "PR".into(), branch: "feat/x".into() },
+            ActionType::RunCiCheck { repo: "goose".into() },
+            ActionType::GenerateDocs { target: "api".into() },
+            ActionType::CreateRelease { version: "1.0.0".into() },
+            ActionType::RunCommand { command: "cargo test".into() },
+            ActionType::Custom { action: "custom".into(), payload: "data".into() },
+        ];
+
+        for action in actions {
+            let json = serde_json::to_string(&action).unwrap();
+            let deserialized: ActionType = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, action);
+        }
+    }
+
+    #[test]
+    fn test_empty_scheduler_next_due_returns_none() {
+        let mut scheduler = TaskScheduler::with_defaults();
+        assert!(scheduler.next_due().is_none());
+        assert!(scheduler.all_due().is_empty());
+    }
 }

@@ -836,4 +836,191 @@ mod tests {
             assert!(stored_types.contains(ct));
         }
     }
+
+    // === Production hardening edge-case tests ===
+
+    #[tokio::test]
+    async fn test_duplicate_experience_id_overwrites() {
+        // Edge case: storing an experience with the same ID should use INSERT OR REPLACE
+        let store = ExperienceStore::in_memory().await.unwrap();
+
+        let mut exp1 = make_experience("Task A", CoreType::Freeform, true, 5, 0.01);
+        exp1.experience_id = "dup-id".to_string();
+        store.store(&exp1).await.unwrap();
+        assert_eq!(store.count().await.unwrap(), 1);
+
+        // Store again with same ID but different data
+        let mut exp2 = make_experience("Task B", CoreType::Structured, false, 10, 0.05);
+        exp2.experience_id = "dup-id".to_string();
+        store.store(&exp2).await.unwrap();
+
+        // Should still be 1 (replaced, not duplicated)
+        assert_eq!(store.count().await.unwrap(), 1);
+
+        let recent = store.recent(1).await.unwrap();
+        assert_eq!(recent[0].task, "Task B"); // Updated value
+        assert_eq!(recent[0].core_type, CoreType::Structured);
+    }
+
+    #[tokio::test]
+    async fn test_find_relevant_with_short_words() {
+        // Edge case: words with 3 or fewer characters are filtered out
+        let store = ExperienceStore::in_memory().await.unwrap();
+
+        let exp = make_experience("Fix the bug in auth", CoreType::Freeform, true, 3, 0.01);
+        store.store(&exp).await.unwrap();
+
+        // "Fix" (3 chars), "the" (3 chars), "bug" (3 chars), "in" (2 chars) are all <= 3 chars
+        // Only "auth" (4 chars) should be used as keyword
+        let results = store.find_relevant("Fix the bug", 5).await.unwrap();
+        // No keywords > 3 chars, should return empty
+        assert!(results.is_empty());
+
+        // This should find it because "auth" is 4 chars
+        let results = store.find_relevant("auth issue", 5).await.unwrap();
+        assert!(!results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_find_relevant_empty_query() {
+        let store = ExperienceStore::in_memory().await.unwrap();
+        let exp = make_experience("Some task", CoreType::Freeform, true, 3, 0.01);
+        store.store(&exp).await.unwrap();
+
+        let results = store.find_relevant("", 5).await.unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_find_relevant_whitespace_only() {
+        let store = ExperienceStore::in_memory().await.unwrap();
+        let exp = make_experience("Some task", CoreType::Freeform, true, 3, 0.01);
+        store.store(&exp).await.unwrap();
+
+        let results = store.find_relevant("   ", 5).await.unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_best_core_for_category_below_threshold() {
+        // Edge case: category with fewer than 3 experiences should return None
+        let store = ExperienceStore::in_memory().await.unwrap();
+
+        for _ in 0..2 {
+            let exp = make_experience("task", CoreType::Freeform, true, 3, 0.01)
+                .with_category("rare-category");
+            store.store(&exp).await.unwrap();
+        }
+
+        let best = store.best_core_for_category("rare-category").await.unwrap();
+        assert!(best.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_best_core_for_nonexistent_category() {
+        let store = ExperienceStore::in_memory().await.unwrap();
+        let best = store.best_core_for_category("nonexistent").await.unwrap();
+        assert!(best.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_insights_empty_store() {
+        let store = ExperienceStore::in_memory().await.unwrap();
+        let insights = store.get_insights(None).await.unwrap();
+        assert!(insights.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_insights_experiences_with_no_insights() {
+        // Edge case: experiences exist but have empty insights
+        let store = ExperienceStore::in_memory().await.unwrap();
+
+        for i in 0..5 {
+            let exp = make_experience(&format!("task {}", i), CoreType::Freeform, true, 3, 0.01);
+            // No .with_insights() — insights is empty
+            store.store(&exp).await.unwrap();
+        }
+
+        let insights = store.get_insights(None).await.unwrap();
+        assert!(insights.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_core_stats_empty_store() {
+        let store = ExperienceStore::in_memory().await.unwrap();
+        let stats = store.get_core_stats().await.unwrap();
+        assert!(stats.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_category_core_stats_empty_category_excluded() {
+        // Edge case: experiences with empty category should be excluded from category stats
+        let store = ExperienceStore::in_memory().await.unwrap();
+
+        // Store experiences without category (empty string)
+        for _ in 0..5 {
+            let exp = make_experience("task", CoreType::Freeform, true, 3, 0.01);
+            // Default category is ""
+            store.store(&exp).await.unwrap();
+        }
+
+        let stats = store.get_category_core_stats().await.unwrap();
+        // Empty category should be excluded (WHERE task_category != '')
+        assert!(stats.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_experience_with_special_characters() {
+        // Edge case: task with special/unicode characters
+        let store = ExperienceStore::in_memory().await.unwrap();
+
+        let exp = make_experience(
+            "Fix bug with 'quotes' and \"double quotes\" and emoji and <html>&entities;",
+            CoreType::Freeform,
+            true,
+            3,
+            0.01,
+        )
+        .with_category("special-chars")
+        .with_tags(vec!["tag'with'quotes".into(), "normal".into()])
+        .with_insights(vec!["Insight with 'special' chars".into()]);
+
+        store.store(&exp).await.unwrap();
+
+        let recent = store.recent(1).await.unwrap();
+        assert_eq!(recent.len(), 1);
+        assert!(recent[0].task.contains("quotes"));
+        assert!(recent[0].tags.contains(&"tag'with'quotes".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_zero_cost_and_zero_time() {
+        // Edge case: experience with zero cost and time
+        let store = ExperienceStore::in_memory().await.unwrap();
+
+        let exp = Experience::new("zero task", CoreType::Freeform, true, 0, 0.0, 0);
+        store.store(&exp).await.unwrap();
+
+        let recent = store.recent(1).await.unwrap();
+        assert_eq!(recent[0].cost_dollars, 0.0);
+        assert_eq!(recent[0].time_ms, 0);
+        assert_eq!(recent[0].turns_used, 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_stats_for_core_none_when_no_data() {
+        let store = ExperienceStore::in_memory().await.unwrap();
+        let stats = store.get_stats_for_core(CoreType::Freeform).await.unwrap();
+        assert!(stats.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_recent_limit_larger_than_data() {
+        let store = ExperienceStore::in_memory().await.unwrap();
+        let exp = make_experience("only one", CoreType::Freeform, true, 3, 0.01);
+        store.store(&exp).await.unwrap();
+
+        let recent = store.recent(100).await.unwrap();
+        assert_eq!(recent.len(), 1);
+    }
 }

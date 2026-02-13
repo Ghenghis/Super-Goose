@@ -2,14 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
-
-interface MemorySubsystem {
-  id: string;
-  name: string;
-  status: 'active' | 'inactive' | 'degraded';
-  itemCount: number;
-  decayRate: string;
-}
+import { backendApi, type MemorySubsystem } from '../../../utils/backendApi';
 
 const DEFAULT_SUBSYSTEMS: MemorySubsystem[] = [
   { id: 'working', name: 'Working', status: 'inactive', itemCount: 0, decayRate: 'N/A' },
@@ -40,15 +33,16 @@ export default function MemoryPanel() {
   const fetchMemoryStatus = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/enterprise/memory/status');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.subsystems) {
-          setSubsystems(data.subsystems);
-        }
+      const data = await backendApi.fetchMemorySummary();
+      if (data?.subsystems) {
+        setSubsystems(data.subsystems);
+      } else {
+        // Fallback to defaults if API not available
+        setSubsystems(DEFAULT_SUBSYSTEMS);
       }
     } catch {
       console.debug('Enterprise memory status not available');
+      setSubsystems(DEFAULT_SUBSYSTEMS);
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +62,10 @@ export default function MemoryPanel() {
   const handleConsolidate = async () => {
     setIsConsolidating(true);
     try {
-      await fetch('/enterprise/memory/consolidate', { method: 'POST' });
+      const result = await backendApi.consolidateMemory();
+      if (result) {
+        console.debug('Memory consolidation:', result.message);
+      }
     } catch {
       console.debug('Memory consolidation not available');
     } finally {

@@ -1,0 +1,346 @@
+/* ═══════════════════════════════════════════════════════════════════
+   PIPELINE DARK THEME
+   Scoped to .pipeline-dark or [data-theme="dark"] within pipeline.
+   Uses sg-* design tokens from main.css.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Pipeline-specific custom properties ────────────────────────── */
+
+.pipeline-dark,
+[data-theme="dark"] .pipeline-container,
+[data-theme="dark"] .studio-pipeline {
+  /* Background gradients */
+  --pipeline-bg: linear-gradient(135deg, #060612 0%, #0a0e17 40%, #0d1220 70%, #060612 100%);
+  --pipeline-surface: #0a0a1f;
+  --pipeline-card: #0f0f23;
+  --pipeline-input: #1a1a2e;
+
+  /* Stage glow colors — mapped from PipelineContext STAGE_COLORS */
+  --pipeline-glow-plan: #00BFFF;
+  --pipeline-glow-team: #4488CC;
+  --pipeline-glow-execute: #FF9900;
+  --pipeline-glow-evolve: #9966FF;
+  --pipeline-glow-review: #FF3366;
+  --pipeline-glow-observe: #00CC66;
+
+  /* Particle system colors */
+  --pipeline-particle-core: #ffffff;
+  --pipeline-particle-glow: rgba(255, 255, 255, 0.3);
+  --pipeline-particle-trail: rgba(255, 255, 255, 0.08);
+
+  /* Conduit / connection line colors */
+  --pipeline-conduit-idle: #1e293b;
+  --pipeline-conduit-active: currentColor;
+  --pipeline-conduit-glow: rgba(255, 255, 255, 0.05);
+
+  /* Activity log */
+  --pipeline-log-bg: #080818;
+  --pipeline-log-border: #1e293b;
+  --pipeline-log-text: #cbd5e1;
+
+  /* Status indicator colors */
+  --pipeline-status-active: var(--sg-emerald, #10b981);
+  --pipeline-status-waiting: var(--sg-text-4, #64748b);
+  --pipeline-status-error: var(--sg-red, #ef4444);
+
+  /* Header bar */
+  --pipeline-header-bg: rgba(10, 14, 23, 0.5);
+  --pipeline-header-border: #1e293b;
+  --pipeline-header-text: #cbd5e1;
+  --pipeline-header-meta: #475569;
+}
+
+/* ── Pipeline container dark styling ────────────────────────────── */
+
+.pipeline-dark .pipeline-container,
+[data-theme="dark"] .pipeline-container {
+  background: var(--pipeline-bg);
+  border-color: var(--pipeline-conduit-idle);
+}
+
+/* ── Header bar ─────────────────────────────────────────────────── */
+
+.pipeline-dark .pipeline-container > div:first-child,
+[data-theme="dark"] .pipeline-container > div:first-child {
+  background: var(--pipeline-header-bg);
+  border-bottom-color: var(--pipeline-header-border);
+}
+
+/* ── Stage card backgrounds ─────────────────────────────────────── */
+
+.pipeline-dark .pipeline-stage-group rect[fill="#0d1220"],
+[data-theme="dark"] .pipeline-stage-group rect[fill="#0d1220"] {
+  fill: var(--pipeline-card);
+}
+
+/* ── Activity log dark styling ──────────────────────────────────── */
+
+.pipeline-dark .pipeline-container > div:last-of-type,
+[data-theme="dark"] .pipeline-container > div:last-of-type {
+  background: var(--pipeline-log-bg);
+  border-top-color: var(--pipeline-log-border);
+}
+
+/* ── Glow animations — enhanced for dark theme ──────────────────── */
+
+.pipeline-dark .pipeline-glow,
+[data-theme="dark"] .pipeline-glow {
+  animation: pipeline-dark-glow-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pipeline-dark-glow-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    stroke-width: 2;
+    filter: drop-shadow(0 0 3px currentColor);
+  }
+  50% {
+    opacity: 0.9;
+    stroke-width: 3;
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+}
+
+.pipeline-dark .pipeline-glow-mid,
+[data-theme="dark"] .pipeline-glow-mid {
+  animation: pipeline-dark-glow-mid 2s ease-in-out infinite;
+}
+
+@keyframes pipeline-dark-glow-mid {
+  0%, 100% {
+    opacity: 0.2;
+    filter: drop-shadow(0 0 2px currentColor);
+  }
+  50% {
+    opacity: 0.5;
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+}
+
+.pipeline-dark .pipeline-glow-outer,
+[data-theme="dark"] .pipeline-glow-outer {
+  animation: pipeline-dark-glow-outer 3s ease-in-out infinite;
+}
+
+@keyframes pipeline-dark-glow-outer {
+  0%, 100% {
+    opacity: 0.1;
+    filter: drop-shadow(0 0 1px currentColor);
+  }
+  50% {
+    opacity: 0.25;
+    filter: drop-shadow(0 0 4px currentColor);
+  }
+}
+
+/* ── Corner spark enhancements ──────────────────────────────────── */
+
+.pipeline-dark .pipeline-spark-tl,
+.pipeline-dark .pipeline-spark-tr,
+.pipeline-dark .pipeline-spark-bl,
+.pipeline-dark .pipeline-spark-br,
+[data-theme="dark"] .pipeline-spark-tl,
+[data-theme="dark"] .pipeline-spark-tr,
+[data-theme="dark"] .pipeline-spark-bl,
+[data-theme="dark"] .pipeline-spark-br {
+  animation: pipeline-dark-spark 0.8s ease-in-out infinite;
+}
+
+.pipeline-dark .pipeline-spark-tr,
+[data-theme="dark"] .pipeline-spark-tr { animation-delay: 0.2s; }
+.pipeline-dark .pipeline-spark-bl,
+[data-theme="dark"] .pipeline-spark-bl { animation-delay: 0.4s; }
+.pipeline-dark .pipeline-spark-br,
+[data-theme="dark"] .pipeline-spark-br { animation-delay: 0.6s; }
+
+@keyframes pipeline-dark-spark {
+  0%, 100% {
+    opacity: 0.3;
+    r: 1.5;
+    filter: drop-shadow(0 0 1px currentColor);
+  }
+  50% {
+    opacity: 0.8;
+    r: 3.5;
+    filter: drop-shadow(0 0 4px currentColor);
+  }
+}
+
+/* ── Energy flow line enhancement ───────────────────────────────── */
+
+.pipeline-dark .pipeline-energy-flow,
+[data-theme="dark"] .pipeline-energy-flow {
+  animation: pipeline-dark-energy-flow 0.8s linear infinite;
+  filter: drop-shadow(0 0 2px currentColor);
+}
+
+@keyframes pipeline-dark-energy-flow {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -8; }
+}
+
+/* ── Status dots with glow ──────────────────────────────────────── */
+
+.pipeline-dark .pipeline-status-dot.active,
+[data-theme="dark"] .pipeline-status-dot.active {
+  background: var(--pipeline-status-active);
+  box-shadow:
+    0 0 4px var(--pipeline-status-active),
+    0 0 12px rgba(16, 185, 129, 0.3);
+  animation: pipeline-dark-status-blink 1s ease-in-out infinite;
+}
+
+@keyframes pipeline-dark-status-blink {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 4px var(--pipeline-status-active), 0 0 12px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 2px var(--pipeline-status-active), 0 0 6px rgba(16, 185, 129, 0.15);
+  }
+}
+
+.pipeline-dark .pipeline-status-dot.waiting,
+[data-theme="dark"] .pipeline-status-dot.waiting {
+  background: var(--pipeline-status-waiting);
+  box-shadow: 0 0 3px rgba(100, 116, 139, 0.3);
+  animation: pipeline-dark-status-slow 3s ease-in-out infinite;
+}
+
+@keyframes pipeline-dark-status-slow {
+  0%, 100% {
+    opacity: 0.3;
+    box-shadow: 0 0 2px rgba(100, 116, 139, 0.2);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 6px rgba(100, 116, 139, 0.4);
+  }
+}
+
+/* ── Scrollbar styling for dark pipeline ────────────────────────── */
+
+.pipeline-dark .pipeline-container::-webkit-scrollbar,
+[data-theme="dark"] .pipeline-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pipeline-dark .pipeline-container::-webkit-scrollbar-track,
+[data-theme="dark"] .pipeline-container::-webkit-scrollbar-track {
+  background: var(--pipeline-log-bg);
+}
+
+.pipeline-dark .pipeline-container::-webkit-scrollbar-thumb,
+[data-theme="dark"] .pipeline-container::-webkit-scrollbar-thumb {
+  background: var(--pipeline-conduit-idle);
+  border-radius: 2px;
+}
+
+.pipeline-dark .pipeline-container::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] .pipeline-container::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* ── Studio Pipeline tab dark styles ────────────────────────────── */
+
+.pipeline-dark .studio-pipeline,
+[data-theme="dark"] .studio-pipeline {
+  background: var(--pipeline-bg);
+  border: 1px solid var(--pipeline-conduit-idle);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.pipeline-dark .studio-pipeline .sg-tabs,
+[data-theme="dark"] .studio-pipeline .sg-tabs {
+  background: var(--pipeline-header-bg);
+  border-bottom-color: var(--pipeline-conduit-idle);
+}
+
+.pipeline-dark .studio-pipeline .sg-tab,
+[data-theme="dark"] .studio-pipeline .sg-tab {
+  color: var(--sg-text-4, #64748b);
+}
+
+.pipeline-dark .studio-pipeline .sg-tab:hover,
+[data-theme="dark"] .studio-pipeline .sg-tab:hover {
+  color: var(--sg-text-1, #f1f5f9);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pipeline-dark .studio-pipeline .sg-tab.active,
+[data-theme="dark"] .studio-pipeline .sg-tab.active {
+  color: var(--sg-indigo, #6366f1);
+  border-bottom-color: var(--sg-indigo, #6366f1);
+  background: rgba(99, 102, 241, 0.05);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+}
+
+/* ── Studio tab content dark cards ──────────────────────────────── */
+
+.pipeline-dark .studio-tab-content .sg-card,
+[data-theme="dark"] .studio-tab-content .sg-card {
+  background: var(--pipeline-card);
+  border-color: var(--pipeline-conduit-idle);
+}
+
+.pipeline-dark .studio-tab-content .sg-card:hover,
+[data-theme="dark"] .studio-tab-content .sg-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.08);
+}
+
+/* ── Status dot glow in studio tabs ─────────────────────────────── */
+
+.pipeline-dark .studio-tab-content .sg-status-dot,
+[data-theme="dark"] .studio-tab-content .sg-status-dot {
+  transition: box-shadow 0.3s ease, background 0.3s ease;
+}
+
+/* ── Progress bar glow ──────────────────────────────────────────── */
+
+.pipeline-dark .studio-tab-content .sg-progress,
+[data-theme="dark"] .studio-tab-content .sg-progress {
+  background: var(--pipeline-input);
+}
+
+.pipeline-dark .studio-tab-content .sg-progress-bar,
+[data-theme="dark"] .studio-tab-content .sg-progress-bar {
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+/* ── Code blocks / pre elements dark enhancement ────────────────── */
+
+.pipeline-dark .studio-tab-content pre,
+[data-theme="dark"] .studio-tab-content pre {
+  background: var(--pipeline-log-bg);
+  border: 1px solid var(--pipeline-conduit-idle);
+}
+
+/* ── Reduced motion support ─────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .pipeline-dark .pipeline-glow,
+  .pipeline-dark .pipeline-glow-mid,
+  .pipeline-dark .pipeline-glow-outer,
+  .pipeline-dark .pipeline-spark-tl,
+  .pipeline-dark .pipeline-spark-tr,
+  .pipeline-dark .pipeline-spark-bl,
+  .pipeline-dark .pipeline-spark-br,
+  .pipeline-dark .pipeline-energy-flow,
+  .pipeline-dark .pipeline-status-dot.active,
+  .pipeline-dark .pipeline-status-dot.waiting,
+  [data-theme="dark"] .pipeline-glow,
+  [data-theme="dark"] .pipeline-glow-mid,
+  [data-theme="dark"] .pipeline-glow-outer,
+  [data-theme="dark"] .pipeline-spark-tl,
+  [data-theme="dark"] .pipeline-spark-tr,
+  [data-theme="dark"] .pipeline-spark-bl,
+  [data-theme="dark"] .pipeline-spark-br,
+  [data-theme="dark"] .pipeline-energy-flow,
+  [data-theme="dark"] .pipeline-status-dot.active,
+  [data-theme="dark"] .pipeline-status-dot.waiting {
+    animation: none !important;
+  }
+}

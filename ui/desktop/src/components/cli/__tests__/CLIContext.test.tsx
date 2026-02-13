@@ -1,7 +1,32 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CLIProvider, useCLI } from '../CLIContext';
+
+// Mock the utility modules
+vi.mock('../../../utils/cliManager', () => ({
+  checkCLIInstalled: vi.fn(() => Promise.resolve(null)),
+  checkForCLIUpdates: vi.fn(() => Promise.resolve(null)),
+  installCLI: vi.fn(),
+  getCLIPath: vi.fn(() => '/mock/path/goose'),
+}));
+
+vi.mock('../../../utils/terminalManager', () => ({
+  getTerminalManager: vi.fn(() => ({
+    createSession: vi.fn(async () => ({
+      id: 'test-session-123',
+      pid: 1234,
+      shell: '/bin/bash',
+      cwd: '/home/test',
+      createdAt: new Date().toISOString(),
+    })),
+    sendInput: vi.fn(() => Promise.resolve()),
+    onOutput: vi.fn(() => () => {}),
+    closeSession: vi.fn(() => Promise.resolve()),
+    isUsingElectron: vi.fn(() => false),
+    getActiveSessions: vi.fn(() => []),
+  })),
+}));
 
 // Helper component that exposes context values for testing
 function TestConsumer() {
@@ -49,8 +74,11 @@ function renderWithProvider() {
 describe('CLIContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Clear localStorage mock returns
-    (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   describe('Default state values', () => {
@@ -99,7 +127,7 @@ describe('CLIContext', () => {
   });
 
   describe('sendCommand', () => {
-    it('should add input and output entries to terminal history', async () => {
+    it('should add input entry to terminal history', async () => {
       const user = userEvent.setup();
       renderWithProvider();
 
@@ -108,10 +136,12 @@ describe('CLIContext', () => {
 
       const before = Number(screen.getByTestId('historyLength').textContent);
       await user.click(screen.getByTestId('sendCommand'));
-      const after = Number(screen.getByTestId('historyLength').textContent);
 
-      // sendCommand adds 2 entries: input + output
-      expect(after).toBe(before + 2);
+      await waitFor(() => {
+        const after = Number(screen.getByTestId('historyLength').textContent);
+        // sendCommand adds at least 1 entry: input (output may come async)
+        expect(after).toBeGreaterThan(before);
+      });
     });
   });
 
@@ -217,6 +247,110 @@ describe('CLIContext', () => {
       );
 
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('Backend integration', () => {
+    it('should call checkCLIInstalled on mount', async () => {
+      const { checkCLIInstalled } = await import('../../../utils/cliManager');
+
+      vi.mocked(checkCLIInstalled).mockResolvedValueOnce({
+        version: 'v1.24.05',
+        path: '/usr/local/bin/goose',
+        installedAt: new Date().toISOString(),
+        platform: 'linux',
+      });
+
+      renderWithProvider();
+
+      await waitFor(() => {
+        expect(checkCLIInstalled).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('isInstalled')).toHaveTextContent('true');
+        expect(screen.getByTestId('installPath')).toHaveTextContent('/usr/local/bin/goose');
+      });
+    });
+
+    it('should call checkForCLIUpdates when checking for updates', async () => {
+      const user = userEvent.setup();
+      const { checkForCLIUpdates } = await import('../../../utils/cliManager');
+
+      vi.mocked(checkForCLIUpdates).mockResolvedValueOnce({
+        version: 'v1.24.06',
+        downloadUrl: 'https://example.com',
+        size: 1000,
+        sha256: 'abc123',
+        releaseDate: new Date().toISOString(),
+      });
+
+      renderWithProvider();
+
+      await user.click(screen.getByTestId('checkForUpdates'));
+
+      await waitFor(() => {
+        expect(checkForCLIUpdates).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('latestVersion')).toHaveTextContent('v1.24.06');
+      });
+    });
+
+    it('should use terminalManager when opening terminal', async () => {
+      const user = userEvent.setup();
+      const { getTerminalManager } = await import('../../../utils/terminalManager');
+
+      renderWithProvider();
+
+      await user.click(screen.getByTestId('openTerminal'));
+
+      await waitFor(() => {
+        expect(getTerminalManager).toHaveBeenCalled();
+      });
+
+      expect(screen.getByTestId('isTerminalOpen')).toHaveTextContent('true');
+    });
+
+    it('should fallback gracefully when backend is unavailable', async () => {
+      const user = userEvent.setup();
+      const { checkForCLIUpdates } = await import('../../../utils/cliManager');
+
+      vi.mocked(checkForCLIUpdates).mockRejectedValueOnce(new Error('Backend unavailable'));
+
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      renderWithProvider();
+
+      await user.click(screen.getByTestId('checkForUpdates'));
+
+      await waitFor(() => {
+        // Should fallback to mock version
+        expect(screen.getByTestId('latestVersion')).toHaveTextContent('v1.24.05');
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should call localStorage.setItem when state changes', async () => {
+      const user = userEvent.setup();
+
+      renderWithProvider();
+
+      await user.click(screen.getByTestId('markInstalled'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('isInstalled')).toHaveTextContent('true');
+      });
+
+      // Wait for useEffect to persist
+      await waitFor(() => {
+        expect(localStorage.setItem).toHaveBeenCalledWith(
+          'super-goose-cli-state',
+          expect.stringContaining('"isInstalled":true')
+        );
+      }, { timeout: 1000 });
     });
   });
 });

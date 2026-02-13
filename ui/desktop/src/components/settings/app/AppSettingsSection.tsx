@@ -13,7 +13,12 @@ import BlockLogoBlack from './icons/block-lockup_black.png';
 import BlockLogoWhite from './icons/block-lockup_white.png';
 import TelemetrySettings from './TelemetrySettings';
 import { trackSettingToggled } from '../../../utils/analytics';
+import { useSettingsBridge } from '../../../utils/settingsBridge';
 import { usePipeline } from '../../pipeline';
+import { PipelineToggle } from '../PipelineToggle';
+import { ProfileSelector } from '../ProfileSelector';
+import { FeatureToggles } from '../FeatureToggles';
+import { AgentScaler } from '../AgentScaler';
 
 interface AppSettingsSectionProps {
   scrollToSection?: string;
@@ -21,6 +26,12 @@ interface AppSettingsSectionProps {
 
 export default function AppSettingsSection({ scrollToSection }: AppSettingsSectionProps) {
   const { isVisible: pipelineVisible, setIsVisible: setPipelineVisible } = usePipeline();
+  const { value: costTrackingEnabled, setValue: setCostTrackingEnabled } =
+    useSettingsBridge<boolean>('costTrackingEnabled', true);
+  const { value: executionMode, setValue: setExecutionMode } =
+    useSettingsBridge<string>('super_goose_execution_mode', 'freeform');
+  const { value: reasoningMode, setValue: setReasoningMode } =
+    useSettingsBridge<string>('super_goose_reasoning_mode', 'standard');
   const [menuBarIconEnabled, setMenuBarIconEnabled] = useState(true);
   const [dockIconEnabled, setDockIconEnabled] = useState(true);
   const [wakelockEnabled, setWakelockEnabled] = useState(true);
@@ -58,11 +69,10 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
     return () => observer.disconnect();
   }, []);
 
-  // Load show pricing setting
+  // Sync show pricing with costTrackingEnabled from settings bridge
   useEffect(() => {
-    const stored = localStorage.getItem('show_pricing');
-    setShowPricing(stored !== 'false');
-  }, []);
+    setShowPricing(costTrackingEnabled);
+  }, [costTrackingEnabled]);
 
   // Handle scrolling to update section
   useEffect(() => {
@@ -142,9 +152,9 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
     }
   };
 
-  const handleShowPricingToggle = (checked: boolean) => {
+  const handleShowPricingToggle = async (checked: boolean) => {
     setShowPricing(checked);
-    localStorage.setItem('show_pricing', String(checked));
+    await setCostTrackingEnabled(checked);
     trackSettingToggled('cost_tracking', checked);
     // Trigger storage event for other components
     window.dispatchEvent(new CustomEvent('storage'));
@@ -279,7 +289,7 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
             <div className="flex items-center">
               <Switch
                 checked={pipelineVisible}
-                onCheckedChange={(checked: boolean) => {
+onCheckedChange={(checked: boolean) => {
                   setPipelineVisible(checked);
                   trackSettingToggled('pipeline_visualization', checked);
                 }}
@@ -299,19 +309,7 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-text-muted">$</span>
-              <input
-                type="number"
-                min="0"
-                step="0.50"
-                defaultValue={localStorage.getItem('super_goose_budget_limit') || '0'}
-                className="w-20 px-2 py-1 text-sm border rounded bg-background-default text-text-default border-border-default"
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  if (!isNaN(val)) {
-                    localStorage.setItem('super_goose_budget_limit', val.toString());
-                  }
-                }}
-              />
+<span className="text-xs text-text-muted">Configure in Budget panel</span>
             </div>
           </div>
 
@@ -365,9 +363,9 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
             <div className="flex items-center">
               <select
                 className="px-2 py-1 text-sm border rounded bg-background-default text-text-default border-border-default"
-                defaultValue={localStorage.getItem('super_goose_execution_mode') || 'freeform'}
-                onChange={(e) => {
-                  localStorage.setItem('super_goose_execution_mode', e.target.value);
+                value={executionMode}
+                onChange={async (e) => {
+                  await setExecutionMode(e.target.value);
                 }}
               >
                 <option value="freeform">Freeform</option>
@@ -387,9 +385,9 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
             <div className="flex items-center">
               <select
                 className="px-2 py-1 text-sm border rounded bg-background-default text-text-default border-border-default"
-                defaultValue={localStorage.getItem('super_goose_reasoning_mode') || 'standard'}
-                onChange={(e) => {
-                  localStorage.setItem('super_goose_reasoning_mode', e.target.value);
+                value={reasoningMode}
+                onChange={async (e) => {
+                  await setReasoningMode(e.target.value);
                 }}
               >
                 <option value="standard">Standard</option>
@@ -438,6 +436,50 @@ export default function AppSettingsSection({ scrollToSection }: AppSettingsSecti
               <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Active</span>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Agent Profile */}
+      <Card className="rounded-lg">
+        <CardHeader className="pb-0">
+          <CardTitle>Agent Profile</CardTitle>
+          <CardDescription>Select a pre-configured agent profile</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4 px-4">
+          <ProfileSelector />
+        </CardContent>
+      </Card>
+
+      {/* Feature Toggles */}
+      <Card className="rounded-lg">
+        <CardHeader className="pb-0">
+          <CardTitle>Feature Toggles</CardTitle>
+          <CardDescription>Enable or disable individual features</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4 px-4">
+          <FeatureToggles />
+        </CardContent>
+      </Card>
+
+      {/* Pipeline Visualization Toggle */}
+      <Card className="rounded-lg">
+        <CardHeader className="pb-0">
+          <CardTitle>Pipeline</CardTitle>
+          <CardDescription>Control pipeline visualization display</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4 px-4">
+          <PipelineToggle />
+        </CardContent>
+      </Card>
+
+      {/* Concurrent Agents */}
+      <Card className="rounded-lg">
+        <CardHeader className="pb-0">
+          <CardTitle>Agent Scaling</CardTitle>
+          <CardDescription>Configure concurrent agent execution</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4 px-4">
+          <AgentScaler />
         </CardContent>
       </Card>
 

@@ -81,9 +81,10 @@ export const test = base.extend<GooseTestFixtures>({
           browser = await chromium.connectOverCDP(`http://127.0.0.1:${debugPort}`);
           console.log(`Connected to Electron app on attempt ${attempt} (~${(attempt * retryDelay) / 1000}s)`);
           break;
-        } catch (error) {
+        } catch (error: unknown) {
           if (attempt === maxRetries) {
-            throw new Error(`Failed to connect to Electron app after ${maxRetries} attempts (~${(maxRetries * retryDelay) / 1000}s). Last error: ${error.message}`);
+            const errMsg = error instanceof Error ? error.message : String(error);
+            throw new Error(`Failed to connect to Electron app after ${maxRetries} attempts (~${(maxRetries * retryDelay) / 1000}s). Last error: ${errMsg}`);
           }
           // Wait before next retry
           await new Promise(resolve => setTimeout(resolve, retryDelay));
@@ -113,7 +114,7 @@ export const test = base.extend<GooseTestFixtures>({
       // Try to wait for networkidle
       try {
         await page.waitForLoadState('networkidle', { timeout: 10000 });
-      } catch (error) {
+      } catch (_error: unknown) {
         console.log('NetworkIdle timeout (likely due to MCP activity), continuing...');
       }
 
@@ -159,8 +160,9 @@ export const test = base.extend<GooseTestFixtures>({
             }
           }
           console.log('Cleaned up app process');
-        } catch (error) {
-          if (error.code !== 'ESRCH' && !error.message?.includes('No such process')) {
+        } catch (error: unknown) {
+          const errObj = error as { code?: string; message?: string };
+          if (errObj.code !== 'ESRCH' && !errObj.message?.includes('No such process')) {
             console.error('Error killing app process:', error);
           }
         }

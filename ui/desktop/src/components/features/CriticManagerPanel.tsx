@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Eye, ThumbsUp, ThumbsDown, Minus, ChevronDown, ChevronRight } from 'lucide-react';
 import { Switch } from '../ui/switch';
 import { ScrollArea } from '../ui/scroll-area';
 import { MainPanelLayout } from '../Layout/MainPanelLayout';
+import { backendApi } from '../../utils/backendApi';
+import { useSettingsBridge } from '../../utils/settingsBridge';
+import type { LearningInsight } from '../../utils/backendApi';
 
 interface CriticEvaluation {
   id: string;
@@ -141,12 +144,61 @@ function ScoreBar({ value, label }: { value: number; label: string }) {
   );
 }
 
-const CriticManagerPanel: React.FC = () => {
+/** Map API insight to a CriticEvaluation for display. */
+function mapInsightToEvaluation(insight: LearningInsight, idx: number): CriticEvaluation {
+  const score = Math.round(insight.confidence * 10 * 10) / 10; // 0-1 -> 0-10 scale
+  return {
+    id: insight.id || `insight-${idx}`,
+    timestamp: insight.created_at,
+    sessionName: insight.category || 'Insight',
+    taskSummary: insight.pattern,
+    scores: {
+      correctness: score,
+      completeness: score,
+      efficiency: score,
+      safety: score,
+    },
+    overallScore: score,
+    verdict: score >= 8 ? 'good' : score >= 6 ? 'acceptable' : 'needs_improvement',
+    suggestions: [],
+  };
+}
+
+const CriticManagerPanel = () => {
+  const { value: criticEnabled, setValue: setCriticEnabled } =
+    useSettingsBridge<boolean>('super_goose_critic_enabled', true);
   const [enabled, setEnabled] = useState(true);
   const [expandedEntries, setExpandedEntries] = useState<Record<string, boolean>>({});
+  const [evaluations, setEvaluations] = useState<CriticEvaluation[]>(MOCK_EVALUATIONS);
+
+  // Sync local state with settings bridge value
+  useEffect(() => {
+    setEnabled(criticEnabled);
+  }, [criticEnabled]);
+
+  const fetchInsights = useCallback(async () => {
+    try {
+      const insights = await backendApi.getLearningInsights();
+      if (insights && insights.length > 0) {
+        setEvaluations(insights.map(mapInsightToEvaluation));
+      }
+      // If empty or null, keep mock data
+    } catch {
+      // Fallback to mock data
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchInsights();
+  }, [fetchInsights]);
+
+  const handleEnabledChange = useCallback(async (checked: boolean) => {
+    setEnabled(checked);
+    await setCriticEnabled(checked);
+  }, [setCriticEnabled]);
 
   const avgScore =
-    MOCK_EVALUATIONS.reduce((sum, e) => sum + e.overallScore, 0) / MOCK_EVALUATIONS.length;
+    evaluations.reduce((sum, e) => sum + e.overallScore, 0) / (evaluations.length || 1);
 
   const toggleEntry = (id: string) => {
     setExpandedEntries((prev) => ({
@@ -181,7 +233,7 @@ const CriticManagerPanel: React.FC = () => {
               </div>
               <Switch
                 checked={enabled}
-                onCheckedChange={setEnabled}
+                onCheckedChange={handleEnabledChange}
                 variant="mono"
               />
             </div>
@@ -191,7 +243,7 @@ const CriticManagerPanel: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-blue-500" />
                 <span className="text-xs text-text-muted">
-                  {MOCK_EVALUATIONS.length} evaluations
+                  {evaluations.length} evaluations
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -207,7 +259,7 @@ const CriticManagerPanel: React.FC = () => {
         {/* Evaluations */}
         <ScrollArea className="flex-1 px-6">
           <div className="space-y-3 pb-8">
-            {MOCK_EVALUATIONS.map((evaluation) => {
+            {evaluations.map((evaluation) => {
               const isExpanded = expandedEntries[evaluation.id];
               const vc = verdictConfig[evaluation.verdict];
               const VerdictIcon = vc.icon;

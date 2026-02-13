@@ -1,4 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { SGStatusDot, SGEmptyState } from './shared';
+
+const API_BASE = 'http://localhost:3284';
+
+interface ExtensionEntry {
+  name: string;
+  enabled: boolean;
+  type: string;
+}
 
 interface Connection {
   name: string;
@@ -7,7 +16,7 @@ interface Connection {
   category: 'services' | 'models' | 'keys';
 }
 
-const CONNECTIONS: Connection[] = [
+const STATIC_CONNECTIONS: Connection[] = [
   { name: 'GitHub', icon: '\uD83D\uDC19', status: 'disconnected', category: 'services' },
   { name: 'HuggingFace', icon: '\uD83E\uDD17', status: 'disconnected', category: 'services' },
   { name: 'Docker Hub', icon: '\uD83D\uDC33', status: 'disconnected', category: 'services' },
@@ -19,8 +28,37 @@ const CONNECTIONS: Connection[] = [
 
 export default function ConnectionsPanel() {
   const [tab, setTab] = useState<'services' | 'models' | 'keys'>('services');
+  const [extensions, setExtensions] = useState<ExtensionEntry[]>([]);
+  const [connections, setConnections] = useState<Connection[]>(STATIC_CONNECTIONS);
+  const [extensionsLoaded, setExtensionsLoaded] = useState(false);
 
-  const filtered = CONNECTIONS.filter(c => c.category === tab);
+  const fetchExtensions = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/config/extensions`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const exts: ExtensionEntry[] = Array.isArray(data) ? data : (data.extensions ?? []);
+      setExtensions(exts);
+      setExtensionsLoaded(true);
+
+      // Merge extension status into connections where names match
+      setConnections(prev =>
+        prev.map(conn => {
+          const ext = exts.find(e => e.name.toLowerCase().includes(conn.name.toLowerCase()));
+          if (ext) {
+            return { ...conn, status: ext.enabled ? 'connected' : 'disconnected' };
+          }
+          return conn;
+        })
+      );
+    } catch {
+      /* backend unreachable */
+    }
+  }, []);
+
+  useEffect(() => { fetchExtensions(); }, [fetchExtensions]);
+
+  const filtered = connections.filter(c => c.category === tab);
 
   return (
     <div className="space-y-4">
@@ -31,22 +69,43 @@ export default function ConnectionsPanel() {
       </div>
 
       {tab === 'keys' ? (
-        <div className="sg-card" style={{ color: 'var(--sg-text-4)', fontSize: '0.875rem', textAlign: 'center', padding: '2rem' }}>
-          API key management — coming soon
+        <div>
+          {extensionsLoaded && extensions.length > 0 ? (
+            <div className="space-y-2">
+              {extensions.map(ext => (
+                <div key={ext.name} className="sg-card flex items-center justify-between py-2">
+                  <div>
+                    <div style={{ color: 'var(--sg-text-1)', fontSize: '0.875rem' }}>{ext.name}</div>
+                    <div style={{ color: 'var(--sg-text-4)', fontSize: '0.75rem' }}>{ext.type}</div>
+                  </div>
+                  <SGStatusDot status={ext.enabled ? 'connected' : 'disconnected'} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <SGEmptyState message="API key management — coming soon" />
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(conn => (
-            <div key={conn.name} className="sg-card flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">{conn.icon}</span>
-                <span style={{ color: 'var(--sg-text-1)', fontSize: '0.875rem' }}>{conn.name}</span>
+          {filtered.length > 0 ? (
+            filtered.map(conn => (
+              <div key={conn.name} className="sg-card flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{conn.icon}</span>
+                  <span style={{ color: 'var(--sg-text-1)', fontSize: '0.875rem' }}>{conn.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <SGStatusDot status={conn.status} label={conn.status === 'connected' ? 'Active' : undefined} />
+                  <button className="sg-btn sg-btn-ghost" style={{ fontSize: '0.75rem' }}>
+                    {conn.status === 'connected' ? 'Configure' : 'Connect'}
+                  </button>
+                </div>
               </div>
-              <button className="sg-btn sg-btn-ghost" style={{ fontSize: '0.75rem' }}>
-                Connect
-              </button>
-            </div>
-          ))}
+            ))
+          ) : (
+            <SGEmptyState message="No connections in this category" />
+          )}
         </div>
       )}
     </div>

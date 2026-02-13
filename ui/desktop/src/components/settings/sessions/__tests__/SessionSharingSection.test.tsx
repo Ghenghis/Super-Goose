@@ -2,6 +2,30 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import SessionSharingSection from '../SessionSharingSection';
 
+// Track mock setters
+const mockSetSharingEnabled = vi.fn();
+const mockSetSharingBaseUrl = vi.fn();
+
+// Mutable state that tests can override
+let mockSharingEnabled = false;
+let mockSharingBaseUrl = '';
+
+vi.mock('../../../../utils/settingsBridge', () => ({
+  useSettingsBridge: (key: string, defaultValue: unknown) => {
+    if (key === 'sessionSharingEnabled') {
+      return { value: mockSharingEnabled, setValue: mockSetSharingEnabled, isLoading: false };
+    }
+    if (key === 'sessionSharingBaseUrl') {
+      return { value: mockSharingBaseUrl, setValue: mockSetSharingBaseUrl, isLoading: false };
+    }
+    return { value: defaultValue, setValue: vi.fn(), isLoading: false };
+  },
+  SettingsKeys: {
+    SessionSharingEnabled: 'sessionSharingEnabled',
+    SessionSharingBaseUrl: 'sessionSharingBaseUrl',
+  },
+}));
+
 // Mock dependencies
 vi.mock('../../../ui/input', () => ({
   Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
@@ -81,6 +105,8 @@ describe('SessionSharingSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (window.localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    mockSharingEnabled = false;
+    mockSharingBaseUrl = '';
 
     // Mock window.appConfig
     Object.defineProperty(window, 'appConfig', {
@@ -131,10 +157,9 @@ describe('SessionSharingSection', () => {
     expect(screen.getByTestId('lock-icon')).toBeInTheDocument();
   });
 
-  it('loads saved config from localStorage', () => {
-    (window.localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(
-      JSON.stringify({ enabled: true, baseUrl: 'https://saved.example.com' })
-    );
+  it('loads saved config from settings bridge', () => {
+    mockSharingEnabled = true;
+    mockSharingBaseUrl = 'https://saved.example.com';
 
     render(<SessionSharingSection />);
     const toggle = screen.getByTestId('switch');

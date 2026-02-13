@@ -1,4 +1,5 @@
 import { test as base, expect } from './fixtures';
+import { skipWithoutBackend } from './skip-utils';
 import { Page } from '@playwright/test';
 import { showTestName, clearTestName } from './test-overlay';
 import { waitForAppReady } from './panels/panel-test-utils';
@@ -85,11 +86,15 @@ async function sendMessageAndWait(message: string, timeoutMs = 30000): Promise<s
 // Tests
 // ---------------------------------------------------------------------------
 
-// SKIP: These tests require a running goose-server backend with LLM provider.
+// These tests require a running goose-server backend with LLM provider.
 // They send messages and wait for AI responses, code block rendering, etc.
 // Pure UI chat tests are covered by workflows/chat-complete-workflow.spec.ts.
 // Run with: GOOSE_BACKEND=1 npx playwright test
-test.describe.skip('Chat Features', () => {
+test.describe('Chat Features', () => {
+  test.beforeEach(() => {
+    skipWithoutBackend(test);
+  });
+
   test.describe('Chat Input', () => {
     test('chat input is visible and focusable', async () => {
       const chatInput = await waitForChatReady();

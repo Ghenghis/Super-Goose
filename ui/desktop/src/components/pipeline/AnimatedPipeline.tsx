@@ -13,6 +13,7 @@
 
 import { useEffect, useRef, useMemo } from 'react';
 import { usePipeline, STAGE_COLORS, type PipelineStage, type Particle } from './PipelineContext';
+import '../../styles/pipeline-theme.css';
 
 const STAGES: { id: PipelineStage; label: string; icon: string; sub: string }[] = [
   { id: 'plan', label: 'PLAN', icon: '\u{1F9E0}', sub: 'Analyzing task' },

@@ -2,14 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Switch } from '../../ui/switch';
 import { Card, CardContent } from '../../ui/card';
 import { Button } from '../../ui/button';
-
-interface PolicyRule {
-  id: string;
-  name: string;
-  condition: string;
-  action: string;
-  enabled: boolean;
-}
+import { backendApi, type PolicyRule } from '../../../utils/backendApi';
 
 export default function PoliciesPanel() {
   const [rules, setRules] = useState<PolicyRule[]>([]);
@@ -22,18 +15,23 @@ export default function PoliciesPanel() {
   const fetchPolicies = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/enterprise/policies/rules');
-      if (response.ok) {
-        const data = await response.json();
+      const data = await backendApi.fetchPolicyRules();
+      if (data) {
         if (data.rules) {
           setRules(data.rules);
         }
         if (typeof data.dryRunMode === 'boolean') {
           setDryRunMode(data.dryRunMode);
         }
+      } else {
+        // Fallback to defaults if API not available
+        setRules([]);
+        setDryRunMode(false);
       }
     } catch {
       console.debug('Enterprise policies not available');
+      setRules([]);
+      setDryRunMode(false);
     } finally {
       setIsLoading(false);
     }
@@ -43,12 +41,25 @@ export default function PoliciesPanel() {
     fetchPolicies();
   }, [fetchPolicies]);
 
-  const handleRuleToggle = (id: string, enabled: boolean) => {
+  const handleRuleToggle = async (id: string, enabled: boolean) => {
+    // Optimistically update UI
     setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled } : r)));
+
+    const success = await backendApi.togglePolicyRule(id, enabled);
+    if (!success) {
+      // Revert on failure
+      setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !enabled } : r)));
+    }
   };
 
-  const handleDryRunToggle = (enabled: boolean) => {
+  const handleDryRunToggle = async (enabled: boolean) => {
     setDryRunMode(enabled);
+
+    const success = await backendApi.updatePolicyDryRunMode(enabled);
+    if (!success) {
+      // Revert on failure
+      setDryRunMode(!enabled);
+    }
   };
 
   const handleImportYaml = () => {

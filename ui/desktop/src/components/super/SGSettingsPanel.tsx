@@ -1,31 +1,115 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useSuperGooseData } from '../../hooks/useSuperGooseData';
+
+const API_BASE = 'http://localhost:3284';
+
+interface FeatureToggle {
+  name: string;
+  enabled: boolean;
+  description: string;
+}
+
+const FALLBACK_TOGGLES: FeatureToggle[] = [
+  { name: 'Experience Store', description: 'Cross-session learning', enabled: false },
+  { name: 'Skill Library', description: 'Reusable strategies', enabled: false },
+  { name: 'Auto Core Selection', description: 'Auto-pick best core per task', enabled: false },
+  { name: 'Autonomous Mode', description: '24/7 agent daemon', enabled: false },
+  { name: 'OTA Self-Update', description: 'Self-building pipeline', enabled: false },
+];
+
 export default function SGSettingsPanel() {
+  const [features, setFeatures] = useState<FeatureToggle[]>(FALLBACK_TOGGLES);
+  const [apiAvailable, setApiAvailable] = useState(false);
+  const { learningStats } = useSuperGooseData();
+
+  const fetchFeatures = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/features`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const list: FeatureToggle[] = (data.features ?? data ?? []).map((f: { name: string; enabled: boolean; description?: string }) => ({
+        name: f.name,
+        enabled: f.enabled,
+        description: f.description ?? '',
+      }));
+      if (list.length > 0) {
+        setFeatures(list);
+        setApiAvailable(true);
+      }
+    } catch {
+      /* backend unreachable — keep fallback */
+    }
+  }, []);
+
+  useEffect(() => { fetchFeatures(); }, [fetchFeatures]);
+
+  const handleToggle = async (featureName: string) => {
+    const current = features.find(f => f.name === featureName);
+    if (!current) return;
+
+    const newEnabled = !current.enabled;
+
+    // Optimistic update
+    setFeatures(prev => prev.map(f => f.name === featureName ? { ...f, enabled: newEnabled } : f));
+
+    if (apiAvailable) {
+      try {
+        const res = await fetch(`${API_BASE}/api/features/${encodeURIComponent(featureName)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: newEnabled }),
+        });
+        if (!res.ok) {
+          // Revert on failure
+          setFeatures(prev => prev.map(f => f.name === featureName ? { ...f, enabled: !newEnabled } : f));
+        }
+      } catch {
+        // Revert on error
+        setFeatures(prev => prev.map(f => f.name === featureName ? { ...f, enabled: !newEnabled } : f));
+      }
+    }
+  };
+
+  const expDbStatus = learningStats?.total_experiences != null
+    ? `${learningStats.total_experiences} entries`
+    : 'Not initialized';
+  const skillsDbStatus = learningStats?.total_skills != null
+    ? `${learningStats.total_skills} skills (${learningStats.verified_skills} verified)`
+    : 'Not initialized';
+
   return (
     <div className="space-y-6">
       {/* Feature toggles */}
       <div>
-        <div className="sg-section-label">Feature Toggles</div>
+        <div className="sg-section-label">
+          Feature Toggles
+          {!apiAvailable && (
+            <span style={{ marginLeft: '0.5rem', color: 'var(--sg-text-4)', fontSize: '0.625rem' }}>(offline)</span>
+          )}
+        </div>
         <div className="space-y-2">
-          {[
-            { name: 'Experience Store', desc: 'Cross-session learning', enabled: false },
-            { name: 'Skill Library', desc: 'Reusable strategies', enabled: false },
-            { name: 'Auto Core Selection', desc: 'Auto-pick best core per task', enabled: false },
-            { name: 'Autonomous Mode', desc: '24/7 agent daemon', enabled: false },
-            { name: 'OTA Self-Update', desc: 'Self-building pipeline', enabled: false },
-          ].map(toggle => (
+          {features.map(toggle => (
             <div key={toggle.name} className="sg-card flex items-center justify-between py-2">
               <div>
                 <div style={{ color: 'var(--sg-text-1)', fontSize: '0.875rem' }}>{toggle.name}</div>
-                <div style={{ color: 'var(--sg-text-4)', fontSize: '0.75rem' }}>{toggle.desc}</div>
+                <div style={{ color: 'var(--sg-text-4)', fontSize: '0.75rem' }}>{toggle.description}</div>
               </div>
-              <div style={{
-                width: '2.5rem',
-                height: '1.25rem',
-                borderRadius: '9999px',
-                background: toggle.enabled ? 'var(--sg-emerald)' : 'var(--sg-input)',
-                cursor: 'pointer',
-                position: 'relative',
-                border: `1px solid ${toggle.enabled ? 'var(--sg-emerald)' : 'var(--sg-border)'}`,
-              }}>
+              <div
+                role="switch"
+                aria-checked={toggle.enabled}
+                aria-label={`Toggle ${toggle.name}`}
+                tabIndex={0}
+                onClick={() => handleToggle(toggle.name)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggle(toggle.name); } }}
+                style={{
+                  width: '2.5rem',
+                  height: '1.25rem',
+                  borderRadius: '9999px',
+                  background: toggle.enabled ? 'var(--sg-emerald)' : 'var(--sg-input)',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  border: `1px solid ${toggle.enabled ? 'var(--sg-emerald)' : 'var(--sg-border)'}`,
+                }}>
                 <div style={{
                   width: '0.875rem',
                   height: '0.875rem',
@@ -48,11 +132,11 @@ export default function SGSettingsPanel() {
         <div className="sg-card">
           <div className="flex items-center justify-between mb-2">
             <span style={{ color: 'var(--sg-text-2)', fontSize: '0.875rem' }}>Experience DB</span>
-            <span style={{ color: 'var(--sg-text-3)', fontSize: '0.875rem' }}>Not initialized</span>
+            <span style={{ color: 'var(--sg-text-3)', fontSize: '0.875rem' }}>{expDbStatus}</span>
           </div>
           <div className="flex items-center justify-between">
             <span style={{ color: 'var(--sg-text-2)', fontSize: '0.875rem' }}>Skills DB</span>
-            <span style={{ color: 'var(--sg-text-3)', fontSize: '0.875rem' }}>Not initialized</span>
+            <span style={{ color: 'var(--sg-text-3)', fontSize: '0.875rem' }}>{skillsDbStatus}</span>
           </div>
         </div>
       </div>

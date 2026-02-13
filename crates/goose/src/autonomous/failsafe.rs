@@ -467,4 +467,266 @@ mod tests {
         assert_eq!(CircuitState::Open.to_string(), "open");
         assert_eq!(CircuitState::HalfOpen.to_string(), "half-open");
     }
+
+    // === Production hardening edge-case tests ===
+
+    #[test]
+    fn test_multiple_rapid_failures_open_circuit_exactly_at_threshold() {
+        // Edge case: verify the circuit opens exactly at max_failures, not before
+        let config = FailsafeConfig {
+            max_failures: 5,
+            reset_timeout_secs: 60,
+            cascade_threshold: 10,
+        };
+        let mut breaker = CircuitBreaker::new("test", config);
+
+        for i in 0..4 {
+            breaker.record_failure();
+            assert_eq!(
+                breaker.state,
+                CircuitState::Closed,
+                "Should stay closed at {} failures",
+                i + 1
+            );
+        }
+
+        // 5th failure should open it
+        breaker.record_failure();
+        assert_eq!(breaker.state, CircuitState::Open);
+        assert_eq!(breaker.consecutive_failures, 5);
+    }
+
+    #[test]
+    fn test_rapid_success_failure_interleave() {
+        // Edge case: alternating success/failure should never open the circuit
+        // because consecutive_failures resets on success
+        let config = FailsafeConfig {
+            max_failures: 3,
+            reset_timeout_secs: 60,
+            cascade_threshold: 10,
+        };
+        let mut breaker = CircuitBreaker::new("test", config);
+
+        for _ in 0..100 {
+            breaker.record_failure();
+            breaker.record_failure(); // 2 consecutive
+            breaker.record_success(); // Reset
+        }
+
+        // Should still be closed because we never hit 3 consecutive
+        assert_eq!(breaker.state, CircuitState::Closed);
+        assert_eq!(breaker.total_failures, 200);
+        assert_eq!(breaker.total_successes, 100);
+    }
+
+    #[test]
+    fn test_half_open_failure_reopens_circuit() {
+        // Edge case: failing in HalfOpen state should re-open the circuit
+        let config = FailsafeConfig {
+            max_failures: 1,
+            reset_timeout_secs: 0, // Instant timeout for testing
+            cascade_threshold: 10,
+        };
+        let mut breaker = CircuitBreaker::new("test", config);
+
+        // Trip the circuit
+        breaker.record_failure();
+        assert_eq!(breaker.state, CircuitState::Open);
+
+        // Allow request should transition to HalfOpen (timeout = 0)
+        assert!(breaker.allow_request());
+        assert_eq!(breaker.state, CircuitState::HalfOpen);
+
+        // Fail in half-open
+        breaker.record_failure();
+        assert_eq!(breaker.state, CircuitState::Open);
+    }
+
+    #[test]
+    fn test_half_open_success_closes_circuit() {
+        let config = FailsafeConfig {
+            max_failures: 1,
+            reset_timeout_secs: 0,
+            cascade_threshold: 10,
+        };
+        let mut breaker = CircuitBreaker::new("test", config);
+
+        // Trip and recover
+        breaker.record_failure();
+        assert_eq!(breaker.state, CircuitState::Open);
+
+        breaker.allow_request(); // -> HalfOpen
+        breaker.record_success();
+        assert_eq!(breaker.state, CircuitState::Closed);
+        assert_eq!(breaker.consecutive_failures, 0);
+    }
+
+    #[test]
+    fn test_recording_failure_when_already_open() {
+        // Edge case: additional failures while already open should not change state
+        let config = FailsafeConfig {
+            max_failures: 2,
+            reset_timeout_secs: 60,
+            cascade_threshold: 10,
+        };
+        let mut breaker = CircuitBreaker::new("test", config);
+
+        breaker.record_failure();
+        breaker.record_failure();
+        assert_eq!(breaker.state, CircuitState::Open);
+
+        // More failures while open
+        breaker.record_failure();
+        breaker.record_failure();
+        breaker.record_failure();
+        assert_eq!(breaker.state, CircuitState::Open);
+        assert_eq!(breaker.total_failures, 5);
+        assert_eq!(breaker.consecutive_failures, 5);
+    }
+
+    #[test]
+    fn test_manual_reset_after_many_failures() {
+        let config = FailsafeConfig {
+            max_failures: 2,
+            reset_timeout_secs: 3600,
+            cascade_threshold: 10,
+        };
+        let mut breaker = CircuitBreaker::new("test", config);
+
+        // Trip circuit
+        breaker.record_failure();
+        breaker.record_failure();
+        assert_eq!(breaker.state, CircuitState::Open);
+
+        // Manual reset
+        breaker.reset();
+        assert_eq!(breaker.state, CircuitState::Closed);
+        assert_eq!(breaker.consecutive_failures, 0);
+        assert!(breaker.last_failure_at.is_none());
+        assert!(breaker.allow_request());
+    }
+
+    #[test]
+    fn test_failsafe_cascade_threshold_exact_boundary() {
+        // Edge case: exactly at cascade threshold triggers shutdown
+        let mut failsafe = Failsafe::new(3);
+        let config = FailsafeConfig {
+            max_failures: 1,
+            reset_timeout_secs: 60,
+            cascade_threshold: 3,
+        };
+
+        failsafe.register("a", config.clone());
+        failsafe.register("b", config.clone());
+        failsafe.register("c", config.clone());
+        failsafe.register("d", config);
+
+        failsafe.record_failure("a").unwrap();
+        assert!(!failsafe.is_shutdown());
+
+        failsafe.record_failure("b").unwrap();
+        assert!(!failsafe.is_shutdown());
+
+        // 3rd open breaker hits the cascade threshold
+        failsafe.record_failure("c").unwrap();
+        assert!(failsafe.is_shutdown());
+    }
+
+    #[test]
+    fn test_failsafe_reset_breaker_unknown_name() {
+        let mut failsafe = Failsafe::with_defaults();
+        assert!(failsafe.reset_breaker("does_not_exist").is_err());
+    }
+
+    #[test]
+    fn test_failsafe_status_reflects_all_breakers() {
+        let mut failsafe = Failsafe::new(10);
+        failsafe.register_default("breaker_1");
+        failsafe.register_default("breaker_2");
+        failsafe.register_default("breaker_3");
+
+        let status = failsafe.status();
+        assert_eq!(status.len(), 3);
+        assert!(status.iter().all(|s| s.state == CircuitState::Closed));
+    }
+
+    #[test]
+    fn test_failsafe_global_shutdown_blocks_all_requests() {
+        let mut failsafe = Failsafe::new(1);
+        let config = FailsafeConfig {
+            max_failures: 1,
+            reset_timeout_secs: 60,
+            cascade_threshold: 1,
+        };
+        failsafe.register("a", config.clone());
+        failsafe.register("b", config);
+
+        // Trip one breaker to trigger cascade (threshold=1)
+        failsafe.record_failure("a").unwrap();
+        assert!(failsafe.is_shutdown());
+
+        // All requests should fail with global shutdown error
+        assert!(failsafe.allow_request("a").is_err());
+        assert!(failsafe.allow_request("b").is_err());
+    }
+
+    #[test]
+    fn test_failsafe_reset_shutdown_then_allow_requests() {
+        let mut failsafe = Failsafe::new(1);
+        let config = FailsafeConfig {
+            max_failures: 1,
+            reset_timeout_secs: 0,
+            cascade_threshold: 1,
+        };
+        failsafe.register("a", config);
+
+        failsafe.record_failure("a").unwrap();
+        assert!(failsafe.is_shutdown());
+
+        failsafe.reset_shutdown();
+        failsafe.reset_breaker("a").unwrap();
+
+        // After reset, requests should be allowed again
+        let allowed = failsafe.allow_request("a").unwrap();
+        assert!(allowed);
+    }
+
+    #[test]
+    fn test_open_breaker_count() {
+        let mut failsafe = Failsafe::new(100);
+        let config = FailsafeConfig {
+            max_failures: 1,
+            reset_timeout_secs: 60,
+            cascade_threshold: 100,
+        };
+        failsafe.register("a", config.clone());
+        failsafe.register("b", config.clone());
+        failsafe.register("c", config);
+
+        assert_eq!(failsafe.open_breaker_count(), 0);
+
+        failsafe.record_failure("a").unwrap();
+        assert_eq!(failsafe.open_breaker_count(), 1);
+
+        failsafe.record_failure("b").unwrap();
+        assert_eq!(failsafe.open_breaker_count(), 2);
+    }
+
+    #[test]
+    fn test_circuit_breaker_serialization_roundtrip() {
+        let breaker = CircuitBreaker::with_defaults("test_breaker");
+        let json = serde_json::to_string(&breaker).unwrap();
+        let deserialized: CircuitBreaker = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.name, "test_breaker");
+        assert_eq!(deserialized.state, CircuitState::Closed);
+    }
+
+    #[test]
+    fn test_circuit_state_serialization_roundtrip() {
+        for state in &[CircuitState::Closed, CircuitState::Open, CircuitState::HalfOpen] {
+            let json = serde_json::to_string(state).unwrap();
+            let deserialized: CircuitState = serde_json::from_str(&json).unwrap();
+            assert_eq!(&deserialized, state);
+        }
+    }
 }

@@ -1,8 +1,11 @@
 import { test as base, expect } from './fixtures';
+import { skipWithoutBackend } from './skip-utils';
 import { Page } from '@playwright/test';
 import { showTestName, clearTestName } from './test-overlay';
 import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 
+// basic-mcp uses CJS module.exports, so require() is necessary
 const { runningQuotes } = require('./basic-mcp');
 
 // Define provider interface
@@ -267,12 +270,13 @@ test.describe('Goose App', () => {
     });
   });
 
-  // SKIP: Provider tests require a running goose-server backend with configured
+  // Provider tests require a running goose-server backend with configured
   // LLM provider (Databricks). They test chat interaction, history, and MCP integration.
   // Run with: GOOSE_BACKEND=1 npx playwright test
   for (const provider of providers) {
-    test.describe.skip(`Provider: ${provider.name}`, () => {
+    test.describe(`Provider: ${provider.name}`, () => {
       test.beforeEach(async () => {
+        skipWithoutBackend(test);
         // Select the provider before each test for this provider
         await selectProvider(mainWindow, provider);
       });
@@ -362,9 +366,8 @@ test.describe('Goose App', () => {
           console.log(`Testing Running Quotes MCP server integration with ${provider.name}...`);
 
           // Create test-results directory if it doesn't exist
-          const fs = require('fs');
-          if (!fs.existsSync('test-results')) {
-            fs.mkdirSync('test-results', { recursive: true });
+          if (!existsSync('test-results')) {
+            mkdirSync('test-results', { recursive: true });
           }
 
           try {
@@ -373,7 +376,7 @@ test.describe('Goose App', () => {
             // Try to wait for networkidle, but don't fail if it times out due to MCP activity
             try {
               await mainWindow.waitForLoadState('networkidle', { timeout: 10000 });
-            } catch (error) {
+            } catch (_error: unknown) {
               console.log('NetworkIdle timeout (likely due to MCP activity), continuing with test...');
             }
             await mainWindow.waitForLoadState('domcontentloaded');

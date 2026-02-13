@@ -1,9 +1,14 @@
 import { test, expect } from './fixtures';
+import { skipWithoutBackend } from './skip-utils';
 
-// SKIP: These tests require a running goose-server backend with LLM provider.
+// These tests require a running goose-server backend with LLM provider.
 // They submit prompts and measure AI response timing (TTFT, streaming duration, etc.).
 // Run with: GOOSE_BACKEND=1 npx playwright test performance.spec.ts
-test.describe.skip('Performance Tests', () => {
+test.describe('Performance Tests', () => {
+  test.beforeEach(() => {
+    skipWithoutBackend(test);
+  });
+
   test('measure end-to-end performance for prompt submission', async ({ goosePage }) => {
     // Start Playwright tracing to capture all performance data
     await goosePage.context().tracing.start({

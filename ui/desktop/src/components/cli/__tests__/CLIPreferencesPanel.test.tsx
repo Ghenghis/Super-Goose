@@ -3,6 +3,34 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CLIPreferencesPanel from '../CLIPreferencesPanel';
 
+// Track mock setters so tests can assert on them
+const mockSetDefaultProvider = vi.fn();
+const mockSetAutoUpdate = vi.fn();
+const mockSetCustomArgs = vi.fn();
+const mockSetDebugMode = vi.fn();
+const mockSetShellIntegration = vi.fn();
+
+vi.mock('../../../utils/settingsBridge', () => ({
+  useSettingsBridge: (key: string, defaultValue: unknown) => {
+    const map: Record<string, { value: unknown; setValue: ReturnType<typeof vi.fn> }> = {
+      cliAutoUpdate: { value: true, setValue: mockSetAutoUpdate },
+      cliDefaultProvider: { value: 'anthropic', setValue: mockSetDefaultProvider },
+      cliCustomArgs: { value: '', setValue: mockSetCustomArgs },
+      cliDebugMode: { value: false, setValue: mockSetDebugMode },
+      cliShellIntegration: { value: false, setValue: mockSetShellIntegration },
+    };
+    const entry = map[key] ?? { value: defaultValue, setValue: vi.fn() };
+    return { value: entry.value, setValue: entry.setValue, isLoading: false };
+  },
+  SettingsKeys: {
+    CliAutoUpdate: 'cliAutoUpdate',
+    CliDefaultProvider: 'cliDefaultProvider',
+    CliCustomArgs: 'cliCustomArgs',
+    CliDebugMode: 'cliDebugMode',
+    CliShellIntegration: 'cliShellIntegration',
+  },
+}));
+
 // Mock CLIDownloadService
 vi.mock('../CLIDownloadService', () => ({
   detectPlatform: () => ({
@@ -19,6 +47,11 @@ describe('CLIPreferencesPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    mockSetDefaultProvider.mockClear();
+    mockSetAutoUpdate.mockClear();
+    mockSetCustomArgs.mockClear();
+    mockSetDebugMode.mockClear();
+    mockSetShellIntegration.mockClear();
   });
 
   it('should render the CLI Path card', () => {
@@ -117,12 +150,12 @@ describe('CLIPreferencesPanel', () => {
     expect(screen.queryByText('Confirm Reset')).not.toBeInTheDocument();
   });
 
-  it('should persist provider change to localStorage', async () => {
+  it('should persist provider change via settings bridge', async () => {
     const user = userEvent.setup();
     render(<CLIPreferencesPanel />);
 
     const select = screen.getByDisplayValue('Anthropic');
     await user.selectOptions(select, 'openai');
-    expect(localStorage.setItem).toHaveBeenCalledWith('cli_default_provider', 'openai');
+    expect(mockSetDefaultProvider).toHaveBeenCalledWith('openai');
   });
 });

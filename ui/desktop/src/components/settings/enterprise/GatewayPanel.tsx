@@ -2,18 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Switch } from '../../ui/switch';
 import { Card, CardContent } from '../../ui/card';
 import { Button } from '../../ui/button';
-
-interface GatewayStatus {
-  healthy: boolean;
-  uptime: string;
-  version: string;
-  auditLogging: boolean;
-  permissions: {
-    total: number;
-    granted: number;
-    denied: number;
-  };
-}
+import { backendApi, type GatewayStatus } from '../../../utils/backendApi';
 
 const DEFAULT_STATUS: GatewayStatus = {
   healthy: false,
@@ -35,14 +24,17 @@ export default function GatewayPanel() {
   const fetchStatus = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/enterprise/gateway/status');
-      if (response.ok) {
-        const data: GatewayStatus = await response.json();
+      const data = await backendApi.fetchGatewayStatus();
+      if (data) {
         setStatus(data);
         setAuditLogging(data.auditLogging);
+      } else {
+        // Fallback to defaults if API not available
+        setStatus(DEFAULT_STATUS);
       }
     } catch {
       console.debug('Enterprise gateway status not available');
+      setStatus(DEFAULT_STATUS);
     } finally {
       setIsLoading(false);
     }
@@ -52,8 +44,13 @@ export default function GatewayPanel() {
     fetchStatus();
   }, [fetchStatus]);
 
-  const handleAuditToggle = (enabled: boolean) => {
+  const handleAuditToggle = async (enabled: boolean) => {
     setAuditLogging(enabled);
+    const success = await backendApi.updateGatewayAuditLogging(enabled);
+    if (!success) {
+      // Revert on failure
+      setAuditLogging(!enabled);
+    }
   };
 
   if (isLoading) {

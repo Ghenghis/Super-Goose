@@ -85,6 +85,7 @@ sqlx = { version = "0.8", default-features = false, features = [
     "macros",
     "migrate",
 ] }
+rusqlite = { version = "0.31", features = ["bundled"] }
 walkdir = "2.5"
 zip = "0.6"
 glob = "0.3"

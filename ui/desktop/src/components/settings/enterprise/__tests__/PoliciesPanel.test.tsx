@@ -144,6 +144,16 @@ describe('PoliciesPanel', () => {
   });
 
   it('toggles dry-run mode', async () => {
+    // The toggle handler calls backendApi.updatePolicyDryRunMode which uses fetch.
+    // If fetch rejects, the toggle reverts. So we need fetch to succeed for the toggle.
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const urlStr = typeof url === 'string' ? url : (url as Request).url;
+      if (urlStr.includes('/dry-run')) {
+        return Promise.resolve({ ok: true } as Response);
+      }
+      return Promise.reject(new Error('Not available'));
+    });
+
     const user = userEvent.setup();
     render(<PoliciesPanel />);
 
@@ -156,7 +166,10 @@ describe('PoliciesPanel', () => {
     const dryRunSwitch = switches[switches.length - 1];
 
     await user.click(dryRunSwitch);
-    expect(dryRunSwitch).toHaveAttribute('aria-checked', 'true');
+
+    await waitFor(() => {
+      expect(dryRunSwitch).toHaveAttribute('aria-checked', 'true');
+    });
   });
 
   it('displays rule conditions and actions', async () => {
