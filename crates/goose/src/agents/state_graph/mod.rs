@@ -175,6 +175,12 @@ impl StateGraph {
         &self.state_data
     }
 
+    /// Set a context key-value pair on the state data before running.
+    /// Useful for pre-seeding project type, working directory, etc.
+    pub fn set_context(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.state_data.context.insert(key.into(), value.into());
+    }
+
     pub fn config(&self) -> &StateGraphConfig {
         &self.config
     }

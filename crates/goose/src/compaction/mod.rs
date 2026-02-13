@@ -259,6 +259,11 @@ impl CompactionManager {
         &self.history
     }
 
+    /// Get mutable access to compaction history (for recording external compactions)
+    pub fn history_mut(&mut self) -> &mut Vec<CompactionResult> {
+        &mut self.history
+    }
+
     /// Get total tokens saved across all compactions
     pub fn total_tokens_saved(&self) -> usize {
         self.history.iter().map(|r| r.tokens_saved).sum()

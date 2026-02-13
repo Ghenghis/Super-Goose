@@ -17,6 +17,12 @@ export default function AgentsPanel() {
   const { events, connected, latestStatus } = useAgentStream();
   const [activeCore, setActiveCore] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
+  const [builderConfig, setBuilderConfig] = useState({
+    autoSelect: true,
+    threshold: 0.7,
+    preferredCore: 'freeform',
+    priorities: CORE_TYPES.map(c => c.id),
+  });
 
   const handleSelectCore = useCallback(async (coreId: string) => {
     setSwitching(true);
@@ -134,8 +140,119 @@ export default function AgentsPanel() {
       )}
 
       {tab === 'builder' && (
-        <div role="tabpanel" id="agents-tabpanel-builder" aria-labelledby="agents-tab-builder">
-          <SGEmptyState icon={'\uD83D\uDEE0\uFE0F'} message="Core builder — coming soon" />
+        <div className="space-y-4" role="tabpanel" id="agents-tabpanel-builder" aria-labelledby="agents-tab-builder">
+          <h2 className="font-semibold" style={{ color: 'var(--sg-text-1)', fontSize: '0.875rem' }}>
+            Core Auto-Selection
+          </h2>
+
+          <div className="sg-card space-y-3 p-3">
+            <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: '0.8125rem', color: 'var(--sg-text-2)' }}>
+              <input
+                type="checkbox"
+                checked={builderConfig.autoSelect}
+                onChange={e => setBuilderConfig(c => ({ ...c, autoSelect: e.target.checked }))}
+                className="accent-emerald-500"
+              />
+              Enable auto-selection
+            </label>
+
+            <div>
+              <label className="block mb-1" style={{ fontSize: '0.75rem', color: 'var(--sg-text-3)' }}>
+                Confidence threshold: <strong>{builderConfig.threshold.toFixed(1)}</strong>
+              </label>
+              <input
+                type="range"
+                min={0.1}
+                max={1.0}
+                step={0.1}
+                value={builderConfig.threshold}
+                onChange={e => setBuilderConfig(c => ({ ...c, threshold: parseFloat(e.target.value) }))}
+                className="w-full"
+                aria-label="Confidence threshold"
+              />
+              <div className="flex justify-between" style={{ fontSize: '0.625rem', color: 'var(--sg-text-4)' }}>
+                <span>0.1 (aggressive)</span>
+                <span>1.0 (manual only)</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block mb-1" style={{ fontSize: '0.75rem', color: 'var(--sg-text-3)' }}>
+                Preferred core
+              </label>
+              <select
+                value={builderConfig.preferredCore}
+                onChange={e => setBuilderConfig(c => ({ ...c, preferredCore: e.target.value }))}
+                className="sg-select w-full"
+                aria-label="Preferred core"
+                style={{
+                  background: 'var(--sg-surface-2)',
+                  color: 'var(--sg-text-1)',
+                  border: '1px solid var(--sg-border)',
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  fontSize: '0.8125rem',
+                }}
+              >
+                {CORE_TYPES.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <h2 className="font-semibold" style={{ color: 'var(--sg-text-1)', fontSize: '0.875rem' }}>
+            Core Priority Order
+          </h2>
+
+          <div className="sg-card p-3">
+            {builderConfig.priorities.map((coreId, idx) => {
+              const core = CORE_TYPES.find(c => c.id === coreId);
+              return (
+                <div key={coreId} className="flex items-center justify-between py-1" style={{ fontSize: '0.8125rem', color: 'var(--sg-text-2)' }}>
+                  <span>
+                    <span style={{ color: 'var(--sg-text-4)', marginRight: '8px' }}>{idx + 1}.</span>
+                    {core?.name ?? coreId}
+                  </span>
+                  <span className="flex gap-1">
+                    <button
+                      className="sg-btn-ghost px-1"
+                      style={{ fontSize: '0.75rem' }}
+                      disabled={idx === 0}
+                      aria-label={`Move ${core?.name} up`}
+                      onClick={() => setBuilderConfig(c => {
+                        const p = [...c.priorities];
+                        [p[idx - 1], p[idx]] = [p[idx], p[idx - 1]];
+                        return { ...c, priorities: p };
+                      })}
+                    >&#9650;</button>
+                    <button
+                      className="sg-btn-ghost px-1"
+                      style={{ fontSize: '0.75rem' }}
+                      disabled={idx === builderConfig.priorities.length - 1}
+                      aria-label={`Move ${core?.name} down`}
+                      onClick={() => setBuilderConfig(c => {
+                        const p = [...c.priorities];
+                        [p[idx], p[idx + 1]] = [p[idx + 1], p[idx]];
+                        return { ...c, priorities: p };
+                      })}
+                    >&#9660;</button>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <button
+            className="sg-btn sg-btn-primary w-full"
+            style={{ fontSize: '0.8125rem' }}
+            onClick={() => {
+              // TODO: Wire to backend API
+              console.log('Builder config saved:', builderConfig);
+            }}
+          >
+            Save Configuration
+          </button>
         </div>
       )}
     </div>

@@ -4,7 +4,7 @@
 # Builds both goose CLI and goosed server binaries
 
 # Build stage
-FROM rust:1.82-bookworm AS builder
+FROM rust:1.84-bookworm AS builder
 
 # Install build dependencies
 RUN apt-get update && \
@@ -63,6 +63,10 @@ ENV HOME="/home/goose"
 # Expose goosed server port
 EXPOSE 3284
 
+# Health check for goosed server
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD curl -f http://localhost:3284/api/version || exit 1
+
 # Switch to non-root user
 USER goose
 WORKDIR /home/goose
@@ -73,7 +77,8 @@ CMD ["--help"]
 
 # Labels for metadata
 LABEL org.opencontainers.image.title="Super-Goose"
-LABEL org.opencontainers.image.description="Super-Goose — AI Agent Platform with 16 integrated tools"
+LABEL org.opencontainers.image.version="1.25.0"
+LABEL org.opencontainers.image.description="Super-Goose — AI Agent Platform with 6 agent cores and OTA self-improvement"
 LABEL org.opencontainers.image.vendor="Ghenghis"
 LABEL org.opencontainers.image.source="https://github.com/Ghenghis/Super-Goose"
 LABEL org.opencontainers.image.licenses="Apache-2.0"

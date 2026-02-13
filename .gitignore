@@ -108,4 +108,6 @@ test_stdout.txt
 
 # Local utility scripts
 cargo_check.bat
+check_server.bat
+check_result.txt
 test_compaction.bat

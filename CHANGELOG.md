@@ -5,7 +5,7 @@ All notable changes to Super-Goose will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.25.00] - 2026-02-13
+## [1.25.0] - 2026-02-13
 
 ### Added
 
@@ -118,7 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Testing
 - 87 agent core tests, 52 learning engine tests, 198 OTA tests, 86 autonomous tests
 - 8 TimeWarp event store tests
-- 2,278 Vitest frontend tests across 211 files
+- 2,832 Vitest frontend tests across 225 files
 - 291 Playwright E2E tests (68 conditional skips for CI environments)
 - TypeScript compilation: zero errors (`tsc --noEmit` clean)
 
@@ -127,6 +127,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Conditional E2E skip utilities for headless CI environments
 - Backend fixture system for Playwright tests
 
+#### OTA Real Wiring (2026-02-13)
+- CiWatcher wired to `gh` CLI for real GitHub Actions status polling
+- Uptime tracking with configurable intervals and session start detection
+- Cycle history recording for autonomous improvement cycles
+- API data endpoints for OTA dashboard consumption
+- Build fingerprint via `build.rs`: `BUILD_TIMESTAMP` + `BUILD_GIT_HASH` at compile time
+- `GET /api/version` endpoint returning build info
+- `POST /api/ota/restart` for graceful binary restart with delayed exit
+- OTA trigger UI in AutonomousDashboard
+
+#### Agent Core Switching API (2026-02-13)
+- `POST /api/agent/switch-core` endpoint with session-scoped switching
+- `GET /api/agent/cores` endpoint listing all available cores with active status
+- Public `switch_core()`, `active_core_type()`, `list_cores()` methods on Agent struct
+- AgentsPanel Select buttons wired to real API with active state tracking
+- SSE-derived current core display on Active and Cores tabs
+
+#### Backend E2E CI (2026-02-13)
+- `backend-e2e-tests` job in `ci-comprehensive.yml` — builds goosed, starts real server, runs E2E
+- `scripts/test-backend-e2e.sh` for local backend E2E validation
+- Non-blocking CI gate (warning-only) to avoid blocking existing pipeline
+
 ### Changed
 
 - `Agent::reply()` now dispatches through active core's `execute()` when non-Freeform core is selected
@@ -134,6 +156,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `init_learning_stores()` changed from `&mut self` to `&self` with lazy initialization pattern
 - goose-server routes module reorganized into 28 separate files (was monolithic)
 - Frontend settings migration: localStorage -> backend API via `settingsBridge.ts`
+- AgentsPanel Select buttons now call real `switchCore()` API (was placeholder)
+- `backendApi` export changed from default to named export for proper TypeScript typing
 - `goose` crate `lib.rs` expanded with `autonomous`, `ota`, `timewarp`, `compaction` modules
 
 ### Fixed

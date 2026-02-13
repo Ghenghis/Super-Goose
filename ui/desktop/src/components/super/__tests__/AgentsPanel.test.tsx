@@ -302,11 +302,25 @@ describe('AgentsPanel', () => {
   });
 
   // -- Builder tab ----------------------------------------------------------
-  it('shows coming soon message on Builder tab', () => {
+  it('shows auto-selection config on Builder tab', () => {
     render(<AgentsPanel />);
     fireEvent.click(screen.getByRole('tab', { name: 'Builder' }));
 
-    expect(screen.getByText(/Core builder.*coming soon/)).toBeDefined();
+    expect(screen.getByText('Core Auto-Selection')).toBeDefined();
+    expect(screen.getByText('Core Priority Order')).toBeDefined();
+    expect(screen.getByLabelText('Enable auto-selection')).toBeDefined();
+    expect(screen.getByLabelText('Confidence threshold')).toBeDefined();
+    expect(screen.getByLabelText('Preferred core')).toBeDefined();
+    expect(screen.getByText('Save Configuration')).toBeDefined();
+  });
+
+  it('adjusts confidence threshold on Builder tab', () => {
+    render(<AgentsPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Builder' }));
+
+    const slider = screen.getByLabelText('Confidence threshold') as HTMLInputElement;
+    fireEvent.change(slider, { target: { value: '0.5' } });
+    expect(screen.getByText(/0\.5/)).toBeDefined();
   });
 
   // -- Accessibility --------------------------------------------------------

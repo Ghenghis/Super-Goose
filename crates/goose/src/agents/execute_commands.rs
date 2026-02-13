@@ -177,15 +177,17 @@ impl Agent {
         self.update_session_metrics(session_id, session.schedule_id, &usage, true)
             .await?;
 
-        // Record compaction in the CompactionManager for statistics
+        // Record in CompactionManager history
         {
-            let mut compact_mgr = self.compaction_manager.lock().await;
-            let est_tokens_per_msg = 100; // rough estimate
-            compact_mgr.record_compaction(
-                message_count * est_tokens_per_msg,
-                compacted_conversation.messages().len() * est_tokens_per_msg,
+            let mut cm = self.compaction_manager.lock().await;
+            let compacted_count = compacted_conversation.messages().len();
+            let result = crate::compaction::CompactionResult::new(
+                message_count,   // original count (already computed above)
+                compacted_count, // compacted count
+                format!("Manual compaction: {} → {} messages", message_count, compacted_count),
                 crate::compaction::CompactionTrigger::Command,
             );
+            cm.history_mut().push(result);
         }
 
         let saved_msgs = message_count.saturating_sub(compacted_conversation.messages().len());

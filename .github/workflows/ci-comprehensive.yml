@@ -430,14 +430,13 @@ jobs:
 
           # Check Rust jobs (only if Rust changed)
           if [[ "${{ needs.detect-changes.outputs.rust-changed }}" == "true" ]]; then
-            for job in rust-core-tests rust-learning-tests rust-all-lib-tests; do
-              RESULT="${{ needs.rust-core-tests.result }}"
-              case "$job" in
-                rust-learning-tests) RESULT="${{ needs.rust-learning-tests.result }}" ;;
-                rust-all-lib-tests) RESULT="${{ needs.rust-all-lib-tests.result }}" ;;
-              esac
+            for job_name in "rust-core-tests:${{ needs.rust-core-tests.result }}" \
+                           "rust-learning-tests:${{ needs.rust-learning-tests.result }}" \
+                           "rust-all-lib-tests:${{ needs.rust-all-lib-tests.result }}"; do
+              JOB="${job_name%%:*}"
+              RESULT="${job_name##*:}"
               if [[ "$RESULT" != "success" && "$RESULT" != "skipped" ]]; then
-                echo "FAIL: $job = $RESULT"
+                echo "FAIL: $JOB = $RESULT"
                 FAILED=1
               fi
             done
