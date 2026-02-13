@@ -83,7 +83,7 @@ describe('AgentsPanel', () => {
     mockUseAgentStream.mockReturnValue({
       events: [],
       connected: true,
-      latestStatus: { type: 'agent_status', core: 'StructuredCore' },
+      latestStatus: { type: 'AgentStatus', core_type: 'StructuredCore' },
       clearEvents: vi.fn(),
     });
     render(<AgentsPanel />);
@@ -95,7 +95,7 @@ describe('AgentsPanel', () => {
     mockUseAgentStream.mockReturnValue({
       events: [],
       connected: true,
-      latestStatus: { type: 'agent_status' },
+      latestStatus: { type: 'AgentStatus' },
       clearEvents: vi.fn(),
     });
     const { container } = render(<AgentsPanel />);
@@ -109,9 +109,9 @@ describe('AgentsPanel', () => {
   it('renders agent events on Active tab', () => {
     mockUseAgentStream.mockReturnValue({
       events: [
-        { type: 'tool_called', tool: 'developer' },
-        { type: 'agent_status' },
-        { type: 'core_switched' },
+        { type: 'ToolCalled', tool_name: 'developer' },
+        { type: 'AgentStatus' },
+        { type: 'CoreSwitched' },
       ],
       connected: true,
       latestStatus: null,
@@ -126,7 +126,7 @@ describe('AgentsPanel', () => {
 
   it('shows tool name in event detail', () => {
     mockUseAgentStream.mockReturnValue({
-      events: [{ type: 'tool_called', tool: 'bash' }],
+      events: [{ type: 'ToolCalled', tool_name: 'bash' }],
       connected: false,
       latestStatus: null,
       clearEvents: vi.fn(),
@@ -139,10 +139,10 @@ describe('AgentsPanel', () => {
   it('assigns correct badge labels to event types', () => {
     mockUseAgentStream.mockReturnValue({
       events: [
-        { type: 'agent_status' },
-        { type: 'tool_called', tool: 'x' },
-        { type: 'core_switched' },
-        { type: 'experience_recorded' },
+        { type: 'AgentStatus' },
+        { type: 'ToolCalled', tool_name: 'x' },
+        { type: 'CoreSwitched' },
+        { type: 'ExperienceRecorded' },
       ],
       connected: false,
       latestStatus: null,
@@ -231,7 +231,7 @@ describe('AgentsPanel', () => {
 
   it('has log role for events when present', () => {
     mockUseAgentStream.mockReturnValue({
-      events: [{ type: 'agent_status' }],
+      events: [{ type: 'AgentStatus' }],
       connected: false,
       latestStatus: null,
       clearEvents: vi.fn(),

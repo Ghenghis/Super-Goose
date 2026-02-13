@@ -3,6 +3,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -52,6 +53,15 @@ pub struct OtaTriggerResponse {
     pub triggered: bool,
     pub cycle_id: Option<String>,
     pub message: String,
+    pub restart_required: bool,
+}
+
+#[derive(Serialize)]
+pub struct VersionInfo {
+    pub version: String,
+    pub build_timestamp: String,
+    pub git_hash: String,
+    pub binary_path: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -133,12 +143,29 @@ async fn ota_status(
         let guard = agent.ota_manager_ref().await;
         if let Some(mgr) = guard.as_ref() {
             let status = mgr.status();
+
+            // Wire real data from UpdateScheduler state
+            let sched_state = mgr.update_scheduler.state().await;
+
+            let last_build_time = sched_state
+                .last_update
+                .or(sched_state.last_check)
+                .map(|t| t.to_rfc3339());
+
+            let last_build_result = if sched_state.consecutive_failures > 0 {
+                Some("failed".to_string())
+            } else if sched_state.total_updates > 0 {
+                Some("success".to_string())
+            } else {
+                None
+            };
+
             return Json(OtaStatus {
-                state: format!("{:?}", status),
-                last_build_time: None,
-                last_build_result: None,
+                state: status.to_string(),
+                last_build_time,
+                last_build_result,
                 current_version: env!("CARGO_PKG_VERSION").to_string(),
-                pending_improvements: 0,
+                pending_improvements: sched_state.consecutive_failures,
             });
         }
     }
@@ -170,16 +197,19 @@ async fn ota_trigger(
                     triggered: false,
                     cycle_id: None,
                     message: format!("Dry-run complete: {:?}", result.status),
+                    restart_required: false,
                 });
             }
             // Real trigger
             let version = env!("CARGO_PKG_VERSION");
             match mgr.perform_update(version, "{}").await {
                 Ok(result) => {
+                    let success = result.status == goose::ota::UpdateStatus::Completed;
                     return Json(OtaTriggerResponse {
                         triggered: true,
                         cycle_id: Some(uuid::Uuid::new_v4().to_string()),
                         message: result.summary,
+                        restart_required: success,
                     });
                 }
                 Err(e) => {
@@ -187,6 +217,7 @@ async fn ota_trigger(
                         triggered: false,
                         cycle_id: None,
                         message: format!("OTA trigger failed: {}", e),
+                        restart_required: false,
                     });
                 }
             }
@@ -197,17 +228,52 @@ async fn ota_trigger(
         triggered: false,
         cycle_id: None,
         message: "OTA manager not initialized".to_string(),
+        restart_required: false,
     })
 }
 
 /// GET /api/ota/history
 ///
-/// Returns past improvement cycle history.
+/// Returns past improvement cycle history from OtaManager.
 async fn ota_history(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> Json<Vec<ImprovementHistoryEntry>> {
-    // OtaManager doesn't persist cycle history yet — return empty.
-    // Future: read from AutoImproveScheduler's SQLite history.
+    let agent = get_agent(&state, None).await;
+
+    if let Some(agent) = &agent {
+        let guard = agent.ota_manager_ref().await;
+        if let Some(mgr) = guard.as_ref() {
+            let entries: Vec<ImprovementHistoryEntry> = mgr
+                .cycle_history()
+                .iter()
+                .enumerate()
+                .map(|(i, result)| {
+                    let test_summary = result
+                        .health_report
+                        .as_ref()
+                        .map(|hr| {
+                            let passed = hr.checks.iter().filter(|r| r.passed).count();
+                            let total = hr.checks.len();
+                            format!("{}/{} passed", passed, total)
+                        });
+
+                    ImprovementHistoryEntry {
+                        cycle_id: format!("cycle-{}", i + 1),
+                        started_at: mgr
+                            .last_update_time()
+                            .map(|t| t.to_rfc3339())
+                            .unwrap_or_default(),
+                        completed_at: Some(Utc::now().to_rfc3339()),
+                        status: result.status.to_string(),
+                        improvements_applied: if result.status == goose::ota::UpdateStatus::Completed { 1 } else { 0 },
+                        test_results: test_summary,
+                    }
+                })
+                .collect();
+            return Json(entries);
+        }
+    }
+
     Json(vec![])
 }
 
@@ -251,13 +317,17 @@ async fn autonomous_status(
                 .await
                 .unwrap_or(0) as u64;
 
+            // Wire real uptime and current task
+            let uptime = daemon.uptime_seconds();
+            let current_task = daemon.current_task_description().await;
+
             return Json(AutonomousStatus {
                 running,
-                uptime_seconds: 0, // AutonomousDaemon doesn't track start time yet
+                uptime_seconds: uptime,
                 tasks_completed: completed,
                 tasks_failed: failed,
                 circuit_breaker: cb,
-                current_task: None,
+                current_task,
             });
         }
     }
@@ -342,15 +412,53 @@ async fn autonomous_audit_log(
 }
 
 // ---------------------------------------------------------------------------
+// Handlers — Version & Restart
+// ---------------------------------------------------------------------------
+
+/// GET /api/version
+///
+/// Returns build fingerprint for OTA binary detection.
+async fn version_info() -> Json<VersionInfo> {
+    Json(VersionInfo {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        build_timestamp: env!("BUILD_TIMESTAMP").to_string(),
+        git_hash: env!("BUILD_GIT_HASH").to_string(),
+        binary_path: std::env::current_exe()
+            .ok()
+            .map(|p| p.to_string_lossy().to_string()),
+    })
+}
+
+/// POST /api/ota/restart
+///
+/// Gracefully restarts the goosed process after OTA binary swap.
+/// Delays exit by 500ms so the HTTP response can flush.
+async fn ota_restart() -> Json<serde_json::Value> {
+    tokio::spawn(async {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        tracing::info!("OTA restart: shutting down for binary swap");
+        std::process::exit(0);
+    });
+
+    Json(serde_json::json!({
+        "restarting": true,
+        "message": "Process will exit in 500ms for OTA restart"
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
 pub fn routes(state: Arc<AppState>) -> Router {
     Router::new()
+        // Version endpoint (no state needed)
+        .route("/api/version", get(version_info))
         // OTA endpoints
         .route("/api/ota/status", get(ota_status))
         .route("/api/ota/trigger", post(ota_trigger))
         .route("/api/ota/history", get(ota_history))
+        .route("/api/ota/restart", post(ota_restart))
         // Autonomous endpoints
         .route("/api/autonomous/status", get(autonomous_status))
         .route("/api/autonomous/start", post(autonomous_start))
@@ -402,10 +510,12 @@ mod tests {
             triggered: true,
             cycle_id: Some("cycle-001".to_string()),
             message: "Improvement cycle started".to_string(),
+            restart_required: true,
         };
         let json = serde_json::to_value(&trigger).unwrap();
         assert_eq!(json["triggered"], true);
         assert_eq!(json["cycle_id"], "cycle-001");
+        assert_eq!(json["restart_required"], true);
 
         let history = ImprovementHistoryEntry {
             cycle_id: "cycle-001".to_string(),
@@ -458,6 +568,31 @@ mod tests {
         assert_eq!(json["id"], "audit-001");
         assert_eq!(json["action"], "ci_watch");
         assert_eq!(json["outcome"], "success");
+    }
+
+    #[test]
+    fn test_version_info_serialization() {
+        let info = VersionInfo {
+            version: "1.24.05".to_string(),
+            build_timestamp: "1739475600".to_string(),
+            git_hash: "abc1234".to_string(),
+            binary_path: Some("/usr/local/bin/goosed".to_string()),
+        };
+        let json = serde_json::to_value(&info).unwrap();
+        assert_eq!(json["version"], "1.24.05");
+        assert_eq!(json["build_timestamp"], "1739475600");
+        assert_eq!(json["git_hash"], "abc1234");
+        assert_eq!(json["binary_path"], "/usr/local/bin/goosed");
+
+        // Test with None binary_path
+        let info2 = VersionInfo {
+            version: "1.0.0".to_string(),
+            build_timestamp: "0".to_string(),
+            git_hash: "unknown".to_string(),
+            binary_path: None,
+        };
+        let json2 = serde_json::to_value(&info2).unwrap();
+        assert!(json2["binary_path"].is_null());
     }
 
     #[test]

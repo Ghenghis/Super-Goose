@@ -231,6 +231,120 @@ test.describe('Backend Autonomous Audit Log', () => {
 });
 
 // =============================================================================
+// OTA Trigger + Verify (real end-to-end)
+// =============================================================================
+
+test.describe('Backend OTA Real Trigger + Verify', () => {
+  test.beforeEach(async ({}, testInfo) => {
+    skipWithoutBackend(test);
+    console.log(`Running backend OTA trigger+verify test: ${testInfo.title}`);
+  });
+
+  test('backend OTA trigger produces real build attempt', async ({ backendUrl }) => {
+    // This test triggers a REAL OTA cycle (not dry-run) and verifies
+    // the response indicates an actual build was attempted.
+    // The build may fail (if workspace is not set up), but the key is
+    // that the message indicates a real attempt, not a mock/stub.
+
+    const response = await fetch(`${backendUrl}/api/ota/trigger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: 'e2e-real-trigger', dry_run: false }),
+    });
+    expect(response.ok).toBe(true);
+
+    const data = await response.json();
+    console.log('OTA REAL trigger:', JSON.stringify(data, null, 2));
+
+    // The response should NOT say "not initialized" (which means it's mocked)
+    expect(data.message).not.toContain('not initialized');
+
+    // It should either:
+    // a) Have triggered=true with a cycle_id (real build attempted)
+    // b) Have triggered=false with a real error message (cargo failed, etc.)
+    if (data.triggered) {
+      expect(data.cycle_id).toBeTruthy();
+      expect(typeof data.cycle_id).toBe('string');
+      console.log(`REAL BUILD TRIGGERED: cycle_id=${data.cycle_id}`);
+    } else {
+      // Build failed — but the message should indicate a real failure
+      expect(data.message.length).toBeGreaterThan(10);
+      console.log(`BUILD FAILED (expected): ${data.message}`);
+      // Verify it's a real error, not a stub
+      const isRealError =
+        data.message.includes('Build') ||
+        data.message.includes('cargo') ||
+        data.message.includes('failed') ||
+        data.message.includes('error') ||
+        data.message.includes('OTA');
+      expect(isRealError).toBe(true);
+    }
+  });
+
+  test('backend OTA status reflects after trigger', async ({ backendUrl }) => {
+    // After triggering OTA, the status endpoint should reflect real state.
+    // First trigger a dry-run to set some state:
+    await fetch(`${backendUrl}/api/ota/trigger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: 'e2e-status-check', dry_run: true }),
+    });
+
+    // Now check status
+    const statusResp = await fetch(`${backendUrl}/api/ota/status`);
+    const statusData = await statusResp.json();
+    console.log('OTA status after trigger:', JSON.stringify(statusData, null, 2));
+
+    // The state should be a known OTA status value
+    const validStates = ['idle', 'checking', 'saving_state', 'building', 'swapping',
+                         'health_checking', 'completed', 'rolling_back', 'rolled_back', 'failed'];
+    expect(validStates).toContain(statusData.state);
+
+    // Version should be a real semver
+    expect(statusData.current_version).toMatch(/\d+\.\d+/);
+  });
+
+  test('backend autonomous start/stop cycle works', async ({ backendUrl }) => {
+    // Start the autonomous daemon
+    const startResp = await fetch(`${backendUrl}/api/autonomous/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: 'e2e-daemon-cycle' }),
+    });
+    expect(startResp.ok).toBe(true);
+    const startData = await startResp.json();
+    console.log('Autonomous after start:', JSON.stringify(startData, null, 2));
+
+    // Should now be running
+    expect(startData.running).toBe(true);
+
+    // Wait a moment for uptime to accumulate
+    await new Promise(r => setTimeout(r, 1100));
+
+    // Check status — uptime should be > 0
+    const statusResp = await fetch(`${backendUrl}/api/autonomous/status`);
+    const statusData = await statusResp.json();
+    console.log('Autonomous status after 1s:', JSON.stringify(statusData, null, 2));
+    expect(statusData.running).toBe(true);
+    expect(statusData.uptime_seconds).toBeGreaterThanOrEqual(1);
+
+    // Stop it
+    const stopResp = await fetch(`${backendUrl}/api/autonomous/stop`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: 'e2e-daemon-cycle' }),
+    });
+    expect(stopResp.ok).toBe(true);
+    const stopData = await stopResp.json();
+    console.log('Autonomous after stop:', JSON.stringify(stopData, null, 2));
+
+    // Should now be stopped
+    expect(stopData.running).toBe(false);
+    expect(stopData.uptime_seconds).toBe(0);
+  });
+});
+
+// =============================================================================
 // Cross-system validation
 // =============================================================================
 

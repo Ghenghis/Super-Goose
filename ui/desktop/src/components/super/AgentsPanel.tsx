@@ -51,9 +51,9 @@ export default function AgentsPanel() {
           {/* SSE status indicator */}
           <div className="flex items-center justify-between" aria-label={`Agent stream ${connected ? 'connected' : 'disconnected'}`}>
             <SGStatusDot status={connected ? 'connected' : 'disconnected'} />
-            {latestStatus?.core != null && (
+            {latestStatus?.core_type != null && (
               <span className="sg-badge sg-badge-indigo" style={{ fontSize: '0.75rem' }}>
-                {String(latestStatus.core)}
+                {String(latestStatus.core_type)}
               </span>
             )}
           </div>
@@ -64,16 +64,16 @@ export default function AgentsPanel() {
                 <div key={i} className="sg-card flex items-center justify-between py-2">
                   <div>
                     <div style={{ color: 'var(--sg-text-1)', fontSize: '0.875rem' }}>
-                      {evt.type.replace(/_/g, ' ')}
+                      {evt.type.replace(/([A-Z])/g, ' $1').trim().toLowerCase()}
                     </div>
-                    {evt.tool != null && (
+                    {evt.tool_name != null && (
                       <div style={{ color: 'var(--sg-text-4)', fontSize: '0.75rem' }}>
-                        Tool: {String(evt.tool)}
+                        Tool: {String(evt.tool_name)}
                       </div>
                     )}
                   </div>
-                  <span className={`sg-badge ${evt.type === 'core_switched' ? 'sg-badge-violet' : 'sg-badge-emerald'}`} style={{ fontSize: '0.625rem' }}>
-                    {evt.type === 'agent_status' ? 'STATUS' : evt.type === 'tool_called' ? 'TOOL' : evt.type === 'core_switched' ? 'CORE' : 'EVENT'}
+                  <span className={`sg-badge ${evt.type === 'CoreSwitched' ? 'sg-badge-violet' : 'sg-badge-emerald'}`} style={{ fontSize: '0.625rem' }}>
+                    {evt.type === 'AgentStatus' ? 'STATUS' : evt.type === 'ToolCalled' ? 'TOOL' : evt.type === 'CoreSwitched' ? 'CORE' : 'EVENT'}
                   </span>
                 </div>
               ))}

@@ -5,13 +5,16 @@ export default function MonitorPanel() {
   const { costSummary, learningStats, loading } = useSuperGooseData();
   const { events, connected, latestStatus } = useAgentStream();
 
-  const sessionCost = costSummary?.session_cost != null ? `$${costSummary.session_cost.toFixed(2)}` : 'N/A';
-  const totalCost = costSummary?.total_cost != null ? `$${costSummary.total_cost.toFixed(2)}` : 'N/A';
+  const sessionCost = costSummary?.session_spend != null ? `$${costSummary.session_spend.toFixed(2)}` : 'N/A';
+  const totalCost = costSummary?.total_spend != null ? `$${costSummary.total_spend.toFixed(2)}` : 'N/A';
+  const budgetUsedPercent = (costSummary?.budget_limit != null && costSummary.budget_limit > 0)
+    ? Math.round((costSummary.total_spend / costSummary.budget_limit) * 100)
+    : 0;
   const budgetDisplay = costSummary?.budget_limit != null
-    ? `$${costSummary.budget_limit.toFixed(2)} (${Math.round(costSummary.budget_used_percent)}%)`
+    ? `$${costSummary.budget_limit.toFixed(2)} (${budgetUsedPercent}%)`
     : '\u221E';
 
-  const activeCore = latestStatus?.core ? String(latestStatus.core) : 'FreeformCore';
+  const activeCore = latestStatus?.core_type ? String(latestStatus.core_type) : 'FreeformCore';
   const turnCount = learningStats?.total_experiences != null ? String(learningStats.total_experiences) : '0';
 
   const recentLogs = events.slice(-20).reverse();
@@ -48,7 +51,7 @@ export default function MonitorPanel() {
               <div
                 className="sg-progress"
                 role="progressbar"
-                aria-valuenow={Math.min(Math.round(costSummary.budget_used_percent), 100)}
+                aria-valuenow={Math.min(budgetUsedPercent, 100)}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-label="Budget usage"
@@ -57,8 +60,8 @@ export default function MonitorPanel() {
                 <div
                   className="sg-progress-bar"
                   style={{
-                    width: `${Math.min(costSummary.budget_used_percent, 100)}%`,
-                    background: costSummary.budget_used_percent > 90 ? 'var(--sg-red)' : 'var(--sg-gold)',
+                    width: `${Math.min(budgetUsedPercent, 100)}%`,
+                    background: budgetUsedPercent > 90 ? 'var(--sg-red)' : 'var(--sg-gold)',
                   }}
                 />
               </div>
@@ -70,7 +73,7 @@ export default function MonitorPanel() {
               {costSummary.model_breakdown.map(m => (
                 <div key={m.model} className="flex items-center justify-between" role="listitem" style={{ fontSize: '0.75rem', padding: '0.125rem 0' }}>
                   <span style={{ color: 'var(--sg-text-3)' }}>{m.model}</span>
-                  <span style={{ color: 'var(--sg-text-2)' }}>${m.cost.toFixed(4)} ({m.calls} calls)</span>
+                  <span style={{ color: 'var(--sg-text-2)' }}>${m.cost.toFixed(4)} ({m.input_tokens + m.output_tokens} tokens)</span>
                 </div>
               ))}
             </div>
@@ -117,8 +120,8 @@ export default function MonitorPanel() {
                 <span style={{ color: 'var(--sg-text-4)', marginRight: '0.5rem' }}>
                   {evt.type}
                 </span>
-                {evt.core != null && <span style={{ color: 'var(--sg-indigo)' }}>[{String(evt.core)}] </span>}
-                {evt.tool != null && <span style={{ color: 'var(--sg-gold)' }}>{String(evt.tool)} </span>}
+                {evt.core_type != null && <span style={{ color: 'var(--sg-indigo)' }}>[{String(evt.core_type)}] </span>}
+                {evt.tool_name != null && <span style={{ color: 'var(--sg-gold)' }}>{String(evt.tool_name)} </span>}
                 {evt.status != null && <span style={{ color: 'var(--sg-emerald)' }}>{String(evt.status)}</span>}
               </div>
             ))

@@ -164,6 +164,10 @@ pub struct OtaManager {
     pub rollback: RollbackManager,
     pub update_scheduler: UpdateScheduler,
     status: UpdateStatus,
+    /// History of completed update cycles (most recent last).
+    cycle_history: Vec<UpdateResult>,
+    /// Timestamp when the last update was attempted.
+    last_update_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl OtaManager {
@@ -181,6 +185,8 @@ impl OtaManager {
             rollback: RollbackManager::with_defaults(history_dir),
             update_scheduler: UpdateScheduler::new(config.scheduler_config),
             status: UpdateStatus::Idle,
+            cycle_history: Vec::new(),
+            last_update_time: None,
         }
     }
 
@@ -192,6 +198,16 @@ impl OtaManager {
     /// Get the current update status.
     pub fn status(&self) -> &UpdateStatus {
         &self.status
+    }
+
+    /// Get the history of completed update cycles.
+    pub fn cycle_history(&self) -> &[UpdateResult] {
+        &self.cycle_history
+    }
+
+    /// Get the timestamp of the last update attempt.
+    pub fn last_update_time(&self) -> Option<&chrono::DateTime<chrono::Utc>> {
+        self.last_update_time.as_ref()
     }
 
     /// Perform a complete update cycle:
@@ -206,6 +222,7 @@ impl OtaManager {
         config_json: &str,
     ) -> Result<UpdateResult> {
         info!("Starting OTA update cycle");
+        self.last_update_time = Some(chrono::Utc::now());
 
         // Step 1: Save state
         self.status = UpdateStatus::SavingState;
@@ -278,19 +295,19 @@ impl OtaManager {
         self.status = UpdateStatus::HealthChecking;
         let health_report = self.health_checker.run_all_checks().await?;
 
-        if health_report.healthy {
+        let result = if health_report.healthy {
             // Success!
             self.status = UpdateStatus::Completed;
             self.update_scheduler.record_success().await;
             info!("OTA update completed successfully");
 
-            Ok(UpdateResult {
+            UpdateResult {
                 status: UpdateStatus::Completed,
                 build_result: Some(build_result),
                 health_report: Some(health_report),
                 rollback_record: None,
                 summary: "Update completed successfully".to_string(),
-            })
+            }
         } else {
             // Step 5: Rollback
             self.status = UpdateStatus::RollingBack;
@@ -304,24 +321,28 @@ impl OtaManager {
 
             if rollback_record.success {
                 self.status = UpdateStatus::RolledBack;
-                Ok(UpdateResult {
+                UpdateResult {
                     status: UpdateStatus::RolledBack,
                     build_result: Some(build_result),
                     health_report: Some(health_report),
                     rollback_record: Some(rollback_record),
                     summary: "Health check failed, successfully rolled back".to_string(),
-                })
+                }
             } else {
                 self.status = UpdateStatus::Failed;
-                Ok(UpdateResult {
+                UpdateResult {
                     status: UpdateStatus::Failed,
                     build_result: Some(build_result),
                     health_report: Some(health_report),
                     rollback_record: Some(rollback_record),
                     summary: "Health check failed AND rollback failed".to_string(),
-                })
+                }
             }
-        }
+        };
+
+        // Record in cycle history
+        self.cycle_history.push(result.clone());
+        Ok(result)
     }
 
     /// Perform a dry-run update (no actual build/swap, just validation).

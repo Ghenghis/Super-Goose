@@ -2,8 +2,17 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 const API_BASE = 'http://localhost:3284';
 
+/** Event types as sent by the backend (PascalCase serde tags). */
+export type AgentStreamEventType =
+  | 'AgentStatus'
+  | 'TaskUpdate'
+  | 'ToolCalled'
+  | 'CoreSwitched'
+  | 'ExperienceRecorded'
+  | 'Heartbeat';
+
 export interface AgentStreamEvent {
-  type: 'agent_status' | 'task_update' | 'tool_called' | 'core_switched' | 'experience_recorded';
+  type: AgentStreamEventType;
   [key: string]: unknown;
 }
 
@@ -21,7 +30,7 @@ export function useAgentStream() {
       try {
         const evt = JSON.parse(e.data) as AgentStreamEvent;
         setEvents(prev => [...prev.slice(-99), evt]);
-        if (evt.type === 'agent_status') setLatestStatus(evt);
+        if (evt.type === 'AgentStatus') setLatestStatus(evt);
       } catch { /* skip malformed */ }
     };
     es.onerror = () => setConnected(false);

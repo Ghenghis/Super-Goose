@@ -66,6 +66,17 @@ export function skipIf(test: TestType<any, any>, condition: boolean, reason: str
 }
 
 /**
+ * Skip the test unless GOOSE_OTA_TEST=1 is set.
+ * Use for long-running OTA tests that do real cargo builds.
+ */
+export function skipWithoutOtaFlag(test: TestType<any, any>) {
+  test.skip(
+    !process.env.GOOSE_OTA_TEST,
+    'Requires GOOSE_OTA_TEST=1 (long-running real cargo build test)'
+  );
+}
+
+/**
  * Helper to get backend URL from environment or default.
  *
  * @returns Backend URL string

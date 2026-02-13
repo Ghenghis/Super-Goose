@@ -7,20 +7,24 @@ describe('AutonomousDashboard', () => {
 
   const mockOta = {
     current_version: '1.24.05',
-    last_check: '2026-02-12T10:00:00Z',
-    pipeline_state: 'idle',
-    improvements_applied: 7,
+    last_build_time: '2026-02-12T10:00:00Z',
+    last_build_result: null,
+    state: 'idle',
+    pending_improvements: 7,
   };
 
   const mockAuto = {
     running: true,
-    task_count: 3,
+    tasks_completed: 3,
+    tasks_failed: 0,
     uptime_seconds: 3600,
     circuit_breaker: {
       state: 'closed',
-      failure_count: 0,
+      consecutive_failures: 0,
       max_failures: 3,
+      last_failure: null,
     },
+    current_task: null,
   };
 
   beforeEach(() => {
@@ -141,7 +145,7 @@ describe('AutonomousDashboard', () => {
   it('displays task count', async () => {
     render(<AutonomousDashboard />);
     await waitFor(() => {
-      expect(screen.getByText('3')).toBeDefined();
+      expect(screen.getByText(/3 \(3 OK \/ 0 failed\)/)).toBeDefined();
     });
   });
 
@@ -179,6 +183,153 @@ describe('AutonomousDashboard', () => {
         (c) => c[1]?.method === 'POST' && c[0].includes('/api/autonomous/stop')
       );
       expect(postCalls.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('renders OTA trigger buttons', async () => {
+    render(<AutonomousDashboard />);
+    await waitFor(() => {
+      expect(screen.getByTestId('ota-dry-run-btn')).toBeDefined();
+      expect(screen.getByTestId('ota-trigger-btn')).toBeDefined();
+    });
+  });
+
+  it('triggers dry-run OTA when dry-run button clicked', async () => {
+    const mockTriggerResponse = {
+      triggered: false,
+      cycle_id: null,
+      message: 'Dry-run complete: Completed',
+      restart_required: false,
+    };
+
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (opts?.method === 'POST' && url.includes('/api/ota/trigger')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockTriggerResponse),
+        });
+      }
+      if (url.includes('/api/ota/status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockOta),
+        });
+      }
+      if (url.includes('/api/autonomous/status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockAuto),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<AutonomousDashboard />);
+    await waitFor(() => {
+      expect(screen.getByTestId('ota-dry-run-btn')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByTestId('ota-dry-run-btn'));
+
+    await waitFor(() => {
+      const triggerCalls = (fetchMock.mock.calls as Array<[string, RequestInit?]>).filter(
+        (c) => c[1]?.method === 'POST' && c[0].includes('/api/ota/trigger')
+      );
+      expect(triggerCalls.length).toBeGreaterThanOrEqual(1);
+      // Verify it was a dry run
+      const body = JSON.parse(triggerCalls[0][1]?.body as string);
+      expect(body.dry_run).toBe(true);
+    });
+  });
+
+  it('triggers real OTA when trigger button clicked', async () => {
+    const mockTriggerResponse = {
+      triggered: true,
+      cycle_id: 'cycle-abc',
+      message: 'Build failed: cargo not found',
+      restart_required: false,
+    };
+
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (opts?.method === 'POST' && url.includes('/api/ota/trigger')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockTriggerResponse),
+        });
+      }
+      if (url.includes('/api/ota/status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockOta),
+        });
+      }
+      if (url.includes('/api/autonomous/status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockAuto),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<AutonomousDashboard />);
+    await waitFor(() => {
+      expect(screen.getByTestId('ota-trigger-btn')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByTestId('ota-trigger-btn'));
+
+    await waitFor(() => {
+      const triggerCalls = (fetchMock.mock.calls as Array<[string, RequestInit?]>).filter(
+        (c) => c[1]?.method === 'POST' && c[0].includes('/api/ota/trigger')
+      );
+      expect(triggerCalls.length).toBeGreaterThanOrEqual(1);
+      const body = JSON.parse(triggerCalls[0][1]?.body as string);
+      expect(body.dry_run).toBe(false);
+    });
+  });
+
+  it('shows OTA message after trigger', async () => {
+    const mockTriggerResponse = {
+      triggered: false,
+      cycle_id: null,
+      message: 'Dry-run complete: Completed',
+      restart_required: false,
+    };
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (opts?.method === 'POST' && url.includes('/api/ota/trigger')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockTriggerResponse),
+        });
+      }
+      if (url.includes('/api/ota/status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockOta),
+        });
+      }
+      if (url.includes('/api/autonomous/status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockAuto),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+
+    render(<AutonomousDashboard />);
+    await waitFor(() => {
+      expect(screen.getByTestId('ota-dry-run-btn')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByTestId('ota-dry-run-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Dry-run complete: Completed')).toBeDefined();
     });
   });
 

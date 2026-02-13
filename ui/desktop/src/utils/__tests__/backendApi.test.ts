@@ -57,7 +57,7 @@ describe('backendApi', () => {
 
   describe('getCostSummary', () => {
     it('returns cost summary on success', async () => {
-      const summary = { total_cost: 1.5, session_cost: 0.5, budget_limit: 10, budget_used_percent: 15, model_breakdown: [] };
+      const summary = { total_spend: 1.5, session_spend: 0.5, budget_limit: 10, budget_remaining: 8.5, budget_warning_threshold: 0.8, is_over_budget: false, model_breakdown: [] };
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(summary),
@@ -76,7 +76,7 @@ describe('backendApi', () => {
 
   describe('getCostBreakdown', () => {
     it('returns breakdown on success', async () => {
-      const breakdown = [{ model: 'test', provider: 'test', input_tokens: 100, output_tokens: 50, cost: 0.5, calls: 3 }];
+      const breakdown = [{ model: 'test', provider: 'test', input_tokens: 100, output_tokens: 50, cost: 0.5 }];
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(breakdown),

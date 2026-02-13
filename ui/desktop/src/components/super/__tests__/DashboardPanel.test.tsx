@@ -60,8 +60,8 @@ describe('DashboardPanel', () => {
   it('renders metric values from useSuperGooseData when loaded', () => {
     mockUseSuperGooseData.mockReturnValue({
       learningStats: { success_rate: 0.85, total_experiences: 10, total_skills: 5, verified_skills: 2, total_insights: 3, experiences_by_core: {} },
-      costSummary: { session_cost: 1.23, total_cost: 4.56, model_breakdown: [], budget_limit: null, budget_used_percent: 0 },
-      autonomousStatus: { running: true, task_count: 7, uptime_seconds: 3600, circuit_breaker: { state: 'closed', failure_count: 0, max_failures: 5 } },
+      costSummary: { session_spend: 1.23, total_spend: 4.56, budget_limit: null, budget_remaining: null, budget_warning_threshold: 0.8, is_over_budget: false, model_breakdown: [] },
+      autonomousStatus: { running: true, uptime_seconds: 3600, tasks_completed: 5, tasks_failed: 2, circuit_breaker: { state: 'closed', consecutive_failures: 0, max_failures: 5, last_failure: null }, current_task: null },
       otaStatus: null,
       loading: false,
       refresh: vi.fn(),
@@ -115,8 +115,8 @@ describe('DashboardPanel', () => {
   it('renders recent events from useAgentStream', () => {
     mockUseAgentStream.mockReturnValue({
       events: [
-        { type: 'tool_called', tool: 'developer' },
-        { type: 'agent_status', core: 'FreeformCore' },
+        { type: 'ToolCalled', tool_name: 'developer' },
+        { type: 'AgentStatus', core_type: 'FreeformCore' },
       ],
       connected: true,
       latestStatus: null,

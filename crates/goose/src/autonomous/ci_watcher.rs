@@ -137,17 +137,122 @@ pub trait CiStatusFetcher: Send + Sync {
     fn fetch_branch_runs(&self, repo: &str, branch: &str) -> Result<Vec<CiRun>>;
 }
 
-/// Real CI status fetcher using GitHub API (via gh CLI).
+/// Real CI status fetcher using `gh` CLI.
+///
+/// Requires `gh` to be installed and authenticated (`gh auth status`).
+/// Falls back to an error if `gh` is not available.
 pub struct GithubCiFetcher;
 
-impl CiStatusFetcher for GithubCiFetcher {
-    fn fetch_run_status(&self, _repo: &str, _run_id: &str) -> Result<CiRun> {
-        // In production, this would call `gh api repos/{repo}/actions/runs/{run_id}`
-        bail!("Real GitHub API not available in this context — use mock for testing")
+impl GithubCiFetcher {
+    /// Parse GitHub's status/conclusion into our CiStatus.
+    fn parse_status(status: &str, conclusion: &str) -> CiStatus {
+        match (status, conclusion) {
+            ("completed", "success") => CiStatus::Success,
+            ("completed", "failure") | ("completed", "timed_out") => CiStatus::Failed,
+            ("completed", "cancelled") | ("completed", "skipped") => CiStatus::Cancelled,
+            ("in_progress", _) => CiStatus::Running,
+            ("queued", _) | ("waiting", _) | ("pending", _) => CiStatus::Pending,
+            _ => CiStatus::Unknown,
+        }
     }
 
-    fn fetch_branch_runs(&self, _repo: &str, _branch: &str) -> Result<Vec<CiRun>> {
-        bail!("Real GitHub API not available in this context — use mock for testing")
+    /// Parse an ISO 8601 timestamp from GitHub.
+    fn parse_timestamp(s: &str) -> Option<DateTime<Utc>> {
+        if s.is_empty() || s == "null" {
+            return None;
+        }
+        s.parse::<DateTime<Utc>>().ok()
+    }
+
+    /// Run a `gh` command and return its stdout.
+    fn run_gh(args: &[&str]) -> Result<String> {
+        let output = std::process::Command::new("gh")
+            .args(args)
+            .output()
+            .map_err(|e| anyhow::anyhow!("Failed to run `gh` CLI (is it installed?): {}", e))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            bail!("gh command failed: {}", stderr.trim());
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    }
+}
+
+impl CiStatusFetcher for GithubCiFetcher {
+    fn fetch_run_status(&self, repo: &str, run_id: &str) -> Result<CiRun> {
+        let json_str = Self::run_gh(&[
+            "api",
+            &format!("repos/{}/actions/runs/{}", repo, run_id),
+            "--jq", ".name,.head_branch,.head_sha,.status,.conclusion,.html_url,.run_started_at,.updated_at,.id",
+        ])?;
+
+        // gh --jq with multiple selectors outputs one value per line
+        let lines: Vec<&str> = json_str.trim().lines().collect();
+        if lines.len() < 9 {
+            bail!("Unexpected gh output for run {}: got {} lines", run_id, lines.len());
+        }
+
+        let status_str = lines[3];
+        let conclusion_str = lines[4];
+        let started = Self::parse_timestamp(lines[6]);
+        let completed = Self::parse_timestamp(lines[7]);
+        let duration = match (&started, &completed) {
+            (Some(s), Some(c)) => Some((*c - *s).num_seconds().max(0) as u64),
+            _ => None,
+        };
+
+        Ok(CiRun {
+            run_id: lines[8].to_string(),
+            workflow_name: lines[0].to_string(),
+            branch: lines[1].to_string(),
+            commit_sha: lines[2].to_string(),
+            status: Self::parse_status(status_str, conclusion_str),
+            url: lines[5].to_string(),
+            started_at: started,
+            completed_at: completed,
+            duration_secs: duration,
+        })
+    }
+
+    fn fetch_branch_runs(&self, repo: &str, branch: &str) -> Result<Vec<CiRun>> {
+        let json_str = Self::run_gh(&[
+            "run", "list",
+            "--repo", repo,
+            "--branch", branch,
+            "--limit", "10",
+            "--json", "databaseId,workflowName,headBranch,headSha,status,conclusion,url,createdAt,updatedAt",
+        ])?;
+
+        // Parse the JSON array
+        let runs: Vec<serde_json::Value> = serde_json::from_str(&json_str)
+            .map_err(|e| anyhow::anyhow!("Failed to parse gh output: {}", e))?;
+
+        let mut result = Vec::new();
+        for run in runs {
+            let status_str = run["status"].as_str().unwrap_or("");
+            let conclusion_str = run["conclusion"].as_str().unwrap_or("");
+            let created = run["createdAt"].as_str().map(Self::parse_timestamp).flatten();
+            let updated = run["updatedAt"].as_str().map(Self::parse_timestamp).flatten();
+            let duration = match (&created, &updated) {
+                (Some(s), Some(c)) => Some((*c - *s).num_seconds().max(0) as u64),
+                _ => None,
+            };
+
+            result.push(CiRun {
+                run_id: run["databaseId"].to_string(),
+                workflow_name: run["workflowName"].as_str().unwrap_or("").to_string(),
+                branch: run["headBranch"].as_str().unwrap_or("").to_string(),
+                commit_sha: run["headSha"].as_str().unwrap_or("").to_string(),
+                status: Self::parse_status(status_str, conclusion_str),
+                url: run["url"].as_str().unwrap_or("").to_string(),
+                started_at: created,
+                completed_at: updated,
+                duration_secs: duration,
+            });
+        }
+
+        Ok(result)
     }
 }
 

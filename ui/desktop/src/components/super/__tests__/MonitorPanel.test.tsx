@@ -73,11 +73,13 @@ describe('MonitorPanel', () => {
     mockUseSuperGooseData.mockReturnValue({
       learningStats: { total_experiences: 42, success_rate: 0.9, total_skills: 5, verified_skills: 3, total_insights: 2, experiences_by_core: {} },
       costSummary: {
-        session_cost: 2.5,
-        total_cost: 10.75,
-        model_breakdown: [],
+        session_spend: 2.5,
+        total_spend: 10.75,
         budget_limit: 50,
-        budget_used_percent: 21.5,
+        budget_remaining: 39.25,
+        budget_warning_threshold: 0.8,
+        is_over_budget: false,
+        model_breakdown: [],
       },
       autonomousStatus: null,
       otaStatus: null,
@@ -96,11 +98,13 @@ describe('MonitorPanel', () => {
     mockUseSuperGooseData.mockReturnValue({
       learningStats: null,
       costSummary: {
-        session_cost: 5,
-        total_cost: 20,
-        model_breakdown: [],
+        session_spend: 5,
+        total_spend: 20,
         budget_limit: 100,
-        budget_used_percent: 45,
+        budget_remaining: 80,
+        budget_warning_threshold: 0.8,
+        is_over_budget: false,
+        model_breakdown: [],
       },
       autonomousStatus: null,
       otaStatus: null,
@@ -111,7 +115,7 @@ describe('MonitorPanel', () => {
 
     const progressbar = screen.getByRole('progressbar', { name: 'Budget usage' });
     expect(progressbar).toBeDefined();
-    expect(progressbar.getAttribute('aria-valuenow')).toBe('45');
+    expect(progressbar.getAttribute('aria-valuenow')).toBe('20');
     expect(progressbar.getAttribute('aria-valuemin')).toBe('0');
     expect(progressbar.getAttribute('aria-valuemax')).toBe('100');
   });
@@ -126,14 +130,16 @@ describe('MonitorPanel', () => {
     mockUseSuperGooseData.mockReturnValue({
       learningStats: null,
       costSummary: {
-        session_cost: 1,
-        total_cost: 5,
-        model_breakdown: [
-          { model: 'claude-3-opus', cost: 3.1234, calls: 12 },
-          { model: 'claude-3-sonnet', cost: 1.5678, calls: 8 },
-        ],
+        session_spend: 1,
+        total_spend: 5,
         budget_limit: null,
-        budget_used_percent: 0,
+        budget_remaining: null,
+        budget_warning_threshold: 0.8,
+        is_over_budget: false,
+        model_breakdown: [
+          { model: 'claude-3-opus', provider: 'anthropic', input_tokens: 8000, output_tokens: 4000, cost: 3.1234 },
+          { model: 'claude-3-sonnet', provider: 'anthropic', input_tokens: 5000, output_tokens: 3000, cost: 1.5678 },
+        ],
       },
       autonomousStatus: null,
       otaStatus: null,
@@ -143,9 +149,9 @@ describe('MonitorPanel', () => {
     render(<MonitorPanel />);
 
     expect(screen.getByText('claude-3-opus')).toBeDefined();
-    expect(screen.getByText('$3.1234 (12 calls)')).toBeDefined();
+    expect(screen.getByText('$3.1234 (12000 tokens)')).toBeDefined();
     expect(screen.getByText('claude-3-sonnet')).toBeDefined();
-    expect(screen.getByText('$1.5678 (8 calls)')).toBeDefined();
+    expect(screen.getByText('$1.5678 (8000 tokens)')).toBeDefined();
   });
 
   // -- Agent Statistics section ---------------------------------------------
@@ -162,7 +168,7 @@ describe('MonitorPanel', () => {
     mockUseAgentStream.mockReturnValue({
       events: [],
       connected: true,
-      latestStatus: { type: 'agent_status', core: 'OrchestratorCore' },
+      latestStatus: { type: 'AgentStatus', core_type: 'OrchestratorCore' },
       clearEvents: vi.fn(),
     });
     render(<MonitorPanel />);
@@ -198,8 +204,8 @@ describe('MonitorPanel', () => {
   it('renders log events from useAgentStream', () => {
     mockUseAgentStream.mockReturnValue({
       events: [
-        { type: 'tool_called', tool: 'developer', status: 'running' },
-        { type: 'core_switched', core: 'SwarmCore' },
+        { type: 'ToolCalled', tool_name: 'developer', status: 'running' },
+        { type: 'CoreSwitched', core_type: 'SwarmCore' },
       ],
       connected: false,
       latestStatus: null,
@@ -207,10 +213,10 @@ describe('MonitorPanel', () => {
     });
     render(<MonitorPanel />);
 
-    expect(screen.getByText('tool_called')).toBeDefined();
+    expect(screen.getByText('ToolCalled')).toBeDefined();
     expect(screen.getByText('developer')).toBeDefined();
     expect(screen.getByText('running')).toBeDefined();
-    expect(screen.getByText('core_switched')).toBeDefined();
+    expect(screen.getByText('CoreSwitched')).toBeDefined();
     expect(screen.getByText(/SwarmCore/)).toBeDefined();
   });
 

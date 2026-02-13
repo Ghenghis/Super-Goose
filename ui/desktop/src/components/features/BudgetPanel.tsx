@@ -47,7 +47,7 @@ function mapApiBreakdown(items: CostModelBreakdown[]): CostBreakdown[] {
     inputTokens: item.input_tokens,
     outputTokens: item.output_tokens,
     cost: item.cost,
-    calls: item.calls,
+    calls: 0, // Backend doesn't track per-model call counts
   }));
 }
 

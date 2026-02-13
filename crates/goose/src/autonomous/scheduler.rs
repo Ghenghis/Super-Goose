@@ -266,6 +266,11 @@ impl TaskScheduler {
         }
     }
 
+    /// Peek at the next task in the queue without removing it.
+    pub fn peek_next(&self) -> Option<&ScheduledTask> {
+        self.queue.peek()
+    }
+
     /// Get all tasks that are currently due, ordered by priority.
     pub fn all_due(&mut self) -> Vec<ScheduledTask> {
         let mut due = Vec::new();

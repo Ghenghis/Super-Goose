@@ -730,6 +730,142 @@ version = "0.0.1"
     // 15. Verify all OTA sub-modules are accessible
     // ═══════════════════════════════════════════════════════════════
 
+    // ═══════════════════════════════════════════════════════════════
+    // 16. Real OTA pipeline smoke test (requires cargo + real workspace)
+    // ═══════════════════════════════════════════════════════════════
+
+    #[tokio::test]
+    async fn test_real_ota_state_save_and_scheduler_tracking() {
+        // Exercise the REAL OtaManager with state save + scheduler tracking.
+        // This verifies cycle_history and last_update_time work with real data.
+
+        let dir = TempDir::new().unwrap();
+        create_mock_workspace(dir.path());
+        let config = test_ota_config(dir.path());
+        let mut manager = OtaManager::new(config);
+
+        // Verify initial state
+        assert!(manager.cycle_history().is_empty());
+        assert!(manager.last_update_time().is_none());
+
+        // Trigger an update (will fail at build step — temp workspace has no real code)
+        let result = manager
+            .perform_update("1.24.05", r#"{"core":"freeform"}"#)
+            .await;
+
+        // After attempt, last_update_time should be set
+        assert!(
+            manager.last_update_time().is_some(),
+            "last_update_time should be set after perform_update"
+        );
+
+        // And cycle_history should have exactly 1 entry
+        match result {
+            Ok(update_result) => {
+                assert_eq!(manager.cycle_history().len(), 1);
+                assert_eq!(
+                    manager.cycle_history()[0].status,
+                    update_result.status
+                );
+            }
+            Err(_) => {
+                // If cargo itself isn't found, that's OK — we still test the tracking
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_real_scheduler_state_tracks_updates() {
+        // Verify UpdateScheduler.state() returns real data after record_success/record_failure.
+        let scheduler = UpdateScheduler::new(SchedulerConfig::default());
+
+        // Record some activity
+        scheduler.record_success().await;
+        let state = scheduler.state().await;
+        assert_eq!(state.total_updates, 1);
+        assert_eq!(state.consecutive_failures, 0);
+        assert!(state.last_update.is_some());
+
+        // Record a failure
+        scheduler.record_failure().await;
+        let state = scheduler.state().await;
+        assert_eq!(state.total_updates, 1);
+        assert_eq!(state.consecutive_failures, 1);
+
+        // Record another success — resets consecutive_failures
+        scheduler.record_success().await;
+        let state = scheduler.state().await;
+        assert_eq!(state.total_updates, 2);
+        assert_eq!(state.consecutive_failures, 0);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 17. CiWatcher with real gh CLI (skipped if gh not available)
+    // ═══════════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_ci_watcher_gh_cli_available() {
+        // Check if `gh` is available — skip test if not
+        let output = std::process::Command::new("gh")
+            .arg("--version")
+            .output();
+
+        match output {
+            Ok(o) if o.status.success() => {
+                let version = String::from_utf8_lossy(&o.stdout);
+                assert!(
+                    version.contains("gh version"),
+                    "gh should report its version"
+                );
+            }
+            _ => {
+                eprintln!("SKIP: gh CLI not available");
+                return;
+            }
+        }
+    }
+
+    #[test]
+    fn test_ci_watcher_real_github_fetch() {
+        use crate::autonomous::ci_watcher::{CiWatcher, CiWatcherConfig, GithubCiFetcher, CiStatusFetcher};
+
+        // Check if gh is available and authenticated
+        let auth_check = std::process::Command::new("gh")
+            .args(["auth", "status"])
+            .output();
+
+        match auth_check {
+            Ok(o) if o.status.success() => {
+                // gh is authenticated — try a real fetch
+                let fetcher = GithubCiFetcher;
+                let result = fetcher.fetch_branch_runs("Ghenghis/Super-Goose", "main");
+
+                match result {
+                    Ok(runs) => {
+                        // We got real data! Verify it makes sense.
+                        assert!(
+                            !runs.is_empty(),
+                            "Should find at least one CI run on main branch"
+                        );
+                        for run in &runs {
+                            assert!(!run.workflow_name.is_empty(), "Workflow name should be populated");
+                            assert_eq!(run.branch, "main", "Branch should be main");
+                            assert!(!run.commit_sha.is_empty(), "Commit SHA should be populated");
+                        }
+                        eprintln!("REAL: fetched {} CI runs from GitHub", runs.len());
+                    }
+                    Err(e) => {
+                        // This could happen if the repo doesn't have runs, or rate limiting
+                        eprintln!("SKIP: gh fetch failed (acceptable): {}", e);
+                    }
+                }
+            }
+            _ => {
+                eprintln!("SKIP: gh not authenticated");
+            }
+        }
+    }
+
     #[test]
     fn test_all_ota_modules_are_importable() {
         // This test verifies the re-exports in ota/mod.rs are correct

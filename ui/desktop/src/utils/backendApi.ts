@@ -35,12 +35,15 @@ export interface GatewayConfig {
   policies: unknown[];
 }
 
+/** Matches backend `cost.rs` CostSummary. */
 export interface CostSummary {
-  total_cost: number;
-  session_cost: number;
-  model_breakdown: CostModelBreakdown[];
+  total_spend: number;
+  session_spend: number;
   budget_limit: number | null;
-  budget_used_percent: number;
+  budget_remaining: number | null;
+  budget_warning_threshold: number;
+  is_over_budget: boolean;
+  model_breakdown: CostModelBreakdown[];
 }
 
 export interface CostModelBreakdown {
@@ -49,7 +52,6 @@ export interface CostModelBreakdown {
   input_tokens: number;
   output_tokens: number;
   cost: number;
-  calls: number;
 }
 
 export interface CostBudget {
@@ -203,6 +205,22 @@ export interface ObservabilityConfig {
 export interface MemoryConsolidateResponse {
   success: boolean;
   message: string;
+}
+
+/** Matches backend `ota_api.rs` VersionInfo. */
+export interface VersionInfo {
+  version: string;
+  build_timestamp: string;
+  git_hash: string;
+  binary_path: string | null;
+}
+
+/** Matches backend `ota_api.rs` OtaTriggerResponse. */
+export interface OtaTriggerResponse {
+  triggered: boolean;
+  cycle_id: string | null;
+  message: string;
+  restart_required: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -719,6 +737,52 @@ export const backendApi = {
     } catch (err) {
       console.warn('[backendApi] updateObservabilityConfig failed:', err);
       return null;
+    }
+  },
+
+  // -----------------------------------------------------------------------
+  // Version / OTA
+  // -----------------------------------------------------------------------
+
+  /** Get build version fingerprint (for OTA binary detection). */
+  getVersion: async (): Promise<VersionInfo | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/version`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as VersionInfo;
+    } catch (err) {
+      console.warn('[backendApi] getVersion failed:', err);
+      return null;
+    }
+  },
+
+  /** Trigger an OTA self-improvement cycle. */
+  triggerOta: async (sessionId: string, dryRun: boolean): Promise<OtaTriggerResponse | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/ota/trigger`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ session_id: sessionId, dry_run: dryRun }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as OtaTriggerResponse;
+    } catch (err) {
+      console.warn('[backendApi] triggerOta failed:', err);
+      return null;
+    }
+  },
+
+  /** Request backend process restart (after OTA binary swap). */
+  restartBackend: async (): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/ota/restart`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+      });
+      return res.ok;
+    } catch (err) {
+      // Expected — process exits before response completes
+      return true;
     }
   },
 

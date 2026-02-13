@@ -71,6 +71,8 @@ pub struct AutonomousDaemon {
     audit_log: AuditLog,
     /// Whether the daemon is currently running.
     running: AtomicBool,
+    /// When the daemon was last started (for uptime tracking).
+    started_at: Mutex<Option<std::time::Instant>>,
 }
 
 impl AutonomousDaemon {
@@ -102,6 +104,7 @@ impl AutonomousDaemon {
             failsafe: Mutex::new(failsafe),
             audit_log,
             running: AtomicBool::new(false),
+            started_at: Mutex::new(None),
         })
     }
 
@@ -126,19 +129,46 @@ impl AutonomousDaemon {
             failsafe: Mutex::new(failsafe),
             audit_log,
             running: AtomicBool::new(false),
+            started_at: Mutex::new(None),
         })
     }
 
     /// Start the daemon.
     pub fn start(&self) {
         self.running.store(true, Ordering::SeqCst);
+        // Track start time for uptime calculation (blocking lock OK — fast)
+        if let Ok(mut guard) = self.started_at.try_lock() {
+            *guard = Some(std::time::Instant::now());
+        }
         info!("Autonomous daemon started");
     }
 
     /// Stop the daemon.
     pub fn stop(&self) {
         self.running.store(false, Ordering::SeqCst);
+        if let Ok(mut guard) = self.started_at.try_lock() {
+            *guard = None;
+        }
         info!("Autonomous daemon stopped");
+    }
+
+    /// Get uptime in seconds (0 if not running).
+    pub fn uptime_seconds(&self) -> u64 {
+        if !self.is_running() {
+            return 0;
+        }
+        self.started_at
+            .try_lock()
+            .ok()
+            .and_then(|guard| guard.map(|t| t.elapsed().as_secs()))
+            .unwrap_or(0)
+    }
+
+    /// Get the description of the next due task (if any).
+    pub async fn current_task_description(&self) -> Option<String> {
+        let scheduler = self.scheduler.lock().await;
+        // Peek at the top task without removing it
+        scheduler.peek_next().map(|t| t.description.clone())
     }
 
     /// Check if the daemon is running.

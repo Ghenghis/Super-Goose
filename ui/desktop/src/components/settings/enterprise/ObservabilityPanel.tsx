@@ -53,7 +53,7 @@ export default function ObservabilityPanel() {
             totalTokens: totalInput + totalOutput,
             promptTokens: totalInput,
             completionTokens: totalOutput,
-            estimatedCost: `$${(costData.total_cost || 0).toFixed(2)}`,
+            estimatedCost: `$${(costData.total_spend || 0).toFixed(2)}`,
             period: 'current session',
           });
         } else {

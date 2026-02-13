@@ -7,8 +7,9 @@ export default function DashboardPanel() {
   const { events, connected } = useAgentStream();
 
   const activeAgents = autonomousStatus?.running ? '1' : '0';
-  const tasksToday = autonomousStatus?.task_count != null ? String(autonomousStatus.task_count) : 'N/A';
-  const sessionCost = costSummary?.session_cost != null ? `$${costSummary.session_cost.toFixed(2)}` : 'N/A';
+  const totalTasks = (autonomousStatus?.tasks_completed ?? 0) + (autonomousStatus?.tasks_failed ?? 0);
+  const tasksToday = autonomousStatus != null ? String(totalTasks) : 'N/A';
+  const sessionCost = costSummary?.session_spend != null ? `$${costSummary.session_spend.toFixed(2)}` : 'N/A';
   const successRate = learningStats?.success_rate != null ? `${Math.round(learningStats.success_rate * 100)}%` : 'N/A';
 
   const stats = [
@@ -77,8 +78,8 @@ export default function DashboardPanel() {
             {recentEvents.map((evt, i) => (
               <div key={i} className="flex items-center gap-2" style={{ fontSize: '0.8125rem' }}>
                 <span className="sg-status-dot sg-status-active" aria-hidden="true" />
-                <span style={{ color: 'var(--sg-text-3)' }}>{evt.type.replace(/_/g, ' ')}</span>
-                {evt.core != null && <span className="sg-badge sg-badge-indigo" style={{ fontSize: '0.625rem' }}>{String(evt.core)}</span>}
+                <span style={{ color: 'var(--sg-text-3)' }}>{evt.type.replace(/([A-Z])/g, ' $1').trim().toLowerCase()}</span>
+                {evt.core_type != null && <span className="sg-badge sg-badge-indigo" style={{ fontSize: '0.625rem' }}>{String(evt.core_type)}</span>}
               </div>
             ))}
           </div>

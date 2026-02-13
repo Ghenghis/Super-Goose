@@ -95,22 +95,22 @@ describe('useAgentStream', () => {
     const { useAgentStream } = await import('../../../hooks/useAgentStream');
     const { result } = renderHook(() => useAgentStream());
 
-    const event = { type: 'tool_called', tool: 'developer' };
+    const event = { type: 'ToolCalled', tool_name: 'developer' };
     act(() => { mockInstance.onmessage?.({ data: JSON.stringify(event) }); });
 
     expect(result.current.events).toHaveLength(1);
-    expect(result.current.events[0].type).toBe('tool_called');
+    expect(result.current.events[0].type).toBe('ToolCalled');
   });
 
   it('updates latestStatus on agent_status events', async () => {
     const { useAgentStream } = await import('../../../hooks/useAgentStream');
     const { result } = renderHook(() => useAgentStream());
 
-    const statusEvent = { type: 'agent_status', core: 'FreeformCore' };
+    const statusEvent = { type: 'AgentStatus', core_type: 'FreeformCore' };
     act(() => { mockInstance.onmessage?.({ data: JSON.stringify(statusEvent) }); });
 
     expect(result.current.latestStatus).not.toBeNull();
-    expect(result.current.latestStatus?.type).toBe('agent_status');
+    expect(result.current.latestStatus?.type).toBe('AgentStatus');
   });
 
   it('skips malformed JSON messages gracefully', async () => {
@@ -125,7 +125,7 @@ describe('useAgentStream', () => {
     const { useAgentStream } = await import('../../../hooks/useAgentStream');
     const { result } = renderHook(() => useAgentStream());
 
-    act(() => { mockInstance.onmessage?.({ data: JSON.stringify({ type: 'task_update' }) }); });
+    act(() => { mockInstance.onmessage?.({ data: JSON.stringify({ type: 'TaskUpdate' }) }); });
     expect(result.current.events).toHaveLength(1);
 
     act(() => { result.current.clearEvents(); });
@@ -147,7 +147,7 @@ describe('useAgentStream', () => {
     // Push 105 events
     act(() => {
       for (let i = 0; i < 105; i++) {
-        mockInstance.onmessage?.({ data: JSON.stringify({ type: 'tool_called', index: i }) });
+        mockInstance.onmessage?.({ data: JSON.stringify({ type: 'ToolCalled', index: i }) });
       }
     });
 
@@ -170,18 +170,22 @@ describe('useSuperGooseData', () => {
   };
 
   const mockCostSummary = {
-    total_cost: 1.23,
-    session_cost: 0.45,
-    model_breakdown: [{ model: 'claude-3-opus', cost: 1.23, calls: 15 }],
+    total_spend: 1.23,
+    session_spend: 0.45,
     budget_limit: 10.0,
-    budget_used_percent: 12.3,
+    budget_remaining: 8.77,
+    budget_warning_threshold: 0.8,
+    is_over_budget: false,
+    model_breakdown: [{ model: 'claude-3-opus', provider: 'anthropic', input_tokens: 5000, output_tokens: 2000, cost: 1.23 }],
   };
 
   const mockAutonomousStatus = {
     running: true,
-    task_count: 3,
     uptime_seconds: 7200,
-    circuit_breaker: { state: 'closed', failure_count: 0, max_failures: 3 },
+    tasks_completed: 3,
+    tasks_failed: 0,
+    circuit_breaker: { state: 'closed', consecutive_failures: 0, max_failures: 3, last_failure: null },
+    current_task: null,
   };
 
   beforeEach(() => {
@@ -241,7 +245,7 @@ describe('useSuperGooseData', () => {
 
     await waitFor(() => {
       expect(result.current.costSummary).not.toBeNull();
-      expect(result.current.costSummary?.session_cost).toBe(0.45);
+      expect(result.current.costSummary?.session_spend).toBe(0.45);
     });
   });
 
@@ -260,7 +264,7 @@ describe('useSuperGooseData', () => {
     await waitFor(() => {
       expect(result.current.autonomousStatus).not.toBeNull();
       expect(result.current.autonomousStatus?.running).toBe(true);
-      expect(result.current.autonomousStatus?.task_count).toBe(3);
+      expect(result.current.autonomousStatus?.tasks_completed).toBe(3);
     });
   });
 
