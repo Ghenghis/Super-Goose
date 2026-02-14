@@ -50,7 +50,7 @@ use rmcp::transport::auth::AuthClient;
 use schemars::_private::NoSerialize;
 use serde_json::Value;
 
-type McpClientBox = Arc<Mutex<Box<dyn McpClientTrait>>>;
+type McpClientBox = Arc<dyn McpClientTrait>;
 
 struct Extension {
     pub config: ExtensionConfig,
@@ -680,7 +680,7 @@ impl ExtensionManager {
         };
         extensions.insert(
             final_name,
-            Extension::new(config, Arc::new(Mutex::new(client)), server_info, temp_dir),
+            Extension::new(config, Arc::from(client), server_info, temp_dir),
         );
         drop(extensions);
         self.invalidate_tools_cache_and_bump_version().await;
@@ -849,8 +849,7 @@ impl ExtensionManager {
             let ext_name = name.clone();
             async move {
                 let mut tools = Vec::new();
-                let client_guard = client.lock().await;
-                let mut client_tools = match client_guard
+                let mut client_tools = match client
                     .list_tools(session_id, None, cancel_token.clone())
                     .await
                 {
@@ -881,7 +880,7 @@ impl ExtensionManager {
                         break;
                     }
 
-                    client_tools = match client_guard
+                    client_tools = match client
                         .list_tools(session_id, client_tools.next_cursor, cancel_token.clone())
                         .await
                     {
@@ -1029,8 +1028,7 @@ impl ExtensionManager {
             .await
             .ok_or(ErrorData::new(ErrorCode::INVALID_PARAMS, error_msg, None))?;
 
-        let client_guard = client.lock().await;
-        client_guard
+        client
             .read_resource(session_id, uri, cancellation_token)
             .await
             .map_err(|_| {
@@ -1057,9 +1055,7 @@ impl ExtensionManager {
         };
 
         for (extension_name, client) in extensions_to_check {
-            let client_guard = client.lock().await;
-
-            match client_guard
+            match client
                 .list_resources(session_id, None, CancellationToken::default())
                 .await
             {
@@ -1096,8 +1092,7 @@ impl ExtensionManager {
                 )
             })?;
 
-        let client_guard = client.lock().await;
-        client_guard
+        client
             .list_resources(session_id, None, cancellation_token)
             .await
             .map_err(|e| {
@@ -1300,7 +1295,7 @@ impl ExtensionManager {
 
         let arguments = tool_call.arguments.clone();
         let client = client.clone();
-        let notifications_receiver = client.lock().await.subscribe().await;
+        let notifications_receiver = client.subscribe().await;
         let session_id = session_id.to_string();
         let working_dir_str = working_dir.map(|p| p.to_string_lossy().to_string());
 
@@ -1311,8 +1306,7 @@ impl ExtensionManager {
                 session_id,
                 working_dir_str
             );
-            let client_guard = client.lock().await;
-            client_guard
+            client
                 .call_tool(
                     &session_id,
                     &tool_name,
@@ -1405,8 +1399,7 @@ impl ExtensionManager {
                 )
             })?;
 
-        let client_guard = client.lock().await;
-        client_guard
+        client
             .list_prompts(session_id, None, cancellation_token)
             .await
             .map_err(|e| {
@@ -1480,8 +1473,7 @@ impl ExtensionManager {
             .await
             .ok_or_else(|| anyhow::anyhow!("Extension {} not found", extension_name))?;
 
-        let client_guard = client.lock().await;
-        client_guard
+        client
             .get_prompt(session_id, name, arguments, cancellation_token)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to get prompt: {}", e))
@@ -1585,8 +1577,7 @@ impl ExtensionManager {
         };
 
         for (name, client) in platform_clients {
-            let client_guard = client.lock().await;
-            if let Some(moim_content) = client_guard.get_moim(session_id).await {
+            if let Some(moim_content) = client.get_moim(session_id).await {
                 tracing::debug!("MOIM content from {}: {} chars", name, moim_content.len());
                 content.push('\n');
                 content.push_str(&moim_content);
@@ -1754,28 +1745,28 @@ mod tests {
         extension_manager
             .add_mock_extension(
                 "test_client".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
         extension_manager
             .add_mock_extension(
                 "__client".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
         extension_manager
             .add_mock_extension(
                 "__cli__ent__".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
         extension_manager
             .add_mock_extension(
                 "client 🚀".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
@@ -1816,21 +1807,21 @@ mod tests {
         extension_manager
             .add_mock_extension(
                 "test_client".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
         extension_manager
             .add_mock_extension(
                 "__cli__ent__".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
         extension_manager
             .add_mock_extension(
                 "client 🚀".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
@@ -1986,7 +1977,7 @@ mod tests {
         extension_manager
             .add_mock_extension_with_tools(
                 "test_extension".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
                 available_tools,
             )
             .await;
@@ -2016,7 +2007,7 @@ mod tests {
         extension_manager
             .add_mock_extension_with_tools(
                 "test_extension".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
                 vec![], // Empty available_tools means all tools are available by default
             )
             .await;
@@ -2048,7 +2039,7 @@ mod tests {
         extension_manager
             .add_mock_extension_with_tools(
                 "test_extension".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
                 available_tools,
             )
             .await;
@@ -2186,7 +2177,7 @@ mod tests {
         extension_manager
             .add_mock_extension(
                 "ext_a".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
@@ -2204,7 +2195,7 @@ mod tests {
         extension_manager
             .add_mock_extension(
                 "ext_b".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
@@ -2229,13 +2220,13 @@ mod tests {
         extension_manager
             .add_mock_extension(
                 "ext_a".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
         extension_manager
             .add_mock_extension(
                 "ext_b".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
@@ -2267,13 +2258,13 @@ mod tests {
         extension_manager
             .add_mock_extension(
                 "ext_a".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
         extension_manager
             .add_mock_extension(
                 "ext_b".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
@@ -2296,13 +2287,13 @@ mod tests {
         extension_manager
             .add_mock_extension(
                 "ext_a".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
         extension_manager
             .add_mock_extension(
                 "ext_b".to_string(),
-                Arc::new(Mutex::new(Box::new(MockClient {}))),
+                Arc::new(MockClient {}),
             )
             .await;
 
