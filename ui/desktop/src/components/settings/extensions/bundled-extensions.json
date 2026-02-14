@@ -60,6 +60,8 @@
     "description": "Resource allocation and management across agents.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/resource_coordinator_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -71,6 +73,8 @@
     "description": "DSPy prompt optimization and few-shot learning.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/dspy_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -82,6 +86,8 @@
     "description": "AI Inspect evaluation framework integration.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/inspect_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -93,6 +99,8 @@
     "description": "Langfuse LLM observability and tracing.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/langfuse_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -104,6 +112,8 @@
     "description": "OpenHands autonomous coding agent.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/openhands_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -115,6 +125,8 @@
     "description": "Semgrep static analysis for security scanning.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/semgrep_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -126,6 +138,8 @@
     "description": "SCIP code intelligence and navigation.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/scip_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -137,6 +151,8 @@
     "description": "Mem0 persistent memory management.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/mem0_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -148,6 +164,8 @@
     "description": "CrewAI multi-agent task orchestration.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/crewai_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -159,6 +177,8 @@
     "description": "AutoGen conversational AI agents.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/autogen_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -170,6 +190,8 @@
     "description": "LangGraph stateful agent workflows.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/langgraph_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -181,6 +203,8 @@
     "description": "Aider AI pair programming.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/aider_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -192,6 +216,8 @@
     "description": "SWE-Agent autonomous bug fixing.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/swe_agent_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -203,6 +229,8 @@
     "description": "Playwright browser automation and testing.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/playwright_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -214,6 +242,8 @@
     "description": "Voice input/output and text-to-speech.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/voice_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -225,6 +255,8 @@
     "description": "Emotion detection and empathetic responses.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/emotion_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -236,6 +268,8 @@
     "description": "Microsandbox secure container execution.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/microsandbox_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -247,6 +281,8 @@
     "description": "Arrakis distributed compute orchestration.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/arrakis_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -258,6 +294,8 @@
     "description": "AST-based code pattern matching and refactoring.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/astgrep_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -269,6 +307,8 @@
     "description": "Conscious AI meta-cognitive framework.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/conscious_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -280,6 +320,8 @@
     "description": "CrossHair symbolic testing and contract checking.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/crosshair_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -291,6 +333,8 @@
     "description": "Pydantic AI structured output generation.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/pydantic_ai_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -302,6 +346,8 @@
     "description": "PraisonAI multi-agent task automation.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/praisonai_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -313,6 +359,8 @@
     "description": "PR-Agent automated code review and PR analysis.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/pr_agent_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true
@@ -324,6 +372,8 @@
     "description": "Overnight Gym automated testing and training.",
     "enabled": false,
     "type": "stdio",
+    "cmd": "python",
+    "args": ["crates/goose-mcp/src/bridges/overnight_gym_bridge_server.py"],
     "env_keys": [],
     "timeout": 300,
     "bundled": true

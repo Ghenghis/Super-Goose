@@ -11,6 +11,13 @@ export default defineConfig({
 
   plugins: [tailwindcss()],
 
+  server: {
+    // Use port 5233 to avoid conflicts with Docker Desktop (which often
+    // grabs 5173). strictPort=false lets Vite auto-increment if 5233 is
+    // also taken, and electron-forge/plugin-vite reads the actual port.
+    port: 5233,
+  },
+
   build: {
     target: 'esnext'
   },

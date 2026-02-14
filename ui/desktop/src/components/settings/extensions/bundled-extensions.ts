@@ -68,12 +68,16 @@ export async function syncBundledExtensions(
           };
           break;
         case 'stdio':
+          if (!bundledExt.cmd) {
+            console.warn(`Skipping stdio extension "${bundledExt.name}": missing cmd`);
+            continue;
+          }
           extConfig = {
             type: bundledExt.type,
             name: bundledExt.name,
             description: bundledExt.description,
             timeout: bundledExt.timeout,
-            cmd: bundledExt.cmd || '',
+            cmd: bundledExt.cmd,
             args: bundledExt.args || [],
             envs: bundledExt.envs,
             env_keys: bundledExt.env_keys || [],
