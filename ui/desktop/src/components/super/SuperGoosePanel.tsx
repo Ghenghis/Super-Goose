@@ -13,7 +13,7 @@ import SkillsPanel from './SkillsPanel';
 import DeeplinkGenerator from './DeeplinkGenerator';
 import AgenticFeatures from './AgenticFeatures';
 
-type PanelId = 'dashboard' | 'agentic' | 'studios' | 'agents' | 'recipes' | 'prompts' | 'skills' | 'marketplace' | 'deeplinks' | 'gpu' | 'connections' | 'monitor' | 'settings';
+export type PanelId = 'dashboard' | 'agentic' | 'studios' | 'agents' | 'recipes' | 'prompts' | 'skills' | 'marketplace' | 'deeplinks' | 'gpu' | 'connections' | 'monitor' | 'settings';
 
 interface NavItem {
   id: PanelId;
@@ -42,7 +42,7 @@ export default function SuperGoosePanel() {
 
   const renderPanel = () => {
     switch (activePanel) {
-      case 'dashboard': return <DashboardPanel />;
+      case 'dashboard': return <DashboardPanel onNavigate={setActivePanel} />;
       case 'agentic': return <AgenticFeatures />;
       case 'studios': return <StudiosPanel />;
       case 'agents': return <AgentsPanel />;

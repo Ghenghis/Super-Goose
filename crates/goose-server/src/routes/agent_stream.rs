@@ -118,7 +118,7 @@ impl IntoResponse for AgentSseResponse {
             .header("Cache-Control", "no-cache")
             .header("Connection", "keep-alive")
             .body(body)
-            .unwrap()
+            .expect("failed to build agent SSE response")
     }
 }
 

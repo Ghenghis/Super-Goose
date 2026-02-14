@@ -1,5 +1,11 @@
 import { useAgUi, type ToolCallApproval } from '../../ag-ui/useAgUi';
 import { SGMetricCard, SGEmptyState, SGApprovalGate } from './shared';
+import type { PanelId } from './SuperGoosePanel';
+
+interface DashboardPanelProps {
+  /** Navigate to another Super-Goose panel (provided by SuperGoosePanel). */
+  onNavigate?: (panel: PanelId) => void;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -44,7 +50,7 @@ function riskFromToolName(toolCallName: string): 'low' | 'medium' | 'high' {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function DashboardPanel() {
+export default function DashboardPanel({ onNavigate }: DashboardPanelProps) {
   const {
     connected,
     isRunning,
@@ -106,9 +112,9 @@ export default function DashboardPanel() {
       <section aria-label="Quick actions">
         <h2 className="sg-section-label">Quick Actions</h2>
         <div className="flex flex-wrap gap-2" role="toolbar" aria-label="Quick action buttons">
-          <button className="sg-btn sg-btn-primary">New Task</button>
-          <button className="sg-btn sg-btn-ghost">Run Tests</button>
-          <button className="sg-btn sg-btn-ghost">Open Studio</button>
+          <button className="sg-btn sg-btn-primary" onClick={() => onNavigate?.('agentic')}>New Task</button>
+          <button className="sg-btn sg-btn-ghost" onClick={() => onNavigate?.('monitor')}>Run Tests</button>
+          <button className="sg-btn sg-btn-ghost" onClick={() => onNavigate?.('studios')}>Open Studio</button>
         </div>
       </section>
 

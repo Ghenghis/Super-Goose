@@ -18,6 +18,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context as TaskContext, Poll};
 use std::time::Duration;
+use tokio::sync::broadcast;
 use tokio_stream::wrappers::ReceiverStream;
 use utoipa::ToSchema;
 
@@ -124,7 +125,7 @@ impl IntoResponse for SettingsSseResponse {
             .header("Cache-Control", "no-cache")
             .header("Connection", "keep-alive")
             .body(body)
-            .unwrap()
+            .expect("failed to build settings SSE response")
     }
 }
 
@@ -224,6 +225,7 @@ pub async fn get_setting(
     tag = "Settings"
 )]
 pub async fn set_setting(
+    State(state): State<Arc<AppState>>,
     Path(key): Path<String>,
     Json(request): Json<SetSettingRequest>,
 ) -> Result<Json<SettingResponse>, ErrorResponse> {
@@ -232,6 +234,15 @@ pub async fn set_setting(
     config.set_param(&key, &request.value).map_err(|e| {
         ErrorResponse::internal(format!("Failed to set setting '{}': {}", key, e))
     })?;
+
+    // Emit a settings_update event to the broadcast channel so SSE clients
+    // receive the change in real time.
+    let event = SettingsStreamEvent::SettingsUpdate {
+        key: key.clone(),
+        value: request.value.clone(),
+        source: "api".to_string(),
+    };
+    let _ = state.settings_event_sender().send(format_sse_event(&event));
 
     Ok(Json(SettingResponse {
         key,
@@ -250,6 +261,7 @@ pub async fn set_setting(
     tag = "Settings"
 )]
 pub async fn bulk_set_settings(
+    State(state): State<Arc<AppState>>,
     Json(request): Json<BulkSettingsRequest>,
 ) -> Result<Json<BulkSettingsResponse>, ErrorResponse> {
     let config = Config::global();
@@ -260,6 +272,14 @@ pub async fn bulk_set_settings(
         match config.set_param(key.as_str(), value) {
             Ok(()) => {
                 updated += 1;
+
+                // Emit a settings_update event for each successfully changed key.
+                let event = SettingsStreamEvent::SettingsUpdate {
+                    key: key.clone(),
+                    value: value.clone(),
+                    source: "api".to_string(),
+                };
+                let _ = state.settings_event_sender().send(format_sse_event(&event));
             }
             Err(e) => {
                 errors.insert(key.clone(), e.to_string());
@@ -284,6 +304,7 @@ pub async fn bulk_set_settings(
     tag = "Settings"
 )]
 pub async fn delete_setting(
+    State(state): State<Arc<AppState>>,
     Path(key): Path<String>,
 ) -> Result<Json<DeleteSettingResponse>, ErrorResponse> {
     let config = Config::global();
@@ -309,6 +330,14 @@ pub async fn delete_setting(
         ErrorResponse::internal(format!("Failed to delete setting '{}': {}", key, e))
     })?;
 
+    // Emit a settings_update with null value to signal deletion.
+    let event = SettingsStreamEvent::SettingsUpdate {
+        key: key.clone(),
+        value: Value::Null,
+        source: "api".to_string(),
+    };
+    let _ = state.settings_event_sender().send(format_sse_event(&event));
+
     Ok(Json(DeleteSettingResponse {
         message: format!("Setting '{}' removed successfully", key),
     }))
@@ -325,9 +354,10 @@ pub async fn delete_setting(
     tag = "Settings"
 )]
 pub async fn settings_stream(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> SettingsSseResponse {
     let (tx, rx) = tokio::sync::mpsc::channel::<String>(32);
+    let mut settings_rx = state.settings_event_sender().subscribe();
 
     // Spawn a background task that drives the SSE stream.
     tokio::spawn(async move {
@@ -347,20 +377,41 @@ pub async fn settings_stream(
             }
         }
 
-        // Send heartbeats every 30 seconds.
+        // Multiplex: heartbeat timer + real settings events from broadcast channel.
         let mut interval = tokio::time::interval(Duration::from_secs(30));
 
         loop {
-            interval.tick().await;
-
-            let heartbeat = SettingsStreamEvent::Heartbeat {
-                timestamp: now_timestamp(),
-            };
-
-            if tx.send(format_sse_event(&heartbeat)).await.is_err() {
-                // Client disconnected.
-                tracing::debug!("settings-stream client disconnected");
-                break;
+            tokio::select! {
+                _ = interval.tick() => {
+                    let heartbeat = SettingsStreamEvent::Heartbeat {
+                        timestamp: now_timestamp(),
+                    };
+                    if tx.send(format_sse_event(&heartbeat)).await.is_err() {
+                        tracing::debug!("settings-stream client disconnected (heartbeat)");
+                        break;
+                    }
+                }
+                result = settings_rx.recv() => {
+                    match result {
+                        Ok(event_data) => {
+                            // event_data is already a formatted SSE frame from
+                            // format_sse_event() — forward it directly.
+                            if tx.send(event_data).await.is_err() {
+                                tracing::debug!("settings-stream client disconnected (event)");
+                                return;
+                            }
+                        }
+                        Err(broadcast::error::RecvError::Lagged(n)) => {
+                            tracing::warn!("Settings SSE client lagged, dropped {n} events");
+                            // Continue receiving — client missed some events but
+                            // can still get future ones.
+                        }
+                        Err(broadcast::error::RecvError::Closed) => {
+                            tracing::debug!("Settings event bus closed, ending SSE stream");
+                            break;
+                        }
+                    }
+                }
             }
         }
     });
@@ -548,8 +599,9 @@ mod tests {
         assert!(frame.ends_with("\n\n"));
 
         // Extract and verify JSON payload
+        // SSE frames end with \n\n, so .lines() yields: [event_line, data_line, ""]
         let lines: Vec<&str> = frame.lines().collect();
-        assert_eq!(lines.len(), 2);
+        assert_eq!(lines.len(), 3);
         assert_eq!(lines[0], "event: settings_update");
 
         let data_line = lines[1];

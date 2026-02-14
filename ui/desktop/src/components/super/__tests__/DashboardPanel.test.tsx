@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import DashboardPanel from '../DashboardPanel';
 
 // --- Mocks ----------------------------------------------------------------
@@ -90,6 +90,39 @@ describe('DashboardPanel', () => {
     expect(screen.getByText('New Task')).toBeDefined();
     expect(screen.getByText('Run Tests')).toBeDefined();
     expect(screen.getByText('Open Studio')).toBeDefined();
+  });
+
+  it('"New Task" navigates to the agentic panel', () => {
+    const onNavigate = vi.fn();
+    render(<DashboardPanel onNavigate={onNavigate} />);
+
+    fireEvent.click(screen.getByText('New Task'));
+    expect(onNavigate).toHaveBeenCalledWith('agentic');
+  });
+
+  it('"Run Tests" navigates to the monitor panel', () => {
+    const onNavigate = vi.fn();
+    render(<DashboardPanel onNavigate={onNavigate} />);
+
+    fireEvent.click(screen.getByText('Run Tests'));
+    expect(onNavigate).toHaveBeenCalledWith('monitor');
+  });
+
+  it('"Open Studio" navigates to the studios panel', () => {
+    const onNavigate = vi.fn();
+    render(<DashboardPanel onNavigate={onNavigate} />);
+
+    fireEvent.click(screen.getByText('Open Studio'));
+    expect(onNavigate).toHaveBeenCalledWith('studios');
+  });
+
+  it('quick action buttons are safe when onNavigate is not provided', () => {
+    render(<DashboardPanel />);
+
+    // Should not throw when clicked without onNavigate prop
+    fireEvent.click(screen.getByText('New Task'));
+    fireEvent.click(screen.getByText('Run Tests'));
+    fireEvent.click(screen.getByText('Open Studio'));
   });
 
   // -- Hardware section -----------------------------------------------------

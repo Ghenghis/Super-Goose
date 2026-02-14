@@ -32,7 +32,8 @@ describe('AG-UI Event Verifier', () => {
   it('accepts valid reasoning sequence', () => {
     verifier.verify({ type: 'RUN_STARTED' });
     expect(verifier.verify({ type: 'REASONING_START' })).toBeNull();
-    expect(verifier.verify({ type: 'REASONING_CONTENT' })).toBeNull();
+    expect(verifier.verify({ type: 'REASONING_MESSAGE_CONTENT' })).toBeNull();
+    expect(verifier.verify({ type: 'REASONING_MESSAGE_END' })).toBeNull();
     expect(verifier.verify({ type: 'REASONING_END' })).toBeNull();
   });
 
@@ -130,9 +131,9 @@ describe('AG-UI Event Verifier', () => {
     expect(err!.type).toBe('missing_start');
   });
 
-  it('rejects REASONING_CONTENT without START', () => {
+  it('rejects REASONING_MESSAGE_CONTENT without START', () => {
     verifier.verify({ type: 'RUN_STARTED' });
-    const err = verifier.verify({ type: 'REASONING_CONTENT' });
+    const err = verifier.verify({ type: 'REASONING_MESSAGE_CONTENT' });
     expect(err).not.toBeNull();
     expect(err!.type).toBe('missing_start');
   });
@@ -202,9 +203,9 @@ describe('AG-UI Event Verifier', () => {
     verifier.verify({ type: 'RUN_STARTED' });
     verifier.verify({ type: 'REASONING_START' });
     verifier.reset();
-    // After reset, REASONING_CONTENT should fail (no active reasoning)
+    // After reset, REASONING_MESSAGE_CONTENT should fail (no active reasoning)
     verifier.verify({ type: 'RUN_STARTED' });
-    const err = verifier.verify({ type: 'REASONING_CONTENT' });
+    const err = verifier.verify({ type: 'REASONING_MESSAGE_CONTENT' });
     expect(err).not.toBeNull();
     expect(err!.type).toBe('missing_start');
   });

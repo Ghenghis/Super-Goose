@@ -1728,7 +1728,7 @@ mod tests {
         };
         let json = serde_json::to_string(&evt).expect("serialize");
         let parsed: serde_json::Value = serde_json::from_str(&json).expect("parse");
-        assert_eq!(parsed["type"], "VoiceActivityStart");
+        assert_eq!(parsed["type"], "voiceActivityStart");
         assert_eq!(parsed["timestamp"], "2026-02-14T10:00:00Z");
 
         let evt2 = VoiceEvent::FinalTranscript {
@@ -1738,7 +1738,7 @@ mod tests {
         };
         let json2 = serde_json::to_string(&evt2).expect("serialize");
         let parsed2: serde_json::Value = serde_json::from_str(&json2).expect("parse");
-        assert_eq!(parsed2["type"], "FinalTranscript");
+        assert_eq!(parsed2["type"], "finalTranscript");
         assert_eq!(parsed2["text"], "test");
         assert_eq!(parsed2["confidence"], 0.9);
         assert_eq!(parsed2["durationSecs"], 2.0);

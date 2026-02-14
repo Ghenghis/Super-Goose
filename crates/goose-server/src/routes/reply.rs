@@ -348,7 +348,7 @@ pub async fn reply(
         // Track whether we already emitted a terminal AG-UI event (RUN_ERROR /
         // RUN_CANCELLED) so the cleanup at the bottom of the spawn doesn't
         // double-emit RUN_FINISHED after an error path.
-        let _run_terminated = false;
+        let mut run_terminated = false;
 
         let agent = match state.get_agent(session_id.clone()).await {
             Ok(agent) => agent,
@@ -554,6 +554,7 @@ pub async fn reply(
                                 &tx,
                                 &cancel_token,
                             ).await;
+                            run_terminated = true;
                             break;
                         }
                         Ok(None) => {
@@ -581,11 +582,15 @@ pub async fn reply(
         });
 
         // --- AG-UI: RUN_FINISHED ---
-        emit_ag_ui_event_typed(&state, &AgUiEvent::RUN_FINISHED {
-            thread_id: thread_id.clone(),
-            run_id: run_id.clone(),
-            result: None,
-        });
+        // Only emit RUN_FINISHED if we didn't already emit a terminal event
+        // (RUN_ERROR / RUN_CANCELLED) to avoid double terminal events.
+        if !run_terminated {
+            emit_ag_ui_event_typed(&state, &AgUiEvent::RUN_FINISHED {
+                thread_id: thread_id.clone(),
+                run_id: run_id.clone(),
+                result: None,
+            });
+        }
 
         let session_duration = session_start.elapsed();
 

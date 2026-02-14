@@ -349,7 +349,7 @@ function OverviewSection({ data }: { data: LiveData }) {
   const stats = [
     { label: 'Rust Crates', value: '7', color: COLORS.accent },
     { label: 'Backend Tests', value: '465+', color: COLORS.green },
-    { label: 'Vitest', value: '3,263', color: COLORS.green },
+    { label: 'Vitest', value: '3,451', color: COLORS.green },
     { label: 'Playwright E2E', value: '291', color: COLORS.green },
     { label: 'Agent Cores', value: '6', color: COLORS.cyan },
     { label: 'OTA Modules', value: '14', color: COLORS.orange },
@@ -364,7 +364,7 @@ function OverviewSection({ data }: { data: LiveData }) {
     { name: 'Autonomous Daemon', tests: '86', ok: true },
     { name: 'TimeWarp Store', tests: '8', ok: true },
     { name: 'AG-UI Protocol', tests: '255', ok: true },
-    { name: 'Frontend Vitest', tests: '3,263', ok: true },
+    { name: 'Frontend Vitest', tests: '3,451', ok: true },
     { name: 'Playwright E2E', tests: '291', ok: true },
     { name: 'TypeScript', tests: '0 errors', ok: true },
     { name: 'Cargo Check', tests: '0 warnings', ok: true },
@@ -512,7 +512,7 @@ function LiveStatusSection({ data }: { data: LiveData }) {
       <h3 style={{ color: COLORS.textBright, fontSize: 15, margin: '16px 0 10px' }}>Test Counts (Verified)</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         {[
-          { label: 'Vitest', val: '3,263', sub: '234 files, 3 skipped', c: COLORS.green },
+          { label: 'Vitest', val: '3,451', sub: '242 files, 3 skipped', c: COLORS.green },
           { label: 'Rust', val: '465+', sub: 'cargo test --lib clean', c: COLORS.accent },
           { label: 'Playwright E2E', val: '291', sub: '68 skipped, 0 failed', c: COLORS.purple },
         ].map((t) => (

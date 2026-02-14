@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getApiUrl } from '../config';
+import {
+  AgUiEventType,
+  type JsonPatchOp,
+  type FrontendToolDefinition as BaseFrontendToolDefinition,
+} from './types';
+
+// Re-export AgUiEventType so existing consumers that import from here still work.
+export { AgUiEventType };
 
 // ---------------------------------------------------------------------------
 // Buffer limits
@@ -16,53 +24,28 @@ const RECONNECT_INITIAL_MS = 1000;
 const RECONNECT_MAX_MS = 30000;
 
 // ---------------------------------------------------------------------------
-// AG-UI event type discriminators (sent by backend in the `type` field)
+// AG-UI event type discriminators — canonical enum imported from ./types.
+// 'ACTIVITY' is a local extension not in the AG-UI spec; handled in dispatch
+// via the LooseAgUiEvent interface whose `type` is `string`.
 // ---------------------------------------------------------------------------
-export type AgUiEventType =
-  // Lifecycle
-  | 'RUN_STARTED'
-  | 'RUN_FINISHED'
-  | 'RUN_ERROR'
-  | 'STEP_STARTED'
-  | 'STEP_FINISHED'
-  // Messages
-  | 'TEXT_MESSAGE_START'
-  | 'TEXT_MESSAGE_CONTENT'
-  | 'TEXT_MESSAGE_END'
-  | 'TEXT_MESSAGE_CHUNK'
-  // State
-  | 'STATE_SNAPSHOT'
-  | 'STATE_DELTA'
-  // Tool calls
-  | 'TOOL_CALL_START'
-  | 'TOOL_CALL_ARGS'
-  | 'TOOL_CALL_END'
-  | 'TOOL_CALL_RESULT'
-  | 'TOOL_CALL_CHUNK'
-  // Custom
-  | 'CUSTOM'
-  // Reasoning / CoT
-  | 'REASONING_START'
-  | 'REASONING_CONTENT'
-  | 'REASONING_END'
-  | 'REASONING_MESSAGE_CHUNK'
-  // Activity feed
-  | 'ACTIVITY'
-  | 'ACTIVITY_SNAPSHOT'
-  | 'ACTIVITY_DELTA'
-  // Snapshots
-  | 'MESSAGES_SNAPSHOT'
-  // Raw
-  | 'RAW';
 
 // ---------------------------------------------------------------------------
 // Shared payload types
 // ---------------------------------------------------------------------------
 
-export interface AgUiEvent {
-  type: AgUiEventType;
+/**
+ * Loose event shape used internally by the dispatch function.
+ * The canonical discriminated-union AgUiEvent lives in ./types; this
+ * variant keeps an index signature so the switch cases can pull arbitrary
+ * fields with simple `as` casts instead of narrowing every branch.
+ */
+interface LooseAgUiEvent {
+  type: string;
   [key: string]: unknown;
 }
+
+/** Subscriber called for each raw event. Return false to stop propagation. */
+export type AgUiSubscriber = (event: LooseAgUiEvent) => boolean | void;
 
 /** A completed or in-progress text message from the agent. */
 export interface AgUiTextMessage {
@@ -117,11 +100,11 @@ export interface CustomEventItem {
   timestamp: number;
 }
 
-/** A frontend-defined tool the agent can call. */
-export interface FrontendToolDefinition {
-  name: string;
-  description: string;
-  parameters?: Record<string, unknown>;
+/**
+ * A frontend-defined tool the agent can call.
+ * Extends the base definition from ./types with a handler callback.
+ */
+export interface FrontendToolDefinition extends BaseFrontendToolDefinition {
   /** Called when agent invokes this tool. Return result string. */
   handler: (args: string) => Promise<string> | string;
 }
@@ -136,18 +119,9 @@ export interface UseAgUiOptions {
   abortOnDisconnect?: boolean;
 }
 
-/** Subscriber hook called for each event. Return false to stop propagation. */
-export type AgUiSubscriber = (event: AgUiEvent) => boolean | void;
-
-// ---------------------------------------------------------------------------
-// JSON Patch types (RFC 6902 subset: add, remove, replace)
-// ---------------------------------------------------------------------------
-
-interface JsonPatchOp {
-  op: 'add' | 'remove' | 'replace';
-  path: string;
-  value?: unknown;
-}
+// JsonPatchOp is imported from ./types — no local duplicate needed.
+// The imported type includes all 6 RFC 6902 ops; applyJsonPatch below
+// only handles the 3 core ops (add, remove, replace).
 
 // ---------------------------------------------------------------------------
 // Aggregate state exposed by the hook
@@ -456,7 +430,7 @@ export function useAgUi(options?: UseAgUiOptions): UseAgUiReturn {
   // Event dispatch — called for every parsed SSE message
   // -----------------------------------------------------------------------
 
-  const dispatch = useCallback((evt: AgUiEvent) => {
+  const dispatch = useCallback((evt: LooseAgUiEvent) => {
     // Notify subscribers — if any returns false, skip default handling
     const subs = Array.from(subscribersRef.current);
     for (let i = 0; i < subs.length; i++) {
@@ -513,7 +487,8 @@ export function useAgUi(options?: UseAgUiOptions): UseAgUiReturn {
 
       case 'TEXT_MESSAGE_CONTENT': {
         const mid = evt.messageId as string;
-        const chunk = (evt.content as string) ?? '';
+        // Protocol spec uses `delta`; tolerate legacy `content` field as fallback.
+        const chunk = (evt.delta as string) ?? (evt.content as string) ?? '';
         setMessages((prev) => {
           const idx = prev.findIndex((m) => m.messageId === mid);
           if (idx === -1) return prev;
@@ -591,7 +566,8 @@ export function useAgUi(options?: UseAgUiOptions): UseAgUiReturn {
       case 'TOOL_CALL_START': {
         const tcId = (evt.toolCallId as string) ?? nextId();
         const tcName = (evt.toolCallName as string) ?? 'unknown';
-        const tcArgs = (evt.args as string) ?? '';
+        // Initial args may arrive here or via subsequent TOOL_CALL_ARGS events.
+        const tcArgs = (evt.delta as string) ?? (evt.args as string) ?? '';
 
         const entry: ToolCallState = {
           toolCallId: tcId,
@@ -651,7 +627,8 @@ export function useAgUi(options?: UseAgUiOptions): UseAgUiReturn {
 
       case 'TOOL_CALL_ARGS': {
         const tcId = evt.toolCallId as string;
-        const argChunk = (evt.args as string) ?? '';
+        // Protocol spec uses `delta`; tolerate legacy `args` field as fallback.
+        const argChunk = (evt.delta as string) ?? (evt.args as string) ?? '';
         setActiveToolCalls((prev) => {
           const existing = prev.get(tcId);
           if (!existing) return prev;
@@ -696,7 +673,7 @@ export function useAgUi(options?: UseAgUiOptions): UseAgUiReturn {
       case 'TOOL_CALL_CHUNK': {
         const tcId = (evt.toolCallId as string) ?? nextId();
         const tcName = (evt.toolCallName as string) ?? 'unknown';
-        const delta = (evt.delta as string) ?? '';
+        const delta = (evt.delta as string) ?? (evt.content as string) ?? '';
         setActiveToolCalls((prev) => {
           const existing = prev.get(tcId);
           if (existing) {
@@ -780,9 +757,15 @@ export function useAgUi(options?: UseAgUiOptions): UseAgUiReturn {
         break;
       }
 
-      case 'REASONING_CONTENT': {
+      case 'REASONING_MESSAGE_START':
+        // No-op: reasoning session already started by REASONING_START.
+        // The message stream is tracked by REASONING_MESSAGE_CONTENT chunks.
+        break;
+
+      case 'REASONING_MESSAGE_CONTENT': {
         const rid = evt.reasoningId as string;
-        const chunk = (evt.content as string) ?? '';
+        // Protocol spec uses `delta`; tolerate legacy `content` field as fallback.
+        const chunk = (evt.delta as string) ?? (evt.content as string) ?? '';
         setReasoningMessages((prev) => {
           const idx = prev.findIndex((r) => r.id === rid);
           if (idx === -1) return prev;
@@ -793,7 +776,7 @@ export function useAgUi(options?: UseAgUiOptions): UseAgUiReturn {
         break;
       }
 
-      case 'REASONING_END': {
+      case 'REASONING_MESSAGE_END': {
         const rid = evt.reasoningId as string;
         setReasoningMessages((prev) => {
           const idx = prev.findIndex((r) => r.id === rid);
@@ -802,6 +785,10 @@ export function useAgUi(options?: UseAgUiOptions): UseAgUiReturn {
           updated[idx] = { ...updated[idx], streaming: false };
           return updated;
         });
+        break;
+      }
+
+      case 'REASONING_END': {
         setIsReasoning(false);
         break;
       }
@@ -822,6 +809,11 @@ export function useAgUi(options?: UseAgUiOptions): UseAgUiReturn {
         });
         break;
       }
+
+      case 'REASONING_ENCRYPTED_VALUE':
+        // No-op: encrypted reasoning values are opaque and cannot be rendered.
+        // A future enhancement could store them for round-trip to the provider.
+        break;
 
       // ---- Custom events ----
       case 'CUSTOM': {
@@ -873,7 +865,7 @@ export function useAgUi(options?: UseAgUiOptions): UseAgUiReturn {
     es.onmessage = (e: MessageEvent) => {
       if (!mountedRef.current) return;
       try {
-        const evt = JSON.parse(e.data) as AgUiEvent;
+        const evt = JSON.parse(e.data) as LooseAgUiEvent;
         dispatch(evt);
       } catch {
         /* skip malformed JSON */

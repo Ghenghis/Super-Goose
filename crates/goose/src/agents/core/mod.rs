@@ -163,6 +163,23 @@ impl std::str::FromStr for CoreType {
     }
 }
 
+/// UTF-8-safe byte-based truncation.
+///
+/// Returns the longest prefix of `s` that is at most `max_bytes` bytes long
+/// and does not split a multi-byte UTF-8 character. If `s` is already within
+/// the limit the original slice is returned unchanged.
+pub(crate) fn truncate(s: &str, max_bytes: usize) -> &str {
+    if s.len() <= max_bytes {
+        return s;
+    }
+    // Walk backwards from max_bytes to find a valid UTF-8 char boundary.
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
+}
+
 /// The central trait for swappable agent cores.
 ///
 /// Each implementation wraps an existing subsystem and provides a unified
@@ -192,8 +209,8 @@ pub trait AgentCore: Send + Sync {
     /// cost tracker, etc.) without the core needing to own the Agent.
     async fn execute(&self, ctx: &mut AgentContext, task: &str) -> Result<CoreOutput>;
 
-    /// Get current metrics for this core
-    fn metrics(&self) -> CoreMetrics;
+    /// Get current metrics snapshot for this core
+    fn metrics(&self) -> CoreMetricsSnapshot;
 
     /// Reset metrics (e.g. on session start)
     fn reset_metrics(&self);
@@ -239,5 +256,42 @@ mod tests {
         assert!(!caps.testing);
         assert!(!caps.multi_agent);
         assert_eq!(caps.max_concurrent_tasks, 0);
+    }
+
+    #[test]
+    fn test_truncate_ascii() {
+        assert_eq!(truncate("hello", 10), "hello");
+        assert_eq!(truncate("hello world", 5), "hello");
+        assert_eq!(truncate("", 5), "");
+    }
+
+    #[test]
+    fn test_truncate_utf8_boundary() {
+        // U+00E9 (e-acute) is 2 bytes in UTF-8: 0xC3 0xA9
+        let s = "caf\u{00e9}!"; // 6 bytes: c(1) a(1) f(1) e-acute(2) !(1)
+        assert_eq!(truncate(s, 10), s); // within limit
+        assert_eq!(truncate(s, 6), s); // exact length
+        assert_eq!(truncate(s, 5), "caf\u{00e9}"); // cuts the '!'
+        assert_eq!(truncate(s, 4), "caf\u{00e9}"); // 4 is inside the 2-byte char, rounds down to 3+2=boundary at 5? No: boundary at 3 is before the 2-byte char
+        // Actually byte 4 is in the middle of the 2-byte e-acute (bytes 3-4), so we fall back to byte 3
+        assert_eq!(truncate(s, 4), "caf");
+        assert_eq!(truncate(s, 3), "caf");
+    }
+
+    #[test]
+    fn test_truncate_zero() {
+        assert_eq!(truncate("hello", 0), "");
+        assert_eq!(truncate("", 0), "");
+    }
+
+    #[test]
+    fn test_truncate_emoji() {
+        // U+1F600 (grinning face) is 4 bytes in UTF-8
+        let s = "hi\u{1f600}!"; // 7 bytes: h(1) i(1) emoji(4) !(1)
+        assert_eq!(truncate(s, 7), s);
+        assert_eq!(truncate(s, 6), "hi\u{1f600}");
+        assert_eq!(truncate(s, 5), "hi"); // bytes 2..5 are inside the emoji, fall back to 2
+        assert_eq!(truncate(s, 3), "hi"); // byte 3 is inside the emoji
+        assert_eq!(truncate(s, 2), "hi");
     }
 }

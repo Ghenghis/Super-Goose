@@ -39,11 +39,15 @@ use tokio_stream::wrappers::ReceiverStream;
 pub enum AgUiEvent {
     // -- Lifecycle ----------------------------------------------------------
     RUN_STARTED {
+        #[serde(rename = "threadId")]
         thread_id: String,
+        #[serde(rename = "runId")]
         run_id: String,
     },
     RUN_FINISHED {
+        #[serde(rename = "threadId")]
         thread_id: String,
+        #[serde(rename = "runId")]
         run_id: String,
         result: Option<serde_json::Value>,
     },
@@ -56,40 +60,56 @@ pub enum AgUiEvent {
         timestamp: String,
     },
     STEP_STARTED {
+        #[serde(rename = "stepName")]
         step_name: String,
     },
     STEP_FINISHED {
+        #[serde(rename = "stepName")]
         step_name: String,
     },
 
     // -- Text Messages ------------------------------------------------------
     TEXT_MESSAGE_START {
+        #[serde(rename = "messageId")]
         message_id: String,
         role: String,
     },
     TEXT_MESSAGE_CONTENT {
+        #[serde(rename = "messageId")]
         message_id: String,
+        /// Frontend expects `content` (not `delta`) for TEXT_MESSAGE_CONTENT.
+        #[serde(rename = "content")]
         delta: String,
     },
     TEXT_MESSAGE_END {
+        #[serde(rename = "messageId")]
         message_id: String,
     },
 
     // -- Tool Calls ---------------------------------------------------------
     TOOL_CALL_START {
+        #[serde(rename = "toolCallId")]
         tool_call_id: String,
+        #[serde(rename = "toolCallName")]
         tool_call_name: String,
+        #[serde(rename = "parentMessageId")]
         parent_message_id: Option<String>,
     },
     TOOL_CALL_ARGS {
+        #[serde(rename = "toolCallId")]
         tool_call_id: String,
+        /// Frontend expects `args` (not `delta`) for TOOL_CALL_ARGS.
+        #[serde(rename = "args")]
         delta: String,
     },
     TOOL_CALL_END {
+        #[serde(rename = "toolCallId")]
         tool_call_id: String,
     },
     TOOL_CALL_RESULT {
+        #[serde(rename = "messageId")]
         message_id: String,
+        #[serde(rename = "toolCallId")]
         tool_call_id: String,
         content: String,
         role: Option<String>,
@@ -108,33 +128,46 @@ pub enum AgUiEvent {
 
     // -- Activity -----------------------------------------------------------
     ACTIVITY_SNAPSHOT {
+        #[serde(rename = "messageId")]
         message_id: String,
+        #[serde(rename = "activityType")]
         activity_type: String,
         content: serde_json::Value,
         replace: Option<bool>,
     },
     ACTIVITY_DELTA {
+        #[serde(rename = "messageId")]
         message_id: String,
+        #[serde(rename = "activityType")]
         activity_type: String,
         patch: Vec<JsonPatchOp>,
     },
 
     // -- Reasoning ----------------------------------------------------------
     REASONING_START {
+        /// Frontend expects `reasoningId` (not `messageId`) for REASONING events.
+        #[serde(rename = "reasoningId")]
         message_id: String,
     },
     REASONING_MESSAGE_START {
+        #[serde(rename = "messageId")]
         message_id: String,
         role: String,
     },
     REASONING_MESSAGE_CONTENT {
+        #[serde(rename = "messageId")]
         message_id: String,
+        /// Frontend expects `content` for REASONING_MESSAGE_CONTENT.
+        #[serde(rename = "content")]
         delta: String,
     },
     REASONING_MESSAGE_END {
+        #[serde(rename = "messageId")]
         message_id: String,
     },
     REASONING_END {
+        /// Frontend expects `reasoningId` (not `messageId`) for REASONING events.
+        #[serde(rename = "reasoningId")]
         message_id: String,
     },
 
@@ -783,8 +816,8 @@ mod tests {
         };
         let json = serde_json::to_value(&ev).unwrap();
         assert_eq!(json["type"], "RUN_STARTED");
-        assert_eq!(json["thread_id"], "t-1");
-        assert_eq!(json["run_id"], "r-1");
+        assert_eq!(json["threadId"], "t-1");
+        assert_eq!(json["runId"], "r-1");
 
         let ev = AgUiEvent::RUN_FINISHED {
             thread_id: "t-1".into(),
@@ -841,7 +874,7 @@ mod tests {
         };
         let json = serde_json::to_value(&ev).unwrap();
         assert_eq!(json["type"], "TEXT_MESSAGE_CONTENT");
-        assert_eq!(json["delta"], "Hello");
+        assert_eq!(json["content"], "Hello");
 
         let ev = AgUiEvent::TEXT_MESSAGE_END {
             message_id: "m-1".into(),
@@ -859,8 +892,8 @@ mod tests {
         };
         let json = serde_json::to_value(&ev).unwrap();
         assert_eq!(json["type"], "TOOL_CALL_START");
-        assert_eq!(json["tool_call_name"], "shell");
-        assert_eq!(json["parent_message_id"], "m-1");
+        assert_eq!(json["toolCallName"], "shell");
+        assert_eq!(json["parentMessageId"], "m-1");
 
         let ev = AgUiEvent::TOOL_CALL_ARGS {
             tool_call_id: "tc-1".into(),
@@ -963,7 +996,7 @@ mod tests {
         };
         let json = serde_json::to_value(&ev).unwrap();
         assert_eq!(json["type"], "REASONING_MESSAGE_CONTENT");
-        assert_eq!(json["delta"], "thinking...");
+        assert_eq!(json["content"], "thinking...");
 
         let ev = AgUiEvent::REASONING_MESSAGE_END {
             message_id: "r-1".into(),
@@ -1076,7 +1109,7 @@ mod tests {
 
         let json = serde_json::to_value(&events[0]).unwrap();
         assert_eq!(json["type"], "ACTIVITY_SNAPSHOT");
-        assert_eq!(json["activity_type"], "task_update");
+        assert_eq!(json["activityType"], "task_update");
         assert_eq!(json["content"]["task_id"], "task-99");
         assert_eq!(json["content"]["progress"], 0.5);
         assert_eq!(json["replace"], true);
@@ -1096,15 +1129,15 @@ mod tests {
 
         let start_json = serde_json::to_value(&events[0]).unwrap();
         assert_eq!(start_json["type"], "TOOL_CALL_START");
-        assert_eq!(start_json["tool_call_name"], "developer__shell");
+        assert_eq!(start_json["toolCallName"], "developer__shell");
 
         let end_json = serde_json::to_value(&events[1]).unwrap();
         assert_eq!(end_json["type"], "TOOL_CALL_END");
 
         // The tool_call_id must match between start and end.
         assert_eq!(
-            start_json["tool_call_id"],
-            end_json["tool_call_id"]
+            start_json["toolCallId"],
+            end_json["toolCallId"]
         );
 
         let meta_json = serde_json::to_value(&events[2]).unwrap();
@@ -1533,7 +1566,7 @@ mod tests {
         };
         let json = serde_json::to_value(&ev).unwrap();
         assert!(
-            json["parent_message_id"].is_null(),
+            json["parentMessageId"].is_null(),
             "None parent_message_id serializes as null"
         );
 
@@ -1656,8 +1689,8 @@ mod tests {
         let end_json = serde_json::to_value(&events[1]).unwrap();
         let meta_json = serde_json::to_value(&events[2]).unwrap();
 
-        let start_id = start_json["tool_call_id"].as_str().unwrap();
-        let end_id = end_json["tool_call_id"].as_str().unwrap();
+        let start_id = start_json["toolCallId"].as_str().unwrap();
+        let end_id = end_json["toolCallId"].as_str().unwrap();
         let meta_id = meta_json["value"]["tool_call_id"].as_str().unwrap();
 
         assert_eq!(start_id, end_id, "TOOL_CALL_START and TOOL_CALL_END must share the same tool_call_id");
@@ -2005,7 +2038,7 @@ mod tests {
         ).unwrap();
 
         assert_eq!(p1["type"], "TOOL_CALL_START");
-        assert_eq!(p1["tool_call_name"], "developer__shell");
+        assert_eq!(p1["toolCallName"], "developer__shell");
         assert_eq!(p2["type"], "TOOL_CALL_END");
         assert_eq!(p3["type"], "CUSTOM");
         assert_eq!(p3["name"], "tool_call_metadata");
@@ -2114,8 +2147,8 @@ mod tests {
             frame1.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
         assert_eq!(p1["type"], "TOOL_CALL_RESULT");
-        assert_eq!(p1["message_id"], "msg-tr-test-001");
-        assert_eq!(p1["tool_call_id"], "tc-456");
+        assert_eq!(p1["messageId"], "msg-tr-test-001");
+        assert_eq!(p1["toolCallId"], "tc-456");
         assert_eq!(p1["role"], "tool");
 
         // Verify TOOL_CALL_END event
@@ -2124,7 +2157,7 @@ mod tests {
             frame2.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
         assert_eq!(p2["type"], "TOOL_CALL_END");
-        assert_eq!(p2["tool_call_id"], "tc-456");
+        assert_eq!(p2["toolCallId"], "tc-456");
     }
 
     /// Simulate the abort handler: emits a single RUN_CANCELLED event.
@@ -2205,7 +2238,7 @@ mod tests {
             frame1.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
         assert_eq!(p1["type"], "TEXT_MESSAGE_START");
-        assert_eq!(p1["message_id"], "msg-test-001");
+        assert_eq!(p1["messageId"], "msg-test-001");
         assert_eq!(p1["role"], "user");
 
         // Verify TEXT_MESSAGE_CONTENT
@@ -2214,8 +2247,8 @@ mod tests {
             frame2.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
         assert_eq!(p2["type"], "TEXT_MESSAGE_CONTENT");
-        assert_eq!(p2["message_id"], "msg-test-001");
-        assert_eq!(p2["delta"], "Hello, agent!");
+        assert_eq!(p2["messageId"], "msg-test-001");
+        assert_eq!(p2["content"], "Hello, agent!");
 
         // Verify TEXT_MESSAGE_END
         let frame3 = rx.try_recv().unwrap();
@@ -2223,7 +2256,7 @@ mod tests {
             frame3.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
         assert_eq!(p3["type"], "TEXT_MESSAGE_END");
-        assert_eq!(p3["message_id"], "msg-test-001");
+        assert_eq!(p3["messageId"], "msg-test-001");
     }
 
     /// Verify that all three message lifecycle events share the same message_id.
@@ -2257,7 +2290,7 @@ mod tests {
             let parsed: serde_json::Value = serde_json::from_str(
                 frame.strip_prefix("data: ").unwrap().trim_end()
             ).unwrap();
-            received_ids.push(parsed["message_id"].as_str().unwrap().to_string());
+            received_ids.push(parsed["messageId"].as_str().unwrap().to_string());
         }
 
         assert_eq!(received_ids[0], received_ids[1]);
@@ -2373,7 +2406,7 @@ mod tests {
             frame1.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
         assert_eq!(p1["type"], "TOOL_CALL_RESULT");
-        assert_eq!(p1["tool_call_id"], "tc-integration-001");
+        assert_eq!(p1["toolCallId"], "tc-integration-001");
         assert_eq!(p1["role"], "tool");
 
         // Event 2: TOOL_CALL_END
@@ -2382,7 +2415,7 @@ mod tests {
             frame2.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
         assert_eq!(p2["type"], "TOOL_CALL_END");
-        assert_eq!(p2["tool_call_id"], "tc-integration-001");
+        assert_eq!(p2["toolCallId"], "tc-integration-001");
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -2465,7 +2498,7 @@ mod tests {
             frame1.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
         assert_eq!(p1["type"], "TEXT_MESSAGE_START");
-        assert_eq!(p1["message_id"], message_id);
+        assert_eq!(p1["messageId"], message_id);
         assert_eq!(p1["role"], "user");
 
         // Verify TEXT_MESSAGE_CONTENT
@@ -2474,8 +2507,8 @@ mod tests {
             frame2.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
         assert_eq!(p2["type"], "TEXT_MESSAGE_CONTENT");
-        assert_eq!(p2["message_id"], message_id);
-        assert_eq!(p2["delta"], "Hello, agent!");
+        assert_eq!(p2["messageId"], message_id);
+        assert_eq!(p2["content"], "Hello, agent!");
 
         // Verify TEXT_MESSAGE_END
         let frame3 = event_rx.try_recv().unwrap();
@@ -2483,7 +2516,7 @@ mod tests {
             frame3.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
         assert_eq!(p3["type"], "TEXT_MESSAGE_END");
-        assert_eq!(p3["message_id"], message_id);
+        assert_eq!(p3["messageId"], message_id);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -2578,7 +2611,7 @@ mod tests {
             frame.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
         assert_eq!(parsed["type"], "TOOL_CALL_RESULT");
-        assert_eq!(parsed["tool_call_id"], "tc-camel-001");
+        assert_eq!(parsed["toolCallId"], "tc-camel-001");
     }
 
     // ===================================================================

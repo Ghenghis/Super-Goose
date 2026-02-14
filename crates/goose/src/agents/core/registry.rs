@@ -114,7 +114,7 @@ impl AgentCoreRegistry {
                         description: core.description().to_string(),
                         capabilities: core.capabilities(),
                     };
-                    let metrics = core.metrics().snapshot();
+                    let metrics = core.metrics();
                     (info, metrics)
                 })
             })

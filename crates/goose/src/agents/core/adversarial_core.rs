@@ -11,7 +11,7 @@ use async_trait::async_trait;
 
 use super::context::{AgentContext, TaskCategory, TaskHint};
 use super::metrics::{CoreMetrics, CoreMetricsSnapshot};
-use super::{AgentCore, CoreCapabilities, CoreOutput, CoreType};
+use super::{truncate, AgentCore, CoreCapabilities, CoreOutput, CoreType};
 
 use crate::agents::adversarial::{
     AdversarialConfig, ReviewCycle, ReviewOutcome, ReviewStats,
@@ -255,17 +255,13 @@ impl AgentCore for AdversarialCore {
         })
     }
 
-    fn metrics(&self) -> CoreMetrics {
-        CoreMetrics::new()
+    fn metrics(&self) -> CoreMetricsSnapshot {
+        self.metrics.snapshot()
     }
 
     fn reset_metrics(&self) {
         self.metrics.reset();
     }
-}
-
-fn truncate(s: &str, max: usize) -> &str {
-    if s.len() <= max { s } else { &s[..max] }
 }
 
 #[cfg(test)]

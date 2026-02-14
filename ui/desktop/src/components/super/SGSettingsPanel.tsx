@@ -23,11 +23,17 @@ export default function SGSettingsPanel() {
     total_skills?: number;
     verified_skills?: number;
   } | null>(null);
+  const [version, setVersion] = useState<string>('v1.24.05');
 
   useEffect(() => {
     fetch(getApiUrl('/api/learning/stats'))
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setLearningStats(data); })
+      .catch(() => {});
+
+    fetch(getApiUrl('/api/version'))
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.version) setVersion(`v${data.version}`); })
       .catch(() => {});
   }, []);
 
@@ -156,7 +162,7 @@ export default function SGSettingsPanel() {
         <div className="sg-card">
           <div className="flex items-center justify-between">
             <span style={{ color: 'var(--sg-text-2)', fontSize: '0.875rem' }}>Super-Goose</span>
-            <span style={{ color: 'var(--sg-gold)', fontSize: '0.875rem' }}>v1.24.05</span>
+            <span style={{ color: 'var(--sg-gold)', fontSize: '0.875rem' }}>{version}</span>
           </div>
         </div>
       </div>

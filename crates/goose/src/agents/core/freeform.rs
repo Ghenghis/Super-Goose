@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 use super::context::{AgentContext, TaskCategory, TaskHint};
 use super::metrics::{CoreMetrics, CoreMetricsSnapshot};
-use super::{AgentCore, CoreCapabilities, CoreOutput, CoreType};
+use super::{truncate, AgentCore, CoreCapabilities, CoreOutput, CoreType};
 
 /// Default LLM-driven execution core.
 ///
@@ -119,10 +119,8 @@ impl AgentCore for FreeformCore {
         Ok(output)
     }
 
-    fn metrics(&self) -> CoreMetrics {
-        // Return a new CoreMetrics that mirrors our state
-        // (CoreMetrics uses atomics, so we can't clone; return snapshot-based)
-        CoreMetrics::new() // Callers should use metrics().snapshot() on the stored instance
+    fn metrics(&self) -> CoreMetricsSnapshot {
+        self.metrics.snapshot()
     }
 
     fn reset_metrics(&self) {
@@ -134,14 +132,6 @@ impl AgentCore for FreeformCore {
 impl FreeformCore {
     pub fn metrics_ref(&self) -> &CoreMetrics {
         &self.metrics
-    }
-}
-
-fn truncate(s: &str, max: usize) -> &str {
-    if s.len() <= max {
-        s
-    } else {
-        &s[..max]
     }
 }
 
@@ -187,13 +177,6 @@ mod tests {
         let core = FreeformCore::new();
         let snapshot = core.metrics_ref().snapshot();
         assert_eq!(snapshot.total_executions, 0);
-    }
-
-    #[test]
-    fn test_truncate_function() {
-        assert_eq!(truncate("hello", 10), "hello");
-        assert_eq!(truncate("hello world", 5), "hello");
-        assert_eq!(truncate("", 5), "");
     }
 
     #[test]

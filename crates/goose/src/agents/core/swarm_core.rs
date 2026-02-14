@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use super::context::{AgentContext, TaskCategory, TaskHint};
 use super::metrics::{CoreMetrics, CoreMetricsSnapshot};
-use super::{AgentCore, CoreCapabilities, CoreOutput, CoreType};
+use super::{truncate, AgentCore, CoreCapabilities, CoreOutput, CoreType};
 
 use crate::agents::swarm::{
     BatchProcessor, RoutingStrategy, Swarm, SwarmAgent, SwarmConfig, SwarmRole, SwarmTask,
@@ -353,17 +353,13 @@ impl AgentCore for SwarmCore {
         })
     }
 
-    fn metrics(&self) -> CoreMetrics {
-        CoreMetrics::new()
+    fn metrics(&self) -> CoreMetricsSnapshot {
+        self.metrics.snapshot()
     }
 
     fn reset_metrics(&self) {
         self.metrics.reset();
     }
-}
-
-fn truncate(s: &str, max: usize) -> &str {
-    if s.len() <= max { s } else { &s[..max] }
 }
 
 #[cfg(test)]

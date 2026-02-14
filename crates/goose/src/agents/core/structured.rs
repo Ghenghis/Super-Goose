@@ -501,8 +501,8 @@ impl AgentCore for StructuredCore {
         })
     }
 
-    fn metrics(&self) -> CoreMetrics {
-        CoreMetrics::new()
+    fn metrics(&self) -> CoreMetricsSnapshot {
+        self.metrics.snapshot()
     }
 
     fn reset_metrics(&self) {

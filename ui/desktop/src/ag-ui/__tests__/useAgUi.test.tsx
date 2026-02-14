@@ -816,7 +816,7 @@ describe('Reasoning events', () => {
     expect(result.current.reasoningMessages[0].streaming).toBe(true);
   });
 
-  it('REASONING_CONTENT appends to reasoning message', () => {
+  it('REASONING_MESSAGE_CONTENT appends to reasoning message', () => {
     const { result } = renderHook(() => useAgUi());
     act(() => latestMockES().simulateOpen());
 
@@ -826,12 +826,12 @@ describe('Reasoning events', () => {
         reasoningId: 'r-1',
       });
       latestMockES().simulateEvent({
-        type: 'REASONING_CONTENT',
+        type: 'REASONING_MESSAGE_CONTENT',
         reasoningId: 'r-1',
         content: 'Let me think ',
       });
       latestMockES().simulateEvent({
-        type: 'REASONING_CONTENT',
+        type: 'REASONING_MESSAGE_CONTENT',
         reasoningId: 'r-1',
         content: 'about this...',
       });
@@ -842,7 +842,7 @@ describe('Reasoning events', () => {
     );
   });
 
-  it('REASONING_END sets streaming to false and isReasoning to false', () => {
+  it('REASONING_MESSAGE_END sets streaming to false, REASONING_END sets isReasoning to false', () => {
     const { result } = renderHook(() => useAgUi());
     act(() => latestMockES().simulateOpen());
 
@@ -852,13 +852,16 @@ describe('Reasoning events', () => {
         reasoningId: 'r-1',
       });
       latestMockES().simulateEvent({
-        type: 'REASONING_CONTENT',
+        type: 'REASONING_MESSAGE_CONTENT',
         reasoningId: 'r-1',
         content: 'Done thinking',
       });
       latestMockES().simulateEvent({
-        type: 'REASONING_END',
+        type: 'REASONING_MESSAGE_END',
         reasoningId: 'r-1',
+      });
+      latestMockES().simulateEvent({
+        type: 'REASONING_END',
       });
     });
 
@@ -867,13 +870,13 @@ describe('Reasoning events', () => {
     expect(result.current.reasoningMessages[0].content).toBe('Done thinking');
   });
 
-  it('REASONING_CONTENT for unknown reasoningId is a no-op', () => {
+  it('REASONING_MESSAGE_CONTENT for unknown reasoningId is a no-op', () => {
     const { result } = renderHook(() => useAgUi());
     act(() => latestMockES().simulateOpen());
 
     act(() =>
       latestMockES().simulateEvent({
-        type: 'REASONING_CONTENT',
+        type: 'REASONING_MESSAGE_CONTENT',
         reasoningId: 'nonexistent',
         content: 'ghost',
       }),
@@ -1224,8 +1227,9 @@ describe('Multiple rapid events', () => {
         { type: 'STATE_SNAPSHOT', snapshot: { mode: 'active' } },
         { type: 'ACTIVITY', id: 'a-1', message: 'Starting', level: 'info' },
         { type: 'REASONING_START', reasoningId: 'cot-1' },
-        { type: 'REASONING_CONTENT', reasoningId: 'cot-1', content: 'Thinking' },
-        { type: 'REASONING_END', reasoningId: 'cot-1' },
+        { type: 'REASONING_MESSAGE_CONTENT', reasoningId: 'cot-1', content: 'Thinking' },
+        { type: 'REASONING_MESSAGE_END', reasoningId: 'cot-1' },
+        { type: 'REASONING_END' },
         { type: 'CUSTOM', name: 'timing', value: { ms: 100 } },
         { type: 'TEXT_MESSAGE_START', messageId: 'msg-1' },
         { type: 'TEXT_MESSAGE_CONTENT', messageId: 'msg-1', content: 'Result' },

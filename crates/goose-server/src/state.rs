@@ -55,6 +55,10 @@ pub struct AppState {
     pub event_bus: broadcast::Sender<String>,
     /// In-memory store for GPU jobs (keyed by job id).
     pub gpu_jobs: Arc<RwLock<HashMap<String, GpuJob>>>,
+    /// Broadcast channel for settings change events. POST/DELETE handlers publish
+    /// serialized SSE frames; the `/api/settings/stream` SSE handler subscribes
+    /// to forward them to connected clients in real time.
+    pub settings_event_bus: broadcast::Sender<String>,
 }
 
 impl AppState {
@@ -66,6 +70,8 @@ impl AppState {
         // 4096-slot broadcast channel — lagging subscribers will get a RecvError::Lagged.
         // Sized generously to absorb burst tool-call traffic without dropping events.
         let (event_bus, _) = broadcast::channel::<String>(4096);
+        // Smaller capacity for settings — updates are infrequent compared to agent events.
+        let (settings_event_bus, _) = broadcast::channel::<String>(256);
 
         Ok(Arc::new(Self {
             agent_manager,
@@ -76,6 +82,7 @@ impl AppState {
             ota_build_progress: Arc::new(RwLock::new(None)),
             event_bus,
             gpu_jobs: Arc::new(RwLock::new(HashMap::new())),
+            settings_event_bus,
         }))
     }
 
@@ -145,6 +152,14 @@ impl AppState {
     /// delivered to all connected SSE clients.
     pub fn event_sender(&self) -> &broadcast::Sender<String> {
         &self.event_bus
+    }
+
+    /// Returns a reference to the settings event broadcast sender.
+    ///
+    /// POST/DELETE handlers use this to publish settings change events that
+    /// are forwarded to all connected `/api/settings/stream` SSE clients.
+    pub fn settings_event_sender(&self) -> &broadcast::Sender<String> {
+        &self.settings_event_bus
     }
 
     pub async fn get_agent(&self, session_id: String) -> anyhow::Result<Arc<goose::agents::Agent>> {

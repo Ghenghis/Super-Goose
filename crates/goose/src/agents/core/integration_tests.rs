@@ -501,13 +501,10 @@ mod tests {
 
         // After execution, metrics should be updated.
         // FreeformCore records metrics via its internal CoreMetrics.
-        // We verify via the snapshot mechanism.
-        let snap = core.metrics().snapshot();
-        // CoreMetrics::new() returns fresh metrics (FreeformCore's metrics() returns new()),
-        // but the internal metrics_ref() on FreeformCore would show the real count.
-        // This is a known limitation of the current metrics() method — it returns
-        // a new CoreMetrics, not the internal one. The test verifies the API exists.
-        assert_eq!(snap.success_rate, 0.0); // Fresh metrics from metrics()
+        let snap = core.metrics();
+        // metrics() now returns a real snapshot of the stored metrics
+        assert_eq!(snap.total_executions, 1);
+        assert_eq!(snap.successful, 1);
     }
 
     #[test]

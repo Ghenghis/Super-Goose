@@ -6,7 +6,7 @@
  * - No events after RUN_FINISHED/RUN_ERROR
  * - TEXT_MESSAGE_START before TEXT_MESSAGE_CONTENT/END
  * - TOOL_CALL_START before TOOL_CALL_ARGS/END
- * - REASONING_START before REASONING_CONTENT/END
+ * - REASONING_START before REASONING_MESSAGE_CONTENT/REASONING_MESSAGE_END/REASONING_END
  * - STEP_STARTED before STEP_FINISHED
  */
 
@@ -122,19 +122,27 @@ export function createEventVerifier(): EventVerifier {
           reasoningActive = true;
           break;
 
-        case 'REASONING_CONTENT':
+        case 'REASONING_MESSAGE_CONTENT':
+        case 'REASONING_MESSAGE_END':
+          if (!reasoningActive) {
+            return { type: 'missing_start', message: `${type} without REASONING_START`, event };
+          }
+          break;
+
         case 'REASONING_END':
           if (!reasoningActive) {
             return { type: 'missing_start', message: `${type} without REASONING_START`, event };
           }
-          if (type === 'REASONING_END') reasoningActive = false;
+          reasoningActive = false;
           break;
 
         // Chunk events, snapshots, custom, raw -- always valid
         case 'TEXT_MESSAGE_CHUNK':
         case 'TOOL_CALL_CHUNK':
         case 'TOOL_CALL_RESULT':
+        case 'REASONING_MESSAGE_START':
         case 'REASONING_MESSAGE_CHUNK':
+        case 'REASONING_ENCRYPTED_VALUE':
         case 'STATE_SNAPSHOT':
         case 'STATE_DELTA':
         case 'MESSAGES_SNAPSHOT':
