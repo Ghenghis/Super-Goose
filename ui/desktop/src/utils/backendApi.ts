@@ -9,7 +9,7 @@
  * Base URL defaults to the local goosed server on port 3284.
  */
 
-const API_BASE = 'http://localhost:3284';
+import { getApiUrl } from '../config';
 
 const JSON_HEADERS: HeadersInit = { 'Content-Type': 'application/json' };
 
@@ -243,7 +243,7 @@ export const backendApi = {
   /** Retrieve the status of all backend features. */
   getFeatureStatus: async (): Promise<FeatureStatusEntry[] | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/features`);
+      const res = await fetch(getApiUrl('/api/features'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as FeatureStatusEntry[];
     } catch (err) {
@@ -255,7 +255,7 @@ export const backendApi = {
   /** Enable or disable a single backend feature. */
   toggleFeature: async (feature: string, enabled: boolean): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/features/${encodeURIComponent(feature)}`, {
+      const res = await fetch(getApiUrl(`/api/features/${encodeURIComponent(feature)}`), {
         method: 'PUT',
         headers: JSON_HEADERS,
         body: JSON.stringify({ enabled }),
@@ -274,7 +274,7 @@ export const backendApi = {
   /** Fetch the current guardrails configuration. */
   getGuardrails: async (): Promise<GuardrailsConfig | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/guardrails/config`);
+      const res = await fetch(getApiUrl('/api/guardrails/config'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as GuardrailsConfig;
     } catch (err) {
@@ -286,7 +286,7 @@ export const backendApi = {
   /** Fetch the gateway / proxy configuration. */
   getGatewayConfig: async (): Promise<GatewayConfig | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/gateway`);
+      const res = await fetch(getApiUrl('/api/enterprise/gateway'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as GatewayConfig;
     } catch (err) {
@@ -302,7 +302,7 @@ export const backendApi = {
   /** Get an aggregate cost summary for the current session & lifetime. */
   getCostSummary: async (): Promise<CostSummary | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/cost/summary`);
+      const res = await fetch(getApiUrl('/api/cost/summary'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as CostSummary;
     } catch (err) {
@@ -314,7 +314,7 @@ export const backendApi = {
   /** Set (or clear) the budget limit in dollars. */
   setBudgetLimit: async (limit: number): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/cost/budget`, {
+      const res = await fetch(getApiUrl('/api/cost/budget'), {
         method: 'PUT',
         headers: JSON_HEADERS,
         body: JSON.stringify({ limit }),
@@ -329,7 +329,7 @@ export const backendApi = {
   /** Get detailed per-model cost breakdown. */
   getCostBreakdown: async (): Promise<CostModelBreakdown[] | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/cost/breakdown`);
+      const res = await fetch(getApiUrl('/api/cost/breakdown'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as CostModelBreakdown[];
     } catch (err) {
@@ -341,7 +341,7 @@ export const backendApi = {
   /** Get current budget configuration. */
   getCostBudget: async (): Promise<CostBudget | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/cost/budget`);
+      const res = await fetch(getApiUrl('/api/cost/budget'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as CostBudget;
     } catch (err) {
@@ -353,7 +353,7 @@ export const backendApi = {
   /** Update guardrails configuration. */
   updateGuardrailsConfig: async (config: Partial<GuardrailsConfig>): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/guardrails/config`, {
+      const res = await fetch(getApiUrl('/api/guardrails/config'), {
         method: 'PUT',
         headers: JSON_HEADERS,
         body: JSON.stringify(config),
@@ -372,7 +372,7 @@ export const backendApi = {
   /** Get aggregate learning statistics. */
   getLearningStats: async (): Promise<LearningStats | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/learning/stats`);
+      const res = await fetch(getApiUrl('/api/learning/stats'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as LearningStats;
     } catch (err) {
@@ -391,7 +391,7 @@ export const backendApi = {
       if (limit !== undefined) params.set('limit', String(limit));
       if (offset !== undefined) params.set('offset', String(offset));
       const qs = params.toString();
-      const res = await fetch(`${API_BASE}/api/learning/experiences${qs ? `?${qs}` : ''}`);
+      const res = await fetch(getApiUrl(`/api/learning/experiences${qs ? `?${qs}` : ''}`));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as LearningExperience[];
     } catch (err) {
@@ -403,7 +403,7 @@ export const backendApi = {
   /** Get all learning insights. */
   getLearningInsights: async (): Promise<LearningInsight[] | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/learning/insights`);
+      const res = await fetch(getApiUrl('/api/learning/insights'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as LearningInsight[];
     } catch (err) {
@@ -418,7 +418,7 @@ export const backendApi = {
       const params = new URLSearchParams();
       if (verifiedOnly) params.set('verified_only', 'true');
       const qs = params.toString();
-      const res = await fetch(`${API_BASE}/api/learning/skills${qs ? `?${qs}` : ''}`);
+      const res = await fetch(getApiUrl(`/api/learning/skills${qs ? `?${qs}` : ''}`));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as LearningSkill[];
     } catch (err) {
@@ -434,7 +434,7 @@ export const backendApi = {
   /** Get autonomous daemon status. */
   getAutonomousStatus: async (): Promise<Record<string, unknown> | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/autonomous/status`);
+      const res = await fetch(getApiUrl('/api/autonomous/status'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as Record<string, unknown>;
     } catch (err) {
@@ -446,7 +446,7 @@ export const backendApi = {
   /** Get OTA self-build status. */
   getOtaStatus: async (): Promise<Record<string, unknown> | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/ota/status`);
+      const res = await fetch(getApiUrl('/api/ota/status'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as Record<string, unknown>;
     } catch (err) {
@@ -463,7 +463,7 @@ export const backendApi = {
   searchSessions: async (query: string): Promise<SessionSearchResult[] | null> => {
     try {
       const res = await fetch(
-        `${API_BASE}/api/sessions/search?q=${encodeURIComponent(query)}`
+        getApiUrl(`/api/sessions/search?q=${encodeURIComponent(query)}`)
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as SessionSearchResult[];
@@ -480,7 +480,7 @@ export const backendApi = {
   /** List all saved bookmarks. */
   getBookmarks: async (): Promise<Bookmark[] | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/bookmarks`);
+      const res = await fetch(getApiUrl('/api/bookmarks'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as Bookmark[];
     } catch (err) {
@@ -492,7 +492,7 @@ export const backendApi = {
   /** Create a new bookmark for a session. */
   createBookmark: async (sessionId: string, label: string): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/bookmarks`, {
+      const res = await fetch(getApiUrl('/api/bookmarks'), {
         method: 'POST',
         headers: JSON_HEADERS,
         body: JSON.stringify({ sessionId, label }),
@@ -507,7 +507,7 @@ export const backendApi = {
   /** Delete a bookmark by id. */
   deleteBookmark: async (id: string): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/bookmarks/${encodeURIComponent(id)}`, {
+      const res = await fetch(getApiUrl(`/api/bookmarks/${encodeURIComponent(id)}`), {
         method: 'DELETE',
       });
       return res.ok;
@@ -524,7 +524,7 @@ export const backendApi = {
   /** List all registered extensions (builtin + bundled + custom). */
   getExtensions: async (): Promise<ExtensionInfo[] | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/extensions`);
+      const res = await fetch(getApiUrl('/api/extensions'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { extensions: ExtensionInfo[] };
       return data.extensions;
@@ -537,7 +537,7 @@ export const backendApi = {
   /** Enable or disable an extension by key. */
   toggleExtension: async (key: string, enabled: boolean): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/extensions/${encodeURIComponent(key)}/toggle`, {
+      const res = await fetch(getApiUrl(`/api/extensions/${encodeURIComponent(key)}/toggle`), {
         method: 'PUT',
         headers: JSON_HEADERS,
         body: JSON.stringify({ enabled }),
@@ -556,7 +556,7 @@ export const backendApi = {
   /** Fetch gateway status. */
   fetchGatewayStatus: async (): Promise<GatewayStatus | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/gateway/status`);
+      const res = await fetch(getApiUrl('/api/enterprise/gateway/status'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as GatewayStatus;
     } catch (err) {
@@ -568,7 +568,7 @@ export const backendApi = {
   /** Update gateway audit logging setting. */
   updateGatewayAuditLogging: async (enabled: boolean): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/gateway/audit`, {
+      const res = await fetch(getApiUrl('/api/enterprise/gateway/audit'), {
         method: 'PUT',
         headers: JSON_HEADERS,
         body: JSON.stringify({ enabled }),
@@ -583,7 +583,7 @@ export const backendApi = {
   /** Fetch hooks configuration. */
   fetchHooksConfig: async (): Promise<HooksConfig | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/hooks/events`);
+      const res = await fetch(getApiUrl('/api/enterprise/hooks/events'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as HooksConfig;
     } catch (err) {
@@ -595,7 +595,7 @@ export const backendApi = {
   /** Toggle a hook event. */
   toggleHook: async (id: string, enabled: boolean): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/hooks/events/${encodeURIComponent(id)}`, {
+      const res = await fetch(getApiUrl(`/api/enterprise/hooks/events/${encodeURIComponent(id)}`), {
         method: 'POST',
         headers: JSON_HEADERS,
         body: JSON.stringify({ enabled }),
@@ -610,7 +610,7 @@ export const backendApi = {
   /** Fetch memory summary. */
   fetchMemorySummary: async (): Promise<MemorySummary | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/memory/summary`);
+      const res = await fetch(getApiUrl('/api/enterprise/memory/summary'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as MemorySummary;
     } catch (err) {
@@ -622,7 +622,7 @@ export const backendApi = {
   /** Fetch policy rules. */
   fetchPolicyRules: async (): Promise<PolicyRules | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/policies/rules`);
+      const res = await fetch(getApiUrl('/api/enterprise/policies/rules'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as PolicyRules;
     } catch (err) {
@@ -634,7 +634,7 @@ export const backendApi = {
   /** Toggle a policy rule. */
   togglePolicyRule: async (id: string, enabled: boolean): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/policies/rules/${encodeURIComponent(id)}`, {
+      const res = await fetch(getApiUrl(`/api/enterprise/policies/rules/${encodeURIComponent(id)}`), {
         method: 'POST',
         headers: JSON_HEADERS,
         body: JSON.stringify({ enabled }),
@@ -649,7 +649,7 @@ export const backendApi = {
   /** Update policy dry-run mode. */
   updatePolicyDryRunMode: async (enabled: boolean): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/policies/dry-run`, {
+      const res = await fetch(getApiUrl('/api/enterprise/policies/dry-run'), {
         method: 'PUT',
         headers: JSON_HEADERS,
         body: JSON.stringify({ enabled }),
@@ -664,7 +664,7 @@ export const backendApi = {
   /** Fetch enterprise guardrails configuration. */
   getEnterpriseGuardrails: async (): Promise<EnterpriseGuardrailsConfig | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/guardrails`);
+      const res = await fetch(getApiUrl('/api/enterprise/guardrails'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as EnterpriseGuardrailsConfig;
     } catch (err) {
@@ -678,7 +678,7 @@ export const backendApi = {
     config: Partial<EnterpriseGuardrailsConfig>
   ): Promise<EnterpriseGuardrailsConfig | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/guardrails`, {
+      const res = await fetch(getApiUrl('/api/enterprise/guardrails'), {
         method: 'PUT',
         headers: JSON_HEADERS,
         body: JSON.stringify(config),
@@ -694,7 +694,7 @@ export const backendApi = {
   /** Fetch guardrails scan history. */
   getGuardrailsScans: async (): Promise<GuardrailsScanEntry[] | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/guardrails/scans`);
+      const res = await fetch(getApiUrl('/api/enterprise/guardrails/scans'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as GuardrailsScansResponse;
       return data.scans;
@@ -707,7 +707,7 @@ export const backendApi = {
   /** Trigger memory consolidation across all subsystems. */
   consolidateMemory: async (): Promise<MemoryConsolidateResponse | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/memory/consolidate`, {
+      const res = await fetch(getApiUrl('/api/enterprise/memory/consolidate'), {
         method: 'POST',
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -721,7 +721,7 @@ export const backendApi = {
   /** Fetch observability / telemetry configuration and usage data. */
   getObservabilityConfig: async (): Promise<ObservabilityConfig | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/observability`);
+      const res = await fetch(getApiUrl('/api/enterprise/observability'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as ObservabilityConfig;
     } catch (err) {
@@ -735,7 +735,7 @@ export const backendApi = {
     config: { costTrackingEnabled?: boolean }
   ): Promise<ObservabilityConfig | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/enterprise/observability`, {
+      const res = await fetch(getApiUrl('/api/enterprise/observability'), {
         method: 'PUT',
         headers: JSON_HEADERS,
         body: JSON.stringify(config),
@@ -755,7 +755,7 @@ export const backendApi = {
   /** Get build version fingerprint (for OTA binary detection). */
   getVersion: async (): Promise<VersionInfo | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/version`);
+      const res = await fetch(getApiUrl('/api/version'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as VersionInfo;
     } catch (err) {
@@ -767,7 +767,7 @@ export const backendApi = {
   /** Trigger an OTA self-improvement cycle. */
   triggerOta: async (sessionId: string, dryRun: boolean): Promise<OtaTriggerResponse | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/ota/trigger`, {
+      const res = await fetch(getApiUrl('/api/ota/trigger'), {
         method: 'POST',
         headers: JSON_HEADERS,
         body: JSON.stringify({ session_id: sessionId, dry_run: dryRun }),
@@ -783,7 +783,7 @@ export const backendApi = {
   /** Request backend process restart (after OTA binary swap). */
   restartBackend: async (): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/ota/restart`, {
+      const res = await fetch(getApiUrl('/api/ota/restart'), {
         method: 'POST',
         headers: JSON_HEADERS,
       });
@@ -801,7 +801,7 @@ export const backendApi = {
   /** Switch the active agent core. */
   switchCore: async (coreType: string, sessionId = 'default'): Promise<{ success: boolean; active_core: string; message: string } | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/agent/switch-core`, {
+      const res = await fetch(getApiUrl('/api/agent/switch-core'), {
         method: 'POST',
         headers: JSON_HEADERS,
         body: JSON.stringify({ core_type: coreType, session_id: sessionId }),
@@ -817,7 +817,7 @@ export const backendApi = {
   /** Get the list of available cores with active status. */
   listCores: async (): Promise<Array<{ id: string; name: string; description: string; active: boolean }>> => {
     try {
-      const res = await fetch(`${API_BASE}/api/agent/cores`);
+      const res = await fetch(getApiUrl('/api/agent/cores'));
       if (!res.ok) return [];
       return await res.json();
     } catch (err) {
@@ -829,7 +829,7 @@ export const backendApi = {
   /** Get the saved core auto-selection configuration. */
   getCoreConfig: async (): Promise<CoreAutoConfig | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/agent/core-config`);
+      const res = await fetch(getApiUrl('/api/agent/core-config'));
       if (!res.ok) return null;
       return await res.json();
     } catch (err) {
@@ -841,7 +841,7 @@ export const backendApi = {
   /** Save core auto-selection configuration. */
   setCoreConfig: async (config: CoreAutoConfig): Promise<{ success: boolean; message: string } | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/agent/core-config`, {
+      const res = await fetch(getApiUrl('/api/agent/core-config'), {
         method: 'POST',
         headers: JSON_HEADERS,
         body: JSON.stringify(config),
@@ -861,7 +861,7 @@ export const backendApi = {
   /** Get a single setting value from the backend. */
   getSetting: async <T = unknown>(key: string): Promise<T | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/settings/${encodeURIComponent(key)}`);
+      const res = await fetch(getApiUrl(`/api/settings/${encodeURIComponent(key)}`));
       if (!res.ok) return null;
       const data = await res.json();
       return data.value as T;
@@ -874,7 +874,7 @@ export const backendApi = {
   /** Set a single setting value on the backend. */
   setSetting: async (key: string, value: unknown): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/api/settings/${encodeURIComponent(key)}`, {
+      const res = await fetch(getApiUrl(`/api/settings/${encodeURIComponent(key)}`), {
         method: 'POST',
         headers: JSON_HEADERS,
         body: JSON.stringify({ value }),

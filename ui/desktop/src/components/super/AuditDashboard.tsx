@@ -255,7 +255,6 @@ function useLiveData() {
 
   const poll = useCallback(async () => {
     const next: Partial<LiveData> = { lastPoll: new Date() };
-    next.pollCount = (data.pollCount || 0) + 1;
 
     // Health / version
     try {

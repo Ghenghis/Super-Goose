@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Settings } from './settings';
+import { getApiUrl } from '../config';
 
 // ---------------------------------------------------------------------------
 // Settings Keys Enum
@@ -322,7 +323,7 @@ export function useFeatureSettings(): UseFeatureSettingsReturn {
  */
 export async function syncSettingToBackend(key: string, value: unknown): Promise<boolean> {
   try {
-    const response = await fetch(`http://localhost:3284/api/settings/${encodeURIComponent(key)}`, {
+    const response = await fetch(getApiUrl(`/api/settings/${encodeURIComponent(key)}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value }),
@@ -342,7 +343,7 @@ export async function syncSettingToBackend(key: string, value: unknown): Promise
  */
 export async function loadSettingFromBackend<T = unknown>(key: string): Promise<T | undefined> {
   try {
-    const response = await fetch(`http://localhost:3284/api/settings/${encodeURIComponent(key)}`);
+    const response = await fetch(getApiUrl(`/api/settings/${encodeURIComponent(key)}`));
     if (response.ok) {
       const data = await response.json();
       return data.value as T;
@@ -375,7 +376,7 @@ interface HeartbeatEvent {
 export type SettingsStreamEvent = SettingsUpdateEvent | HeartbeatEvent;
 
 interface UseSettingsStreamOptions {
-  /** Base URL for the backend API. Defaults to http://localhost:3284 */
+  /** Base URL for the backend API. Defaults to GOOSE_API_HOST from appConfig. */
   baseUrl?: string;
   /** Callback invoked when a settings update event is received. */
   onSettingUpdate?: (key: string, value: unknown, source: string) => void;
@@ -408,7 +409,7 @@ interface UseSettingsStreamReturn {
  */
 export function useSettingsStream(options: UseSettingsStreamOptions = {}): UseSettingsStreamReturn {
   const {
-    baseUrl = 'http://localhost:3284',
+    baseUrl = getApiUrl('').replace(/\/+$/, ''),
     onSettingUpdate,
     autoReconnect = true,
     maxReconnectDelay = 30000,

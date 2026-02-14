@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-
-const API_BASE = 'http://localhost:3284';
+import { getApiUrl } from '../config';
 
 // ---------------------------------------------------------------------------
 // Buffer limits
@@ -309,7 +308,7 @@ function nextId(): string {
 // ---------------------------------------------------------------------------
 
 export function useAgUi(options?: UseAgUiOptions): UseAgUiReturn {
-  const apiBase = options?.apiBase ?? API_BASE;
+  const apiBase = (options?.apiBase ?? getApiUrl('')).replace(/\/+$/, '');
   const abortOnDisconnect = options?.abortOnDisconnect ?? false;
 
   // -- Connection state --

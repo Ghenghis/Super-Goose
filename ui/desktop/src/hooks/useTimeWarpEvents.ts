@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-
-const API_BASE = 'http://localhost:3284';
+import { getApiUrl } from '../config';
 
 export interface TimeWarpEventAPI {
   id: string;
@@ -36,7 +35,7 @@ export function useTimeWarpEvents(sessionId: string | null) {
     setError(null);
     try {
       const res = await fetch(
-        `${API_BASE}/api/timewarp/events?session_id=${encodeURIComponent(sessionId)}`
+        getApiUrl(`/api/timewarp/events?session_id=${encodeURIComponent(sessionId)}`)
       );
       if (res.ok) {
         const data = await res.json();
@@ -58,7 +57,7 @@ export function useTimeWarpEvents(sessionId: string | null) {
     if (!sessionId) return;
     try {
       const res = await fetch(
-        `${API_BASE}/api/timewarp/branches?session_id=${encodeURIComponent(sessionId)}`
+        getApiUrl(`/api/timewarp/branches?session_id=${encodeURIComponent(sessionId)}`)
       );
       if (res.ok) {
         const data = await res.json();
@@ -72,7 +71,7 @@ export function useTimeWarpEvents(sessionId: string | null) {
   const recordEvent = useCallback(
     async (event: Omit<TimeWarpEventAPI, 'id' | 'timestamp'>) => {
       try {
-        const res = await fetch(`${API_BASE}/api/timewarp/events`, {
+        const res = await fetch(getApiUrl('/api/timewarp/events'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(event),
@@ -89,7 +88,7 @@ export function useTimeWarpEvents(sessionId: string | null) {
   const createBranch = useCallback(
     async (name: string, forkEventId?: string) => {
       try {
-        const res = await fetch(`${API_BASE}/api/timewarp/branches`, {
+        const res = await fetch(getApiUrl('/api/timewarp/branches'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -110,7 +109,7 @@ export function useTimeWarpEvents(sessionId: string | null) {
   const replayToEvent = useCallback(
     async (eventId: string) => {
       try {
-        const res = await fetch(`${API_BASE}/api/timewarp/replay`, {
+        const res = await fetch(getApiUrl('/api/timewarp/replay'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ session_id: sessionId, event_id: eventId }),

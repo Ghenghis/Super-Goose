@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-
-const API_BASE = 'http://localhost:3284';
+import { getApiUrl } from '../config';
 
 /** Event types as sent by the backend (PascalCase serde tags). */
 export type AgentStreamEventType =
@@ -25,7 +24,7 @@ export function useAgentStream() {
   const disconnectTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    const es = new EventSource(`${API_BASE}/api/agent-stream`);
+    const es = new EventSource(getApiUrl('/api/agent-stream'));
     esRef.current = es;
     es.onopen = () => {
       setConnected(true);

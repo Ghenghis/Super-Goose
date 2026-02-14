@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SGStatusDot, SGEmptyState } from './shared';
-
-const API_BASE = 'http://localhost:3284';
+import { getApiUrl } from '../../config';
 
 interface ExtensionEntry {
   name: string;
@@ -34,7 +33,7 @@ export default function ConnectionsPanel() {
 
   const fetchExtensions = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/config/extensions`);
+      const res = await fetch(getApiUrl('/config/extensions'));
       if (!res.ok) return;
       const data = await res.json();
       const exts: ExtensionEntry[] = Array.isArray(data) ? data : (data.extensions ?? []);

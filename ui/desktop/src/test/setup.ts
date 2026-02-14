@@ -72,6 +72,19 @@ Object.defineProperty(window, 'sessionStorage', {
   writable: true,
 });
 
+// Mock window.appConfig for getApiUrl() (used across all API-calling code)
+Object.defineProperty(window, 'appConfig', {
+  writable: true,
+  value: {
+    get: vi.fn((key: string) => {
+      if (key === 'GOOSE_API_HOST') return 'http://localhost:3284';
+      if (key === 'GOOSE_WORKING_DIR') return '/tmp/test-working-dir';
+      return undefined;
+    }),
+    set: vi.fn(),
+  },
+});
+
 // Mock window.electron for renderer process
 Object.defineProperty(window, 'electron', {
   writable: true,

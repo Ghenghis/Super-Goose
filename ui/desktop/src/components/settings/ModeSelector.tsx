@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const API_BASE = 'http://localhost:3284';
+import { getApiUrl } from '../../config';
 
 const MODES = [
   { id: 'freeform', label: 'Freeform', desc: 'Open-ended chat & research' },
@@ -15,7 +14,7 @@ export default function ModeSelector() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/settings/execution_mode`)
+    fetch(getApiUrl('/api/settings/execution_mode'))
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.value) setMode(data.value as ModeId);
@@ -27,7 +26,7 @@ export default function ModeSelector() {
     setMode(id);
     setSaving(true);
     try {
-      await fetch(`${API_BASE}/api/settings/execution_mode`, {
+      await fetch(getApiUrl('/api/settings/execution_mode'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: id }),

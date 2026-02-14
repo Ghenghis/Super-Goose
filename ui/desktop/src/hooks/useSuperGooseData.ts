@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-
-const API_BASE = 'http://localhost:3284';
+import { getApiUrl } from '../config';
 
 /** Default polling interval in milliseconds (5 seconds). */
 const DEFAULT_POLL_INTERVAL = 5000;
@@ -68,10 +67,10 @@ export function useSuperGooseData(pollInterval: number = DEFAULT_POLL_INTERVAL) 
   const fetchAll = useCallback(async () => {
     try {
       const [statsRes, costRes, autoRes, otaRes] = await Promise.allSettled([
-        fetch(`${API_BASE}/api/learning/stats`),
-        fetch(`${API_BASE}/api/cost/summary`),
-        fetch(`${API_BASE}/api/autonomous/status`),
-        fetch(`${API_BASE}/api/ota/status`),
+        fetch(getApiUrl('/api/learning/stats')),
+        fetch(getApiUrl('/api/cost/summary')),
+        fetch(getApiUrl('/api/autonomous/status')),
+        fetch(getApiUrl('/api/ota/status')),
       ]);
       if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
         setLearningStats(await statsRes.value.json());

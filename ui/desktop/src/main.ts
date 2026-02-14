@@ -2134,7 +2134,9 @@ async function appMain() {
   registerGlobalShortcuts();
 
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    details.requestHeaders['Origin'] = 'http://localhost:5173';
+    // Use the actual Vite dev server URL as origin (avoids hardcoded port issues)
+    const origin = MAIN_WINDOW_VITE_DEV_SERVER_URL || 'http://localhost';
+    details.requestHeaders['Origin'] = origin.replace(/\/$/, '');
     callback({ cancel: false, requestHeaders: details.requestHeaders });
   });
 

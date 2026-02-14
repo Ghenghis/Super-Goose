@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-
-const API_BASE = 'http://localhost:3284';
+import { getApiUrl } from '../../config';
 
 interface FeatureToggle {
   name: string;
@@ -26,7 +25,7 @@ export default function SGSettingsPanel() {
   } | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/learning/stats`)
+    fetch(getApiUrl('/api/learning/stats'))
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setLearningStats(data); })
       .catch(() => {});
@@ -34,7 +33,7 @@ export default function SGSettingsPanel() {
 
   const fetchFeatures = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/features`);
+      const res = await fetch(getApiUrl('/api/features'));
       if (!res.ok) return;
       const data = await res.json();
       const list: FeatureToggle[] = (data.features ?? data ?? []).map((f: { name: string; enabled: boolean; description?: string }) => ({
@@ -64,7 +63,7 @@ export default function SGSettingsPanel() {
 
     if (apiAvailable) {
       try {
-        const res = await fetch(`${API_BASE}/api/features/${encodeURIComponent(featureName)}`, {
+        const res = await fetch(getApiUrl(`/api/features/${encodeURIComponent(featureName)}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ enabled: newEnabled }),

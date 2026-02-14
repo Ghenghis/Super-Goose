@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-
-const API_BASE = 'http://localhost:3284';
+import { getApiUrl } from '../../config';
 const POLL_INTERVAL = 3000; // 3s — faster during OTA cycles
 
 /** Matches backend `ota_api.rs` OtaStatus. */
@@ -88,7 +87,7 @@ export default function AutonomousDashboard() {
       }
 
       try {
-        const res = await fetch(`${API_BASE}/api/version`);
+        const res = await fetch(getApiUrl('/api/version'));
         if (res.ok) {
           const data = await res.json();
           const newVersion = data.version || 'unknown';
@@ -97,7 +96,7 @@ export default function AutonomousDashboard() {
 
           // Check for restart-completed marker with version transition info
           try {
-            const rcRes = await fetch(`${API_BASE}/api/ota/restart-completed`);
+            const rcRes = await fetch(getApiUrl('/api/ota/restart-completed'));
             if (rcRes.ok) {
               const rcData = await rcRes.json();
               if (rcData.previous_version && rcData.current_version) {
@@ -134,8 +133,8 @@ export default function AutonomousDashboard() {
   const fetchData = useCallback(async () => {
     try {
       const [otaRes, autoRes] = await Promise.allSettled([
-        fetch(`${API_BASE}/api/ota/status`),
-        fetch(`${API_BASE}/api/autonomous/status`),
+        fetch(getApiUrl('/api/ota/status')),
+        fetch(getApiUrl('/api/autonomous/status')),
       ]);
       if (otaRes.status === 'fulfilled' && otaRes.value.ok) setOta(await otaRes.value.json());
       if (autoRes.status === 'fulfilled' && autoRes.value.ok)
@@ -158,7 +157,7 @@ export default function AutonomousDashboard() {
   const toggleDaemon = async () => {
     const endpoint = auto?.running ? 'stop' : 'start';
     try {
-      const res = await fetch(`${API_BASE}/api/autonomous/${endpoint}`, {
+      const res = await fetch(getApiUrl(`/api/autonomous/${endpoint}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: 'default' }),
@@ -174,7 +173,7 @@ export default function AutonomousDashboard() {
     stopBuildPolling();
     buildPollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/ota/build-status`);
+        const res = await fetch(getApiUrl('/api/ota/build-status'));
         if (res.ok) {
           const progress: OtaBuildProgress = await res.json();
           setBuildProgress(progress);
@@ -199,7 +198,7 @@ export default function AutonomousDashboard() {
                   if (window.electron?.restartApp) {
                     window.electron.restartApp();
                   } else {
-                    fetch(`${API_BASE}/api/ota/restart`, { method: 'POST' }).catch(() => {});
+                    fetch(getApiUrl('/api/ota/restart'), { method: 'POST' }).catch(() => {});
                   }
                   pollForReconnect(prevVer);
                 }
@@ -222,7 +221,7 @@ export default function AutonomousDashboard() {
     setOtaMessage(dryRun ? 'Running dry-run...' : 'Triggering OTA build...');
     setBuildProgress(null);
     try {
-      const res = await fetch(`${API_BASE}/api/ota/trigger`, {
+      const res = await fetch(getApiUrl('/api/ota/trigger'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: 'default', dry_run: dryRun }),
@@ -327,7 +326,7 @@ export default function AutonomousDashboard() {
                 setRestarting(true);
                 setRestartCountdown(0);
                 try {
-                  await fetch(`${API_BASE}/api/ota/restart`, {
+                  await fetch(getApiUrl('/api/ota/restart'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ force: true, reason: 'user_force_restart' }),
