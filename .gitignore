@@ -113,3 +113,14 @@ cargo_check.bat
 check_server.bat
 check_result.txt
 test_compaction.bat
+
+# Session temp/research files
+gt_*
+__git_*.txt
+debug-*.png
+gooseteam_*
+test_empty_command.rs
+
+# Playwright test artifacts
+ui/desktop/test-screenshots/
+ui/desktop/test-scripts/
