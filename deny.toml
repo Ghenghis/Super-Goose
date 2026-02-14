@@ -5,6 +5,12 @@ yanked = "deny"
 unmaintained = "none"
 unsound = "none"
 
+# Ignored advisories — sqlx 0.8.0 has RUSTSEC-2024-0363 (potential buffer overflow
+# in Encode::size_hint). Upgrading to 0.8.1+ blocked by libsqlite3-sys link
+# conflict with rusqlite 0.31.0. We only use SQLite (not Postgres), so the
+# demonstrated exploit does not apply. TODO: upgrade sqlx + rusqlite together.
+ignore = ["RUSTSEC-2024-0363"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "allow"

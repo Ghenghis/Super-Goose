@@ -14,4 +14,12 @@ export default defineConfig({
   build: {
     target: 'esnext'
   },
+
+  // Vite 7 + Node 25 race condition: dep-scan's esbuild resolve callbacks
+  // fire after server close, causing "throwClosedServerError". This is a
+  // non-fatal warning — Vite falls back to unbundled mode — but it clutters
+  // logs. Setting noDiscovery=true skips the scanner entirely.
+  optimizeDeps: {
+    noDiscovery: true,
+  },
 });

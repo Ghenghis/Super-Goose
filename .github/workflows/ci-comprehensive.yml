@@ -349,13 +349,13 @@ jobs:
       - name: Run backend E2E tests
         working-directory: ui/desktop
         run: |
-          # Start goosed in background
-          ../bin/goosed &
+          # Start goosed in background (binary was copied to ui/desktop/bin/)
+          ./bin/goosed agent &
           GOOSED_PID=$!
           sleep 8
 
-          # Verify backend is up
-          curl --retry 5 --retry-delay 2 --retry-connrefused http://localhost:3284/api/version || true
+          # Verify backend is up (use /status which is auth-exempt)
+          curl --retry 5 --retry-delay 2 --retry-connrefused http://localhost:3284/status || true
 
           # Run backend-dependent E2E tests
           GOOSE_BACKEND=1 npx playwright test tests/e2e/backend-*.spec.ts \

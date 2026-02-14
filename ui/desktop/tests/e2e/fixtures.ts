@@ -35,14 +35,21 @@ export const test = base.extend<GooseTestFixtures>({
     let browser: Browser | null = null;
 
     try {
-      // Assign a unique debug port for this test to enable parallel execution
-      // Base port 9222, offset by worker index * 100 + parallel slot
-      const debugPort = 9222 + (testInfo.parallelIndex * 10);
+      // Assign a unique debug port for this test to enable parallel execution.
+      // Base port 19222 (NOT 9222 which is often taken by Chrome DevTools / extensions).
+      // Offset by worker index to avoid collisions in parallel execution.
+      const debugPort = 19222 + (testInfo.parallelIndex * 10);
       console.log(`Using debug port ${debugPort} for parallel test execution`);
 
       // Start the electron-forge process with Playwright remote debugging enabled
       // Use detached mode on Unix to create a process group we can kill together
       // On Windows, shell: true is required so spawn resolves npm.cmd via PATHEXT
+      // Tell the Electron app to connect to the goosed backend that
+      // global-setup.ts already started, instead of spawning its own.
+      // GOOSE_EXTERNAL_BACKEND=1 tells goosed.ts to connect to an external backend.
+      // GOOSE_PORT tells it which port to connect on (matches global-setup).
+      const backendPort = process.env.GOOSE_PORT || '3284';
+
       appProcess = spawn('npm', ['run', 'start-gui'], {
         cwd: join(__dirname, '../..'),
         stdio: 'pipe',
@@ -54,21 +61,28 @@ export const test = base.extend<GooseTestFixtures>({
           NODE_ENV: 'development',
           GOOSE_ALLOWLIST_BYPASS: 'true',
           ENABLE_PLAYWRIGHT: 'true',
-          PLAYWRIGHT_DEBUG_PORT: debugPort.toString(), // Unique port per test for parallel execution
-          RUST_LOG: 'info', // Enable info-level logging for goosed backend
+          PLAYWRIGHT_DEBUG_PORT: debugPort.toString(),
+          RUST_LOG: 'info',
+          // Connect to the global-setup goosed backend instead of starting a new one
+          GOOSE_EXTERNAL_BACKEND: '1',
+          GOOSE_PORT: backendPort,
         }
       });
 
-      // Log process output for debugging
-      if (process.env.DEBUG_TESTS) {
-        appProcess.stdout?.on('data', (data) => {
-          console.log('App stdout:', data.toString());
-        });
+      // Log process output — always log stderr (contains backend startup info),
+      // only log stdout if DEBUG_TESTS is set (too noisy otherwise)
+      appProcess.stdout?.on('data', (data) => {
+        if (process.env.DEBUG_TESTS) {
+          console.log('App stdout:', data.toString().trim());
+        }
+      });
 
-        appProcess.stderr?.on('data', (data) => {
-          console.log('App stderr:', data.toString());
-        });
-      }
+      appProcess.stderr?.on('data', (data) => {
+        const msg = data.toString().trim();
+        if (msg) {
+          console.log('App stderr:', msg);
+        }
+      });
 
       // Wait for the app to start and remote debugging to be available.
       // electron-forge start runs: generate-api → build main/preload → launch Electron.
@@ -134,22 +148,30 @@ export const test = base.extend<GooseTestFixtures>({
       }, { timeout: 30000 });
       console.log('React root mounted');
 
-      // Wait for the app to fully hydrate — components, sidebar, and panels need time
-      // to render after React mount. Electron + Vite dev server can be slow on first load.
-      await page.waitForTimeout(5000);
-
-      // Wait for actual interactive content to appear (chat input, sidebar, or settings)
+      // Wait for the app to get past the "Loading..." splash screen.
+      // The app shows "Loading..." while connecting to the goosed backend.
+      // Once connected, it shows the main UI with buttons, sidebar, etc.
       try {
         await page.waitForFunction(() => {
-          // Look for signs the app is fully interactive
-          const chatInput = document.querySelector('[data-testid="chat-input"], textarea, [contenteditable]');
-          const sidebar = document.querySelector('[data-testid*="sidebar"], [data-super="true"], .super-goose-panel');
-          const mainContent = document.querySelector('main, [role="main"], .app-content');
-          return !!(chatInput || sidebar || mainContent);
-        }, { timeout: 15000 });
-        console.log('App interactive elements detected');
+          const body = document.body.innerText || '';
+          // Loading screen just shows "Loading..." — wait for more substantial content
+          const pastLoading = body.length > 100;
+          // Also check for interactive elements
+          const hasButtons = document.querySelectorAll('button').length > 3;
+          const hasSidebar = !!document.querySelector('[data-sidebar], aside, nav');
+          const hasInput = !!document.querySelector('textarea, [contenteditable], input');
+          return pastLoading || hasButtons || hasSidebar || hasInput;
+        }, { timeout: 45000 });
+        console.log('App fully loaded (past Loading... screen)');
       } catch (_error: unknown) {
-        console.log('Interactive elements not detected within timeout, continuing...');
+        console.log('App may still be on Loading... screen, continuing...');
+      }
+
+      // Brief extra hydration buffer
+      try {
+        await page.waitForTimeout(2000);
+      } catch {
+        // Page may have closed
       }
 
       console.log('App ready, starting test...');
@@ -160,34 +182,62 @@ export const test = base.extend<GooseTestFixtures>({
     } finally {
       console.log('Cleaning up Electron app for this test...');
 
-      // Close the CDP connection
+      // Close the CDP connection first (fast)
       if (browser) {
-        await browser.close().catch(console.error);
+        await browser.close().catch(() => {});
       }
 
-      // Kill the npm process tree
+      // Kill the npm process tree with a tight timeout.
+      // On Windows, taskkill /F /T can be slow — use spawn (fire-and-forget)
+      // instead of execAsync which can hang indefinitely.
       if (appProcess && appProcess.pid) {
         try {
           if (process.platform === 'win32') {
-            // On Windows, kill the entire process tree
-            await execAsync(`taskkill /F /T /PID ${appProcess.pid}`);
+            // Fire-and-forget: spawn taskkill without waiting
+            spawn('taskkill', ['/F', '/T', '/PID', String(appProcess.pid)], {
+              shell: false,
+              stdio: 'ignore',
+              detached: true,
+            }).unref();
+            // Also kill any Super-Goose.exe (Electron) instances
+            spawn('taskkill', ['/F', '/IM', 'Super-Goose.exe'], {
+              shell: false,
+              stdio: 'ignore',
+              detached: true,
+            }).unref();
           } else {
-            // On Unix, kill the entire process group
-            try {
-              // First try SIGTERM for graceful shutdown
-              process.kill(-appProcess.pid, 'SIGTERM');
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            } catch (e) {
-              // Process might already be dead
-            }
-            // Then SIGKILL if still running
             try {
               process.kill(-appProcess.pid, 'SIGKILL');
-            } catch (e) {
+            } catch {
               // Process already exited
             }
           }
-          console.log('Cleaned up app process');
+          // Wait for the process to actually die and release the debug port.
+          // On Windows, taskkill /F /T is async — the port may stay bound for a few seconds.
+          const cleanupPort = 19222 + (testInfo.parallelIndex * 10);
+          const maxPortWait = 8000; // 8 seconds max
+          const portStart = Date.now();
+          let portFree = false;
+          while (Date.now() - portStart < maxPortWait) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            try {
+              // Try to connect to the port — if it fails, port is free
+              const { stdout } = await execAsync(
+                process.platform === 'win32'
+                  ? `netstat -ano | findstr ":${cleanupPort}" | findstr "LISTENING"`
+                  : `lsof -ti :${cleanupPort} 2>/dev/null || true`
+              );
+              if (!stdout.trim()) {
+                portFree = true;
+                break;
+              }
+            } catch {
+              // Command failed = port is free
+              portFree = true;
+              break;
+            }
+          }
+          console.log(`Cleaned up app process (port ${cleanupPort} ${portFree ? 'free' : 'may still be in use'}, ${Date.now() - portStart}ms)`);
         } catch (error: unknown) {
           const errObj = error as { code?: string; message?: string };
           if (errObj.code !== 'ESRCH' && !errObj.message?.includes('No such process')) {
