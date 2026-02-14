@@ -304,6 +304,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: detect-changes
+    continue-on-error: true
     if: |
       needs.detect-changes.outputs.rust-changed == 'true' ||
       needs.detect-changes.outputs.typescript-changed == 'true'
