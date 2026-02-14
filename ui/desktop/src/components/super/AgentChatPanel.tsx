@@ -1,46 +1,45 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useAgentChat, AgentChatMessage, AgentInfo } from '../../hooks/useAgentChat';
+import { useAgUi } from '../../ag-ui/useAgUi';
+import type { AgUiTextMessage } from '../../ag-ui/useAgUi';
 import { SGStatusDot, SGBadge, SGEmptyState } from './shared';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-type ChannelFilter = 'all' | 'team' | 'direct' | 'system';
+type ChannelFilter = 'all' | 'agent' | 'user' | 'system';
 
 const CHANNEL_TABS: { key: ChannelFilter; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'team', label: 'Team' },
-  { key: 'direct', label: 'Direct' },
+  { key: 'agent', label: 'Agent' },
+  { key: 'user', label: 'User' },
   { key: 'system', label: 'System' },
 ];
 
-const STATUS_COLORS: Record<AgentInfo['status'], string> = {
-  online: '#22c55e',
-  offline: '#6b7280',
-  busy: '#f59e0b',
-  error: '#ef4444',
+const ROLE_COLORS: Record<string, string> = {
+  agent: 'var(--sg-emerald, #34d399)',
+  user: 'var(--sg-indigo, #818cf8)',
+  system: 'var(--sg-gold, #f59e0b)',
 };
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatTimestamp(ts: string): string {
+function formatTimestamp(ts: number): string {
   try {
     const d = new Date(ts);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   } catch {
-    return ts;
+    return '';
   }
 }
 
-function priorityColor(p: AgentChatMessage['priority']): string {
-  switch (p) {
-    case 'critical': return 'var(--sg-red, #ef4444)';
-    case 'high': return 'var(--sg-gold, #f59e0b)';
-    case 'low': return 'var(--sg-text-4, #6b7280)';
-    default: return 'var(--sg-text-2, #d1d5db)';
+function roleBadgeVariant(role: string): 'emerald' | 'indigo' | 'amber' {
+  switch (role) {
+    case 'agent': return 'emerald';
+    case 'system': return 'amber';
+    default: return 'indigo';
   }
 }
 
@@ -48,15 +47,13 @@ function priorityColor(p: AgentChatMessage['priority']): string {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-/** Agent registry bar at top of chat panel. */
-function AgentBar({
-  agents,
-  onWake,
+/** Active tool calls bar. */
+function ToolCallsBar({
+  toolCalls,
 }: {
-  agents: AgentInfo[];
-  onWake: (agentId: string) => void;
+  toolCalls: Array<{ toolCallId: string; toolCallName: string; status: string }>;
 }) {
-  if (agents.length === 0) return null;
+  if (toolCalls.length === 0) return null;
 
   return (
     <div
@@ -67,11 +64,11 @@ function AgentBar({
         border: '1px solid var(--sg-border, #2d2d4e)',
       }}
       role="list"
-      aria-label="Agent registry"
+      aria-label="Active tool calls"
     >
-      {agents.map((agent) => (
+      {toolCalls.map((tc) => (
         <div
-          key={agent.id}
+          key={tc.toolCallId}
           className="flex items-center gap-1.5 px-2 py-1"
           style={{
             background: 'var(--sg-surface-3, #252544)',
@@ -79,34 +76,20 @@ function AgentBar({
             fontSize: '0.75rem',
           }}
           role="listitem"
-          aria-label={`${agent.displayName} - ${agent.status}`}
+          aria-label={`${tc.toolCallName} - ${tc.status}`}
         >
           <span
             style={{
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              background: STATUS_COLORS[agent.status],
+              background: tc.status === 'active' ? '#f59e0b' : '#22c55e',
               display: 'inline-block',
               flexShrink: 0,
             }}
             aria-hidden="true"
           />
-          <span style={{ color: 'var(--sg-text-2, #d1d5db)' }}>{agent.displayName}</span>
-          {agent.status === 'offline' && (
-            <button
-              className="sg-btn-ghost"
-              style={{
-                fontSize: '0.625rem',
-                padding: '1px 4px',
-                color: 'var(--sg-emerald, #34d399)',
-              }}
-              aria-label={`Wake ${agent.displayName}`}
-              onClick={() => onWake(agent.id)}
-            >
-              Wake
-            </button>
-          )}
+          <span style={{ color: 'var(--sg-text-2, #d1d5db)' }}>{tc.toolCallName}</span>
         </div>
       ))}
     </div>
@@ -114,34 +97,31 @@ function AgentBar({
 }
 
 /** Single chat message row. */
-function ChatMessageRow({ msg }: { msg: AgentChatMessage }) {
-  const content = typeof msg.payload === 'string' ? msg.payload : JSON.stringify(msg.payload);
+function ChatMessageRow({ msg }: { msg: AgUiTextMessage }) {
   return (
     <div
       className="sg-card flex flex-col gap-1 py-2 px-3"
-      data-testid={`chat-msg-${msg.id}`}
-      style={{ borderLeft: `3px solid ${priorityColor(msg.priority)}` }}
+      data-testid={`chat-msg-${msg.messageId}`}
+      style={{ borderLeft: `3px solid ${ROLE_COLORS[msg.role] || 'var(--sg-text-2)'}` }}
     >
       <div className="flex items-center justify-between" style={{ fontSize: '0.75rem' }}>
         <span className="flex items-center gap-1.5">
-          <strong style={{ color: 'var(--sg-emerald, #34d399)' }}>{msg.from}</strong>
-          <span style={{ color: 'var(--sg-text-4)' }} aria-hidden="true">&rarr;</span>
-          <strong style={{ color: 'var(--sg-indigo, #818cf8)' }}>{msg.to}</strong>
-          <SGBadge variant={msg.channel === 'system' ? 'amber' : msg.channel === 'direct' ? 'indigo' : 'emerald'}>
-            {msg.channel}
+          <strong style={{ color: ROLE_COLORS[msg.role] || 'var(--sg-text-2)' }}>{msg.role}</strong>
+          <SGBadge variant={roleBadgeVariant(msg.role)}>
+            {msg.role}
           </SGBadge>
+          {msg.streaming && (
+            <span style={{ color: 'var(--sg-gold, #f59e0b)', fontSize: '0.625rem' }}>
+              streaming...
+            </span>
+          )}
         </span>
         <span style={{ color: 'var(--sg-text-4)', fontSize: '0.625rem' }}>
           {formatTimestamp(msg.timestamp)}
         </span>
       </div>
       <div style={{ color: 'var(--sg-text-1, #f1f5f9)', fontSize: '0.8125rem' }}>
-        {content}
-      </div>
-      <div className="flex items-center gap-2" style={{ fontSize: '0.625rem', color: 'var(--sg-text-4)' }}>
-        {msg.delivered && <span>Delivered</span>}
-        {msg.acknowledged && <span>ACK</span>}
-        {!msg.delivered && <span style={{ color: 'var(--sg-gold, #f59e0b)' }}>Queued</span>}
+        {msg.content}
       </div>
     </div>
   );
@@ -152,9 +132,9 @@ function ChatMessageRow({ msg }: { msg: AgentChatMessage }) {
 // ---------------------------------------------------------------------------
 
 export default function AgentChatPanel() {
-  const { messages, agents, connected, sendMessage, wakeAgent, clearMessages } = useAgentChat();
+  const agUi = useAgUi();
+  const { messages, connected, isRunning, activeToolCalls, sendMessage } = agUi;
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
-  const [inputTo, setInputTo] = useState('');
   const [inputMsg, setInputMsg] = useState('');
   const [sending, setSending] = useState(false);
   const feedRef = useRef<HTMLDivElement | null>(null);
@@ -166,23 +146,33 @@ export default function AgentChatPanel() {
     }
   }, [messages]);
 
+  // Convert activeToolCalls Map to array for rendering
+  const toolCallsList = Array.from(activeToolCalls.values()).map((tc) => ({
+    toolCallId: tc.toolCallId,
+    toolCallName: tc.toolCallName,
+    status: tc.status,
+  }));
+
   const filteredMessages =
     channelFilter === 'all'
       ? messages
-      : messages.filter((m) => m.channel === channelFilter);
+      : messages.filter((m) => m.role === channelFilter);
 
-  const queuedMessages = messages.filter((m) => !m.delivered);
+  const streamingMessages = messages.filter((m) => m.streaming);
 
   const handleSend = useCallback(async () => {
-    const to = inputTo.trim() || 'all';
     const content = inputMsg.trim();
     if (!content) return;
 
     setSending(true);
-    await sendMessage(to, content, channelFilter === 'all' ? 'team' : channelFilter);
+    try {
+      sendMessage(content);
+    } catch {
+      /* silent */
+    }
     setInputMsg('');
     setSending(false);
-  }, [inputTo, inputMsg, channelFilter, sendMessage]);
+  }, [inputMsg, sendMessage]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -194,37 +184,25 @@ export default function AgentChatPanel() {
     [handleSend],
   );
 
-  const handleWake = useCallback(
-    (agentId: string) => {
-      wakeAgent(agentId, 'Manual wake from chat panel');
-    },
-    [wakeAgent],
-  );
-
   return (
     <div className="flex flex-col h-full space-y-3" role="region" aria-label="Agent Chat Panel">
       {/* Connection status */}
       <div className="flex items-center justify-between">
         <SGStatusDot status={connected ? 'connected' : 'disconnected'} />
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: '0.75rem', color: 'var(--sg-text-4)' }}>
-            {agents.length} agent{agents.length !== 1 ? 's' : ''}
-          </span>
-          {messages.length > 0 && (
-            <button
-              className="sg-btn-ghost"
-              style={{ fontSize: '0.625rem', color: 'var(--sg-text-4)' }}
-              onClick={clearMessages}
-              aria-label="Clear messages"
-            >
-              Clear
-            </button>
+          {isRunning && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--sg-emerald, #34d399)' }}>
+              Running
+            </span>
           )}
+          <span style={{ fontSize: '0.75rem', color: 'var(--sg-text-4)' }}>
+            {messages.length} message{messages.length !== 1 ? 's' : ''}
+          </span>
         </div>
       </div>
 
-      {/* Agent registry bar */}
-      <AgentBar agents={agents} onWake={handleWake} />
+      {/* Active tool calls bar */}
+      <ToolCallsBar toolCalls={toolCallsList} />
 
       {/* Channel filter tabs */}
       <div className="sg-tabs" role="tablist" aria-label="Channel filter">
@@ -258,14 +236,14 @@ export default function AgentChatPanel() {
         id={`chat-tabpanel-${channelFilter}`}
       >
         {filteredMessages.length > 0 ? (
-          filteredMessages.map((msg) => <ChatMessageRow key={msg.id} msg={msg} />)
+          filteredMessages.map((msg) => <ChatMessageRow key={msg.messageId} msg={msg} />)
         ) : (
           <SGEmptyState message="No messages yet" />
         )}
       </div>
 
-      {/* Queued messages indicator */}
-      {queuedMessages.length > 0 && (
+      {/* Streaming messages indicator */}
+      {streamingMessages.length > 0 && (
         <div
           style={{
             fontSize: '0.75rem',
@@ -275,9 +253,9 @@ export default function AgentChatPanel() {
             borderRadius: '6px',
           }}
           role="status"
-          aria-label="Queued messages"
+          aria-label="Streaming messages"
         >
-          {queuedMessages.length} message{queuedMessages.length !== 1 ? 's' : ''} queued for offline agents
+          {streamingMessages.length} message{streamingMessages.length !== 1 ? 's' : ''} streaming
         </div>
       )}
 
@@ -291,22 +269,6 @@ export default function AgentChatPanel() {
           border: '1px solid var(--sg-border, #2d2d4e)',
         }}
       >
-        <input
-          type="text"
-          placeholder="@Agent"
-          value={inputTo}
-          onChange={(e) => setInputTo(e.target.value)}
-          aria-label="Recipient"
-          style={{
-            width: '80px',
-            background: 'var(--sg-surface-3, #252544)',
-            color: 'var(--sg-text-1)',
-            border: '1px solid var(--sg-border)',
-            borderRadius: '4px',
-            padding: '4px 6px',
-            fontSize: '0.8125rem',
-          }}
-        />
         <input
           type="text"
           placeholder="Message..."

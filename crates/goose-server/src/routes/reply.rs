@@ -1,3 +1,4 @@
+use crate::routes::ag_ui_stream::{emit_ag_ui_event_typed, AgUiEvent, JsonPatchOp};
 use crate::routes::errors::ErrorResponse;
 use crate::state::AppState;
 #[cfg(test)]
@@ -28,6 +29,104 @@ use tokio::sync::mpsc;
 use tokio::time::timeout;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::CancellationToken;
+
+// ---------------------------------------------------------------------------
+// AG-UI event emission helpers
+// ---------------------------------------------------------------------------
+
+/// Emit AG-UI events corresponding to a single `MessageContent` item.
+///
+/// Maps goose message content types to the AG-UI protocol event lifecycle:
+/// - `Text` -> `TEXT_MESSAGE_START` + `TEXT_MESSAGE_CONTENT` + `TEXT_MESSAGE_END`
+/// - `ToolRequest` -> `TOOL_CALL_START` + `TOOL_CALL_ARGS` + `TOOL_CALL_END`
+/// - `ToolResponse` -> `TOOL_CALL_RESULT`
+/// - `Thinking` -> `CUSTOM { name: "thinking" }`
+fn emit_ag_ui_for_content(state: &AppState, content: &MessageContent, parent_msg_id: &str) {
+    match content {
+        MessageContent::Text(text_content) => {
+            let msg_id = format!("agui-txt-{}", uuid::Uuid::new_v4());
+            emit_ag_ui_event_typed(state, &AgUiEvent::TEXT_MESSAGE_START {
+                message_id: msg_id.clone(),
+                role: "assistant".to_string(),
+            });
+            emit_ag_ui_event_typed(state, &AgUiEvent::TEXT_MESSAGE_CONTENT {
+                message_id: msg_id.clone(),
+                delta: text_content.text.to_string(),
+            });
+            emit_ag_ui_event_typed(state, &AgUiEvent::TEXT_MESSAGE_END {
+                message_id: msg_id,
+            });
+        }
+        MessageContent::ToolRequest(tool_req) => {
+            let tool_call_id = format!("agui-tc-{}", tool_req.id);
+            let tool_name = tool_req
+                .tool_call
+                .as_ref()
+                .map(|tc| tc.name.to_string())
+                .unwrap_or_else(|_| "unknown".to_string());
+            let tool_args = tool_req
+                .tool_call
+                .as_ref()
+                .map(|tc| {
+                    tc.arguments
+                        .as_ref()
+                        .map(|a| serde_json::to_string(a).unwrap_or_default())
+                        .unwrap_or_default()
+                })
+                .unwrap_or_else(|_| String::new());
+
+            emit_ag_ui_event_typed(state, &AgUiEvent::TOOL_CALL_START {
+                tool_call_id: tool_call_id.clone(),
+                tool_call_name: tool_name,
+                parent_message_id: Some(parent_msg_id.to_string()),
+            });
+            if !tool_args.is_empty() {
+                emit_ag_ui_event_typed(state, &AgUiEvent::TOOL_CALL_ARGS {
+                    tool_call_id: tool_call_id.clone(),
+                    delta: tool_args,
+                });
+            }
+            emit_ag_ui_event_typed(state, &AgUiEvent::TOOL_CALL_END {
+                tool_call_id,
+            });
+        }
+        MessageContent::ToolResponse(tool_resp) => {
+            let content_str = match &tool_resp.tool_result {
+                Ok(result) => {
+                    // CallToolResult has a `content` field
+                    serde_json::to_string(result).unwrap_or_else(|_| "OK".to_string())
+                }
+                Err(e) => format!("Error: {}", e),
+            };
+            emit_ag_ui_event_typed(state, &AgUiEvent::TOOL_CALL_RESULT {
+                message_id: format!("agui-tr-{}", uuid::Uuid::new_v4()),
+                tool_call_id: format!("agui-tc-{}", tool_resp.id),
+                content: content_str,
+                role: Some("tool".to_string()),
+            });
+        }
+        MessageContent::Thinking(thinking) => {
+            let msg_id = format!("agui-think-{}", uuid::Uuid::new_v4());
+            emit_ag_ui_event_typed(state, &AgUiEvent::CUSTOM {
+                name: "thinking".to_string(),
+                value: serde_json::json!({
+                    "message_id": msg_id,
+                    "content": thinking.thinking,
+                }),
+            });
+        }
+        // Other content types (Image, ToolConfirmationRequest, ActionRequired, etc.)
+        // emit a generic CUSTOM event so the AG-UI stream is aware of them.
+        _ => {
+            emit_ag_ui_event_typed(state, &AgUiEvent::CUSTOM {
+                name: "message_content".to_string(),
+                value: serde_json::json!({
+                    "parent_message_id": parent_msg_id,
+                }),
+            });
+        }
+    }
+}
 
 fn track_tool_telemetry(content: &MessageContent, all_messages: &[Message]) {
     match content {
@@ -246,10 +345,21 @@ pub async fn reply(
     let task_tx = tx.clone();
 
     drop(tokio::spawn(async move {
+        // Track whether we already emitted a terminal AG-UI event (RUN_ERROR /
+        // RUN_CANCELLED) so the cleanup at the bottom of the spawn doesn't
+        // double-emit RUN_FINISHED after an error path.
+        let _run_terminated = false;
+
         let agent = match state.get_agent(session_id.clone()).await {
             Ok(agent) => agent,
             Err(e) => {
                 tracing::error!("Failed to get session agent: {}", e);
+                // AG-UI: emit RUN_ERROR for early failures before the stream
+                // has started so that SSE subscribers see the failure.
+                emit_ag_ui_event_typed(&state, &AgUiEvent::RUN_ERROR {
+                    message: format!("Failed to get session agent: {}", e),
+                    code: Some("AGENT_INIT_FAILED".to_string()),
+                });
                 let _ = stream_event(
                     MessageEvent::Error {
                         error: format!("Failed to get session agent: {}", e),
@@ -266,6 +376,11 @@ pub async fn reply(
             Ok(metadata) => metadata,
             Err(e) => {
                 tracing::error!("Failed to read session for {}: {}", session_id, e);
+                // AG-UI: emit RUN_ERROR for session read failures.
+                emit_ag_ui_event_typed(&state, &AgUiEvent::RUN_ERROR {
+                    message: format!("Failed to read session: {}", e),
+                    code: Some("SESSION_READ_FAILED".to_string()),
+                });
                 let _ = stream_event(
                     MessageEvent::Error {
                         error: format!("Failed to read session: {}", e),
@@ -305,6 +420,10 @@ pub async fn reply(
         };
         all_messages.push(user_message.clone());
 
+        // Generate run-scoped IDs for AG-UI lifecycle events.
+        let run_id = format!("run-{}", uuid::Uuid::new_v4());
+        let thread_id = session_id.clone();
+
         let mut stream = match agent
             .reply(
                 user_message.clone(),
@@ -316,6 +435,11 @@ pub async fn reply(
             Ok(stream) => stream,
             Err(e) => {
                 tracing::error!("Failed to start reply stream: {:?}", e);
+                // Emit RUN_ERROR on the AG-UI bus before returning.
+                emit_ag_ui_event_typed(&state, &AgUiEvent::RUN_ERROR {
+                    message: e.to_string(),
+                    code: Some("STREAM_INIT_FAILED".to_string()),
+                });
                 stream_event(
                     MessageEvent::Error {
                         error: e.to_string(),
@@ -327,6 +451,22 @@ pub async fn reply(
                 return;
             }
         };
+
+        // --- AG-UI: RUN_STARTED ---
+        emit_ag_ui_event_typed(&state, &AgUiEvent::RUN_STARTED {
+            thread_id: thread_id.clone(),
+            run_id: run_id.clone(),
+        });
+
+        // --- AG-UI: STATE_DELTA idle → running ---
+        emit_ag_ui_event_typed(&state, &AgUiEvent::STATE_DELTA {
+            delta: vec![JsonPatchOp {
+                op: "replace".to_string(),
+                path: "/status".to_string(),
+                value: Some(serde_json::json!("running")),
+                from: None,
+            }],
+        });
 
         let mut heartbeat_interval = tokio::time::interval(Duration::from_millis(500));
         loop {
@@ -345,6 +485,12 @@ pub async fn reply(
                                 track_tool_telemetry(content, all_messages.messages());
                             }
 
+                            // --- AG-UI: emit events for each content item ---
+                            let parent_msg_id = message.id.clone().unwrap_or_else(|| format!("msg-{}", uuid::Uuid::new_v4()));
+                            for content in &message.content {
+                                emit_ag_ui_for_content(&state, content, &parent_msg_id);
+                            }
+
                             all_messages.push(message.clone());
 
                             let token_state = get_token_state(state.session_manager(), &session_id).await;
@@ -352,11 +498,28 @@ pub async fn reply(
                             stream_event(MessageEvent::Message { message, token_state }, &tx, &cancel_token).await;
                         }
                         Ok(Some(Ok(AgentEvent::HistoryReplaced(new_messages)))) => {
+                            // --- AG-UI: MESSAGES_SNAPSHOT ---
+                            emit_ag_ui_event_typed(&state, &AgUiEvent::CUSTOM {
+                                name: "history_replaced".to_string(),
+                                value: serde_json::json!({
+                                    "thread_id": thread_id,
+                                    "message_count": new_messages.len(),
+                                }),
+                            });
+
                             all_messages = new_messages.clone();
                             stream_event(MessageEvent::UpdateConversation {conversation: new_messages}, &tx, &cancel_token).await;
-
                         }
                         Ok(Some(Ok(AgentEvent::ModelChange { model, mode }))) => {
+                            // --- AG-UI: STATE_DELTA for model change ---
+                            emit_ag_ui_event_typed(&state, &AgUiEvent::CUSTOM {
+                                name: "model_change".to_string(),
+                                value: serde_json::json!({
+                                    "model": model,
+                                    "mode": mode,
+                                }),
+                            });
+
                             stream_event(MessageEvent::ModelChange { model, mode }, &tx, &cancel_token).await;
                         }
                         Ok(Some(Ok(AgentEvent::McpNotification((request_id, n))))) => {
@@ -368,6 +531,11 @@ pub async fn reply(
 
                         Ok(Some(Err(e))) => {
                             tracing::error!("Error processing message: {}", e);
+                            // --- AG-UI: RUN_ERROR ---
+                            emit_ag_ui_event_typed(&state, &AgUiEvent::RUN_ERROR {
+                                message: e.to_string(),
+                                code: Some("AGENT_ERROR".to_string()),
+                            });
                             stream_event(
                                 MessageEvent::Error {
                                     error: e.to_string(),
@@ -390,6 +558,23 @@ pub async fn reply(
                 }
             }
         }
+
+        // --- AG-UI: STATE_DELTA running → idle ---
+        emit_ag_ui_event_typed(&state, &AgUiEvent::STATE_DELTA {
+            delta: vec![JsonPatchOp {
+                op: "replace".to_string(),
+                path: "/status".to_string(),
+                value: Some(serde_json::json!("idle")),
+                from: None,
+            }],
+        });
+
+        // --- AG-UI: RUN_FINISHED ---
+        emit_ag_ui_event_typed(&state, &AgUiEvent::RUN_FINISHED {
+            thread_id: thread_id.clone(),
+            run_id: run_id.clone(),
+            result: None,
+        });
 
         let session_duration = session_start.elapsed();
 

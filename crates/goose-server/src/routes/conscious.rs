@@ -10,6 +10,7 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use utoipa::ToSchema;
 
 // ===========================================================================
@@ -997,6 +998,526 @@ fn uuid_v4_mock() -> String {
 }
 
 // ===========================================================================
+// Voice Pipeline Bridge Forwarding
+// ===========================================================================
+
+/// Default port for the conscious/voice Python bridge server.
+/// Override with the `CONSCIOUS_BRIDGE_PORT` environment variable.
+const DEFAULT_BRIDGE_PORT: u16 = 8400;
+
+/// Request body for text-to-speech synthesis via the bridge.
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SynthesizeRequest {
+    /// Text to synthesize into speech.
+    pub text: String,
+    /// Output audio format (e.g. "wav", "mp3", "opus").
+    #[serde(default = "default_synth_format")]
+    pub format: String,
+    /// Speech rate (words per minute). Defaults to 175.
+    #[serde(default = "default_speech_rate")]
+    pub rate: u32,
+    /// Volume level (0.0 to 1.0). Defaults to 0.9.
+    #[serde(default = "default_volume")]
+    pub volume: f64,
+}
+
+fn default_synth_format() -> String {
+    "wav".to_string()
+}
+fn default_speech_rate() -> u32 {
+    175
+}
+fn default_volume() -> f64 {
+    0.9
+}
+
+/// Response from text-to-speech synthesis.
+#[derive(Serialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SynthesizeResponse {
+    /// Base64-encoded audio data (if bridge is available), or empty if mock.
+    pub audio_data: String,
+    /// Audio format of the returned data.
+    pub format: String,
+    /// Length of the synthesized text.
+    pub text_length: usize,
+    /// Whether the result came from the live bridge or is a mock.
+    pub from_bridge: bool,
+    /// Duration estimate in seconds.
+    pub duration_secs: f64,
+}
+
+/// Request body for the full voice pipeline (STT -> process -> TTS).
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VoicePipelineRequest {
+    /// Base64-encoded audio input.
+    pub audio_data: String,
+    /// Input audio format.
+    #[serde(default = "default_audio_format")]
+    pub input_format: String,
+    /// Language hint for STT.
+    #[serde(default = "default_language")]
+    pub language: String,
+    /// Whether to synthesize a spoken response.
+    #[serde(default = "default_synthesize_response")]
+    pub synthesize_response: bool,
+}
+
+fn default_synthesize_response() -> bool {
+    true
+}
+
+/// Response from the full voice pipeline.
+#[derive(Serialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VoicePipelineResponse {
+    /// Transcribed text from the input audio.
+    pub transcript: String,
+    /// Confidence of the transcription.
+    pub transcript_confidence: f64,
+    /// Agent's text response to the transcribed input.
+    pub response_text: String,
+    /// Base64-encoded synthesized audio of the response (if requested).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_audio: Option<String>,
+    /// Whether the result came from the live bridge.
+    pub from_bridge: bool,
+    /// Total pipeline duration in seconds.
+    pub pipeline_duration_secs: f64,
+}
+
+/// Health status of the bridge server.
+#[derive(Serialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BridgeHealthResponse {
+    /// Whether the bridge server is reachable.
+    pub reachable: bool,
+    /// Bridge server base URL.
+    pub bridge_url: String,
+    /// Bridge server version (if reachable).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// Available bridge capabilities.
+    pub capabilities: Vec<String>,
+    /// Human-readable status message.
+    pub message: String,
+}
+
+/// Get the bridge base URL from environment or default.
+fn bridge_base_url() -> String {
+    let port = std::env::var("CONSCIOUS_BRIDGE_PORT")
+        .ok()
+        .and_then(|p| p.parse::<u16>().ok())
+        .unwrap_or(DEFAULT_BRIDGE_PORT);
+    format!("http://127.0.0.1:{}", port)
+}
+
+/// Build an HTTP client for bridge communication with a short timeout.
+fn bridge_client(timeout_secs: u64) -> Result<reqwest::Client, ErrorResponse> {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(timeout_secs))
+        .build()
+        .map_err(|e| ErrorResponse::internal(format!("Failed to build HTTP client: {}", e)))
+}
+
+/// Check if the bridge server is reachable by hitting its health endpoint.
+#[allow(dead_code)]
+async fn check_bridge_reachable() -> bool {
+    let client = match bridge_client(3) {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    let url = format!("{}/health", bridge_base_url());
+    matches!(client.get(&url).send().await, Ok(r) if r.status().is_success())
+}
+
+/// Helper: build the "bridge not running" error message with instructions.
+fn bridge_not_running_error() -> ErrorResponse {
+    let port = std::env::var("CONSCIOUS_BRIDGE_PORT")
+        .ok()
+        .and_then(|p| p.parse::<u16>().ok())
+        .unwrap_or(DEFAULT_BRIDGE_PORT);
+    ErrorResponse::service_unavailable(format!(
+        "Voice bridge server is not running on port {}. \
+         Start it with: python crates/goose-mcp/src/bridges/voice_bridge_server.py --port {} \
+         (or set CONSCIOUS_BRIDGE_PORT env var to a custom port). \
+         Install dependencies: pip install pyttsx3 SpeechRecognition",
+        port, port
+    ))
+}
+
+/// `POST /api/conscious/voice/transcribe-bridge`
+///
+/// Forward audio transcription to the Python voice bridge server.
+/// If the bridge is not running, returns a 503 with instructions.
+#[utoipa::path(
+    post,
+    path = "/api/conscious/voice/transcribe-bridge",
+    request_body = TranscribeRequest,
+    responses(
+        (status = 200, description = "Bridge transcription result", body = TranscribeResponse),
+        (status = 400, description = "Invalid audio data"),
+        (status = 503, description = "Bridge server not running")
+    ),
+    tag = "Conscious"
+)]
+async fn transcribe_via_bridge(
+    Json(body): Json<TranscribeRequest>,
+) -> Result<Json<TranscribeResponse>, ErrorResponse> {
+    tracing::info!(
+        format = %body.format,
+        language = %body.language,
+        data_len = body.audio_data.len(),
+        "POST /api/conscious/voice/transcribe-bridge"
+    );
+
+    if body.audio_data.is_empty() {
+        return Err(ErrorResponse::bad_request("audio_data cannot be empty"));
+    }
+
+    let client = bridge_client(30)?;
+    let url = format!("{}/transcribe", bridge_base_url());
+
+    let bridge_payload = serde_json::json!({
+        "audio_data": body.audio_data,
+        "format": body.format,
+        "language": body.language,
+    });
+
+    let resp = client
+        .post(&url)
+        .json(&bridge_payload)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, "Bridge transcribe request failed");
+            bridge_not_running_error()
+        })?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body_text = resp.text().await.unwrap_or_default();
+        tracing::warn!(status = %status, body = %body_text, "Bridge returned error");
+        return Err(ErrorResponse::internal(format!(
+            "Bridge returned HTTP {}: {}",
+            status,
+            body_text.chars().take(200).collect::<String>()
+        )));
+    }
+
+    let bridge_result: serde_json::Value = resp.json().await.map_err(|e| {
+        ErrorResponse::internal(format!("Failed to parse bridge response: {}", e))
+    })?;
+
+    // Map bridge response to our TranscribeResponse type
+    Ok(Json(TranscribeResponse {
+        text: bridge_result["transcript"]
+            .as_str()
+            .or_else(|| bridge_result["text"].as_str())
+            .unwrap_or("(no transcript)")
+            .to_string(),
+        confidence: bridge_result["confidence"]
+            .as_f64()
+            .unwrap_or(0.0),
+        language: bridge_result["language"]
+            .as_str()
+            .unwrap_or(&body.language)
+            .to_string(),
+        duration_secs: bridge_result["duration_secs"]
+            .as_f64()
+            .or_else(|| bridge_result["durationSecs"].as_f64())
+            .unwrap_or(0.0),
+        segments: bridge_result["segments"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|s| {
+                        Some(TranscriptionSegment {
+                            text: s["text"].as_str()?.to_string(),
+                            start_secs: s["start_secs"]
+                                .as_f64()
+                                .or_else(|| s["startSecs"].as_f64())
+                                .unwrap_or(0.0),
+                            end_secs: s["end_secs"]
+                                .as_f64()
+                                .or_else(|| s["endSecs"].as_f64())
+                                .unwrap_or(0.0),
+                            confidence: s["confidence"].as_f64().unwrap_or(0.0),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default(),
+    }))
+}
+
+/// `POST /api/conscious/voice/synthesize`
+///
+/// Convert text to speech via the Python voice bridge server.
+/// If the bridge is not running, returns a 503 with instructions.
+#[utoipa::path(
+    post,
+    path = "/api/conscious/voice/synthesize",
+    request_body = SynthesizeRequest,
+    responses(
+        (status = 200, description = "Synthesized audio", body = SynthesizeResponse),
+        (status = 400, description = "Empty text"),
+        (status = 503, description = "Bridge server not running")
+    ),
+    tag = "Conscious"
+)]
+async fn synthesize_speech(
+    Json(body): Json<SynthesizeRequest>,
+) -> Result<Json<SynthesizeResponse>, ErrorResponse> {
+    tracing::info!(
+        text_len = body.text.len(),
+        format = %body.format,
+        rate = body.rate,
+        "POST /api/conscious/voice/synthesize"
+    );
+
+    if body.text.is_empty() {
+        return Err(ErrorResponse::bad_request("text cannot be empty"));
+    }
+
+    let client = bridge_client(30)?;
+    let url = format!("{}/synthesize", bridge_base_url());
+
+    let bridge_payload = serde_json::json!({
+        "text": body.text,
+        "format": body.format,
+        "rate": body.rate,
+        "volume": body.volume,
+    });
+
+    let resp = client
+        .post(&url)
+        .json(&bridge_payload)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, "Bridge synthesize request failed");
+            bridge_not_running_error()
+        })?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body_text = resp.text().await.unwrap_or_default();
+        tracing::warn!(status = %status, body = %body_text, "Bridge synthesize returned error");
+        return Err(ErrorResponse::internal(format!(
+            "Bridge returned HTTP {}: {}",
+            status,
+            body_text.chars().take(200).collect::<String>()
+        )));
+    }
+
+    let bridge_result: serde_json::Value = resp.json().await.map_err(|e| {
+        ErrorResponse::internal(format!("Failed to parse bridge response: {}", e))
+    })?;
+
+    Ok(Json(SynthesizeResponse {
+        audio_data: bridge_result["audio_data"]
+            .as_str()
+            .or_else(|| bridge_result["audioData"].as_str())
+            .unwrap_or("")
+            .to_string(),
+        format: bridge_result["format"]
+            .as_str()
+            .unwrap_or(&body.format)
+            .to_string(),
+        text_length: body.text.len(),
+        from_bridge: true,
+        duration_secs: bridge_result["duration_secs"]
+            .as_f64()
+            .or_else(|| bridge_result["durationSecs"].as_f64())
+            .unwrap_or(0.0),
+    }))
+}
+
+/// `POST /api/conscious/voice/pipeline`
+///
+/// Full voice pipeline: speech-to-text -> agent processing -> text-to-speech.
+/// Forwards to the Python bridge for STT/TTS, with agent response generation.
+/// If the bridge is not running, returns a 503 with instructions.
+#[utoipa::path(
+    post,
+    path = "/api/conscious/voice/pipeline",
+    request_body = VoicePipelineRequest,
+    responses(
+        (status = 200, description = "Pipeline result", body = VoicePipelineResponse),
+        (status = 400, description = "Invalid input"),
+        (status = 503, description = "Bridge server not running")
+    ),
+    tag = "Conscious"
+)]
+async fn voice_pipeline(
+    Json(body): Json<VoicePipelineRequest>,
+) -> Result<Json<VoicePipelineResponse>, ErrorResponse> {
+    tracing::info!(
+        data_len = body.audio_data.len(),
+        language = %body.language,
+        synthesize = body.synthesize_response,
+        "POST /api/conscious/voice/pipeline"
+    );
+
+    if body.audio_data.is_empty() {
+        return Err(ErrorResponse::bad_request("audio_data cannot be empty"));
+    }
+
+    let client = bridge_client(60)?;
+    let url = format!("{}/pipeline", bridge_base_url());
+
+    let bridge_payload = serde_json::json!({
+        "audio_data": body.audio_data,
+        "input_format": body.input_format,
+        "language": body.language,
+        "synthesize_response": body.synthesize_response,
+    });
+
+    let resp = client
+        .post(&url)
+        .json(&bridge_payload)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, "Bridge pipeline request failed");
+            bridge_not_running_error()
+        })?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body_text = resp.text().await.unwrap_or_default();
+        tracing::warn!(status = %status, body = %body_text, "Bridge pipeline returned error");
+        return Err(ErrorResponse::internal(format!(
+            "Bridge returned HTTP {}: {}",
+            status,
+            body_text.chars().take(200).collect::<String>()
+        )));
+    }
+
+    let bridge_result: serde_json::Value = resp.json().await.map_err(|e| {
+        ErrorResponse::internal(format!("Failed to parse bridge response: {}", e))
+    })?;
+
+    Ok(Json(VoicePipelineResponse {
+        transcript: bridge_result["transcript"]
+            .as_str()
+            .unwrap_or("(no transcript)")
+            .to_string(),
+        transcript_confidence: bridge_result["transcript_confidence"]
+            .as_f64()
+            .or_else(|| bridge_result["transcriptConfidence"].as_f64())
+            .unwrap_or(0.0),
+        response_text: bridge_result["response_text"]
+            .as_str()
+            .or_else(|| bridge_result["responseText"].as_str())
+            .unwrap_or("(no response)")
+            .to_string(),
+        response_audio: bridge_result["response_audio"]
+            .as_str()
+            .or_else(|| bridge_result["responseAudio"].as_str())
+            .map(|s| s.to_string()),
+        from_bridge: true,
+        pipeline_duration_secs: bridge_result["pipeline_duration_secs"]
+            .as_f64()
+            .or_else(|| bridge_result["pipelineDurationSecs"].as_f64())
+            .unwrap_or(0.0),
+    }))
+}
+
+/// `GET /api/conscious/bridge/health`
+///
+/// Check if the Python voice/conscious bridge server is reachable
+/// and report its capabilities.
+#[utoipa::path(
+    get,
+    path = "/api/conscious/bridge/health",
+    responses(
+        (status = 200, description = "Bridge health status", body = BridgeHealthResponse)
+    ),
+    tag = "Conscious"
+)]
+async fn bridge_health() -> Json<BridgeHealthResponse> {
+    tracing::debug!("GET /api/conscious/bridge/health");
+
+    let base = bridge_base_url();
+    let client = match bridge_client(5) {
+        Ok(c) => c,
+        Err(_) => {
+            return Json(BridgeHealthResponse {
+                reachable: false,
+                bridge_url: base,
+                version: None,
+                capabilities: vec![],
+                message: "Failed to build HTTP client".to_string(),
+            });
+        }
+    };
+
+    let url = format!("{}/health", base);
+    match client.get(&url).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            let body: serde_json::Value = resp.json().await.unwrap_or_default();
+            let version = body["version"].as_str().map(|s| s.to_string());
+            let capabilities = body["capabilities"]
+                .as_array()
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_else(|| vec!["transcribe".to_string(), "synthesize".to_string(), "pipeline".to_string()]);
+
+            Json(BridgeHealthResponse {
+                reachable: true,
+                bridge_url: base,
+                version,
+                capabilities,
+                message: "Bridge server is running and reachable".to_string(),
+            })
+        }
+        Ok(resp) => {
+            let status = resp.status();
+            Json(BridgeHealthResponse {
+                reachable: false,
+                bridge_url: base,
+                version: None,
+                capabilities: vec![],
+                message: format!(
+                    "Bridge responded with HTTP {} — check bridge logs. \
+                     Start with: python crates/goose-mcp/src/bridges/voice_bridge_server.py --port {}",
+                    status,
+                    std::env::var("CONSCIOUS_BRIDGE_PORT")
+                        .ok()
+                        .and_then(|p| p.parse::<u16>().ok())
+                        .unwrap_or(DEFAULT_BRIDGE_PORT)
+                ),
+            })
+        }
+        Err(e) => {
+            let port = std::env::var("CONSCIOUS_BRIDGE_PORT")
+                .ok()
+                .and_then(|p| p.parse::<u16>().ok())
+                .unwrap_or(DEFAULT_BRIDGE_PORT);
+            Json(BridgeHealthResponse {
+                reachable: false,
+                bridge_url: base,
+                version: None,
+                capabilities: vec![],
+                message: format!(
+                    "Bridge server not reachable ({}). \
+                     Start it with: python crates/goose-mcp/src/bridges/voice_bridge_server.py --port {}. \
+                     Install deps: pip install pyttsx3 SpeechRecognition",
+                    e, port
+                ),
+            })
+        }
+    }
+}
+
+// ===========================================================================
 // Router
 // ===========================================================================
 
@@ -1022,6 +1543,23 @@ pub fn routes(state: Arc<AppState>) -> Router {
         .route(
             "/api/conscious/voice/stream",
             get(voice_event_stream),
+        )
+        // Voice Pipeline Bridge
+        .route(
+            "/api/conscious/voice/transcribe-bridge",
+            post(transcribe_via_bridge),
+        )
+        .route(
+            "/api/conscious/voice/synthesize",
+            post(synthesize_speech),
+        )
+        .route(
+            "/api/conscious/voice/pipeline",
+            post(voice_pipeline),
+        )
+        .route(
+            "/api/conscious/bridge/health",
+            get(bridge_health),
         )
         // Emotion
         .route(
@@ -1554,6 +2092,152 @@ mod tests {
 
     // -----------------------------------------------------------------------
     // Default data completeness
+    // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
+    // Voice Pipeline Bridge types
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_synthesize_request_defaults() {
+        let json = r#"{"text": "Hello world"}"#;
+        let req: SynthesizeRequest = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(req.text, "Hello world");
+        assert_eq!(req.format, "wav");
+        assert_eq!(req.rate, 175);
+        assert!((req.volume - 0.9).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_synthesize_request_custom() {
+        let json = r#"{"text": "Hello", "format": "opus", "rate": 200, "volume": 0.5}"#;
+        let req: SynthesizeRequest = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(req.format, "opus");
+        assert_eq!(req.rate, 200);
+        assert!((req.volume - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_synthesize_response_serialization() {
+        let resp = SynthesizeResponse {
+            audio_data: "base64data==".to_string(),
+            format: "wav".to_string(),
+            text_length: 11,
+            from_bridge: true,
+            duration_secs: 1.5,
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("parse");
+        assert_eq!(parsed["audioData"], "base64data==");
+        assert_eq!(parsed["format"], "wav");
+        assert_eq!(parsed["textLength"], 11);
+        assert_eq!(parsed["fromBridge"], true);
+        assert_eq!(parsed["durationSecs"], 1.5);
+    }
+
+    #[test]
+    fn test_voice_pipeline_request_defaults() {
+        let json = r#"{"audioData": "SGVsbG8="}"#;
+        let req: VoicePipelineRequest = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(req.audio_data, "SGVsbG8=");
+        assert_eq!(req.input_format, "pcm16");
+        assert_eq!(req.language, "en-US");
+        assert!(req.synthesize_response);
+    }
+
+    #[test]
+    fn test_voice_pipeline_request_custom() {
+        let json = r#"{
+            "audioData": "data==",
+            "inputFormat": "opus",
+            "language": "ja-JP",
+            "synthesizeResponse": false
+        }"#;
+        let req: VoicePipelineRequest = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(req.input_format, "opus");
+        assert_eq!(req.language, "ja-JP");
+        assert!(!req.synthesize_response);
+    }
+
+    #[test]
+    fn test_voice_pipeline_response_serialization() {
+        let resp = VoicePipelineResponse {
+            transcript: "Hello world".to_string(),
+            transcript_confidence: 0.95,
+            response_text: "Hi there!".to_string(),
+            response_audio: Some("audiodata==".to_string()),
+            from_bridge: true,
+            pipeline_duration_secs: 2.5,
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("parse");
+        assert_eq!(parsed["transcript"], "Hello world");
+        assert_eq!(parsed["transcriptConfidence"], 0.95);
+        assert_eq!(parsed["responseText"], "Hi there!");
+        assert_eq!(parsed["responseAudio"], "audiodata==");
+        assert_eq!(parsed["fromBridge"], true);
+        assert_eq!(parsed["pipelineDurationSecs"], 2.5);
+    }
+
+    #[test]
+    fn test_voice_pipeline_response_without_audio() {
+        let resp = VoicePipelineResponse {
+            transcript: "Test".to_string(),
+            transcript_confidence: 0.8,
+            response_text: "Response".to_string(),
+            response_audio: None,
+            from_bridge: false,
+            pipeline_duration_secs: 1.0,
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        assert!(!json.contains("responseAudio"), "None fields should be skipped");
+    }
+
+    #[test]
+    fn test_bridge_health_response_serialization() {
+        let resp = BridgeHealthResponse {
+            reachable: true,
+            bridge_url: "http://127.0.0.1:8400".to_string(),
+            version: Some("0.1.0".to_string()),
+            capabilities: vec!["transcribe".to_string(), "synthesize".to_string()],
+            message: "Bridge is running".to_string(),
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("parse");
+        assert_eq!(parsed["reachable"], true);
+        assert_eq!(parsed["bridgeUrl"], "http://127.0.0.1:8400");
+        assert_eq!(parsed["version"], "0.1.0");
+        assert_eq!(parsed["capabilities"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_bridge_health_response_without_version() {
+        let resp = BridgeHealthResponse {
+            reachable: false,
+            bridge_url: "http://127.0.0.1:8400".to_string(),
+            version: None,
+            capabilities: vec![],
+            message: "Not reachable".to_string(),
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        assert!(!json.contains("\"version\""), "None version should be skipped");
+    }
+
+    #[test]
+    fn test_bridge_base_url_default() {
+        // Without env var, should use default port
+        let url = bridge_base_url();
+        assert!(url.starts_with("http://127.0.0.1:"));
+    }
+
+    #[test]
+    fn test_bridge_client_creation() {
+        let client = bridge_client(5);
+        assert!(client.is_ok(), "Bridge client should be constructable");
+    }
+
+    // -----------------------------------------------------------------------
+    // Emotion scores validation
     // -----------------------------------------------------------------------
 
     #[test]

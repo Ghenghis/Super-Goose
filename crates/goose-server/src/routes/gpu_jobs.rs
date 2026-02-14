@@ -8,6 +8,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -79,6 +80,10 @@ pub struct GpuJob {
     /// Accumulated stdout/stderr log lines.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub logs: Vec<String>,
+    /// Cancellation token — used to signal the background task to abort.
+    /// Skipped during serialization (not meaningful over the wire).
+    #[serde(skip)]
+    pub cancel_token: CancellationToken,
 }
 
 // ---------------------------------------------------------------------------
@@ -277,13 +282,125 @@ fn format_bytes(bytes: u64) -> String {
 // Background job execution
 // ---------------------------------------------------------------------------
 
-/// Simulate a GPU job running in the background.
-/// In production this would shell out to Ollama, llama.cpp, etc.
+const OLLAMA_BASE: &str = "http://127.0.0.1:11434";
+
+/// Build a `reqwest::Client` with a reasonable timeout for ollama interactions.
+fn ollama_client(timeout_secs: u64) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(timeout_secs))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))
+}
+
+/// Check whether Ollama is reachable by hitting its `/api/tags` endpoint.
+/// Returns `Ok(list_of_model_names)` if reachable, `Err` otherwise.
+async fn check_ollama_available() -> Result<Vec<String>, String> {
+    let client = ollama_client(5)?;
+    let resp = client
+        .get(format!("{}/api/tags", OLLAMA_BASE))
+        .send()
+        .await
+        .map_err(|e| {
+            format!(
+                "Ollama is not running or unreachable at {}: {}. \
+                 Please install/start Ollama first (https://ollama.com).",
+                OLLAMA_BASE, e
+            )
+        })?;
+
+    if !resp.status().is_success() {
+        return Err(format!(
+            "Ollama returned HTTP {} from /api/tags",
+            resp.status()
+        ));
+    }
+
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse /api/tags response: {}", e))?;
+
+    let names: Vec<String> = body["models"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| m["name"].as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Ok(names)
+}
+
+/// Pull a model from the Ollama registry if it is not already present locally.
+/// Logs progress into the job's log lines.
+async fn ensure_model_pulled(
+    job_id: &str,
+    model: &str,
+    available_models: &[String],
+    state: &Arc<AppState>,
+) -> Result<(), String> {
+    // Ollama model names may include a tag (e.g. "llama3:8b"). A local model
+    // "llama3:latest" matches a request for "llama3". We do a prefix-aware check.
+    let already_present = available_models.iter().any(|m| {
+        m == model
+            || m.split(':').next() == Some(model)
+            || model.split(':').next().map(|p| m.starts_with(p)).unwrap_or(false)
+    });
+
+    if already_present {
+        update_job_progress(job_id, 0.05, &format!("Model '{}' is available locally", model), state).await;
+        return Ok(());
+    }
+
+    update_job_progress(
+        job_id,
+        0.05,
+        &format!("Model '{}' not found locally — pulling from registry...", model),
+        state,
+    )
+    .await;
+
+    let client = ollama_client(600)?; // models can be large; generous timeout
+    let resp = client
+        .post(format!("{}/api/pull", OLLAMA_BASE))
+        .json(&serde_json::json!({ "name": model, "stream": false }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to pull model '{}': {}", model, e))?;
+
+    if !resp.status().is_success() {
+        let body_text = resp.text().await.unwrap_or_default();
+        return Err(format!(
+            "Ollama pull for '{}' returned error: {}",
+            model, body_text
+        ));
+    }
+
+    update_job_progress(
+        job_id,
+        0.15,
+        &format!("Model '{}' pulled successfully", model),
+        state,
+    )
+    .await;
+
+    Ok(())
+}
+
+/// Execute a GPU job in the background.
+///
+/// Flow:
+/// 1. Check Ollama is running (`/api/tags`)
+/// 2. Pull model if missing (`/api/pull`)
+/// 3. Dispatch to the appropriate job runner (inference, benchmark, simulated)
+/// 4. Update final status (Completed / Failed / Cancelled)
 async fn run_gpu_job(
     job_id: String,
     job_type: JobType,
     model: String,
     config: serde_json::Value,
+    cancel_token: CancellationToken,
     state: Arc<AppState>,
 ) {
     // Mark as running
@@ -301,6 +418,55 @@ async fn run_gpu_job(
         }
     }
 
+    // Check for early cancellation
+    if cancel_token.is_cancelled() {
+        finalize_job(&job_id, Err("Job cancelled before start".to_string()), &state).await;
+        return;
+    }
+
+    // --- Step 1: verify Ollama is running ---
+    let available_models = match check_ollama_available().await {
+        Ok(models) => {
+            update_job_progress(
+                &job_id,
+                0.02,
+                &format!("Ollama is running ({} models available)", models.len()),
+                &state,
+            )
+            .await;
+            models
+        }
+        Err(err) => {
+            // For simulated jobs (finetune/embedding) we can proceed without Ollama
+            if matches!(job_type, JobType::Finetune | JobType::Embedding) {
+                update_job_progress(
+                    &job_id,
+                    0.02,
+                    &format!("Ollama not available ({}); running in simulated mode", err),
+                    &state,
+                )
+                .await;
+                Vec::new()
+            } else {
+                finalize_job(&job_id, Err(err), &state).await;
+                return;
+            }
+        }
+    };
+
+    // --- Step 2: pull model if needed ---
+    if !available_models.is_empty() || matches!(job_type, JobType::Inference | JobType::Benchmark) {
+        if let Err(err) = ensure_model_pulled(&job_id, &model, &available_models, &state).await {
+            finalize_job(&job_id, Err(err), &state).await;
+            return;
+        }
+    }
+
+    if cancel_token.is_cancelled() {
+        finalize_job(&job_id, Err("Job cancelled during setup".to_string()), &state).await;
+        return;
+    }
+
     // Determine steps based on job type
     let total_steps: u32 = match job_type {
         JobType::Inference => 10,
@@ -309,88 +475,125 @@ async fn run_gpu_job(
         JobType::Embedding => 15,
     };
 
-    // Attempt the actual work — for inference, try ollama
+    // --- Step 3: dispatch to the appropriate runner ---
     let result = match job_type {
         JobType::Inference => {
-            run_inference_job(&job_id, &model, &config, total_steps, &state).await
+            run_inference_job(&job_id, &model, &config, total_steps, &cancel_token, &state).await
         }
         JobType::Benchmark => {
-            run_benchmark_job(&job_id, &model, total_steps, &state).await
+            run_benchmark_job(&job_id, &model, total_steps, &cancel_token, &state).await
         }
         _ => {
             // Finetune / Embedding: simulated progress
-            run_simulated_job(&job_id, &job_type, total_steps, &state).await
+            run_simulated_job(&job_id, &job_type, total_steps, &cancel_token, &state).await
         }
     };
 
-    // Finalize
-    {
-        let mut jobs = state.gpu_jobs.write().await;
-        if let Some(job) = jobs.get_mut(&job_id) {
-            // Only update if not already cancelled
-            if job.status == JobStatus::Running {
-                match result {
-                    Ok(res) => {
-                        job.status = JobStatus::Completed;
-                        job.progress = 1.0;
-                        job.result = Some(res);
-                        job.completed_at = Some(Utc::now());
-                        job.logs.push(format!(
-                            "[{}] Job completed successfully",
-                            Utc::now().format("%H:%M:%S")
-                        ));
-                    }
-                    Err(err) => {
-                        job.status = JobStatus::Failed;
-                        job.error = Some(err.clone());
-                        job.completed_at = Some(Utc::now());
-                        job.logs.push(format!(
-                            "[{}] Job failed: {}",
-                            Utc::now().format("%H:%M:%S"),
-                            err
-                        ));
-                    }
+    // --- Step 4: finalize ---
+    finalize_job(&job_id, result, &state).await;
+}
+
+/// Write the final status of a job (Completed / Failed).
+/// Does nothing if the job was already cancelled.
+async fn finalize_job(
+    job_id: &str,
+    result: Result<serde_json::Value, String>,
+    state: &Arc<AppState>,
+) {
+    let mut jobs = state.gpu_jobs.write().await;
+    if let Some(job) = jobs.get_mut(job_id) {
+        // Only update if not already cancelled
+        if job.status == JobStatus::Running {
+            match result {
+                Ok(res) => {
+                    job.status = JobStatus::Completed;
+                    job.progress = 1.0;
+                    job.result = Some(res);
+                    job.completed_at = Some(Utc::now());
+                    job.logs.push(format!(
+                        "[{}] Job completed successfully",
+                        Utc::now().format("%H:%M:%S")
+                    ));
+                }
+                Err(err) => {
+                    job.status = JobStatus::Failed;
+                    job.error = Some(err.clone());
+                    job.completed_at = Some(Utc::now());
+                    job.logs.push(format!(
+                        "[{}] Job failed: {}",
+                        Utc::now().format("%H:%M:%S"),
+                        err
+                    ));
                 }
             }
         }
     }
 }
 
-/// Run an inference job by calling Ollama's generate API.
+/// Run an inference job by calling Ollama's generate or chat API.
+///
+/// If `config.messages` is present (array of `{role, content}` objects), uses
+/// the `/api/chat` endpoint.  Otherwise falls back to `/api/generate` with
+/// `config.prompt` (or a default prompt).
 async fn run_inference_job(
     job_id: &str,
     model: &str,
     config: &serde_json::Value,
     total_steps: u32,
+    cancel_token: &CancellationToken,
     state: &Arc<AppState>,
 ) -> Result<serde_json::Value, String> {
-    let prompt = config["prompt"]
-        .as_str()
-        .unwrap_or("Hello, who are you?")
-        .to_string();
+    let use_chat = config.get("messages").and_then(|v| v.as_array()).is_some();
 
-    // Update progress
-    update_job_progress(job_id, 0.1, "Sending request to Ollama...", state).await;
+    update_job_progress(
+        job_id,
+        0.2,
+        &format!(
+            "Sending request to Ollama ({})...",
+            if use_chat { "/api/chat" } else { "/api/generate" }
+        ),
+        state,
+    )
+    .await;
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+    let client = ollama_client(300)?; // inference can take a while for large models
 
-    let body = serde_json::json!({
-        "model": model,
-        "prompt": prompt,
-        "stream": false
-    });
+    let (url, body) = if use_chat {
+        let messages = config["messages"].clone();
+        (
+            format!("{}/api/chat", OLLAMA_BASE),
+            serde_json::json!({
+                "model": model,
+                "messages": messages,
+                "stream": false,
+            }),
+        )
+    } else {
+        let prompt = config["prompt"]
+            .as_str()
+            .unwrap_or("Hello, who are you?")
+            .to_string();
+        (
+            format!("{}/api/generate", OLLAMA_BASE),
+            serde_json::json!({
+                "model": model,
+                "prompt": prompt,
+                "stream": false,
+            }),
+        )
+    };
 
     update_job_progress(job_id, 0.3, "Waiting for model response...", state).await;
 
-    let resp = client
-        .post("http://127.0.0.1:11434/api/generate")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Ollama request failed: {}. Is Ollama running?", e))?;
+    // Race the HTTP request against cancellation
+    let resp = tokio::select! {
+        r = client.post(&url).json(&body).send() => {
+            r.map_err(|e| format!("Ollama request failed: {}. Is Ollama running?", e))?
+        }
+        _ = cancel_token.cancelled() => {
+            return Err("Job cancelled by user".to_string());
+        }
+    };
 
     update_job_progress(job_id, 0.8, "Processing response...", state).await;
 
@@ -405,34 +608,40 @@ async fn run_inference_job(
         .await
         .map_err(|e| format!("Failed to parse Ollama response: {}", e))?;
 
-    // Simulate final steps
+    // Final progress ticks
     for step in 0..total_steps {
+        if cancel_token.is_cancelled() {
+            return Err("Job cancelled by user".to_string());
+        }
         let progress = 0.8 + (step as f32 / total_steps as f32) * 0.2;
         update_job_progress(job_id, progress.min(0.99), "Finalizing...", state).await;
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-
-        // Check for cancellation
-        let jobs = state.gpu_jobs.read().await;
-        if let Some(job) = jobs.get(job_id) {
-            if job.status == JobStatus::Cancelled {
-                return Err("Job cancelled by user".to_string());
-            }
-        }
     }
 
-    Ok(serde_json::json!({
-        "response": result["response"],
-        "model": model,
-        "total_duration_ns": result["total_duration"],
-        "eval_count": result["eval_count"],
-    }))
+    // Build result depending on which API we called
+    if use_chat {
+        Ok(serde_json::json!({
+            "message": result["message"],
+            "model": model,
+            "total_duration_ns": result["total_duration"],
+            "eval_count": result["eval_count"],
+        }))
+    } else {
+        Ok(serde_json::json!({
+            "response": result["response"],
+            "model": model,
+            "total_duration_ns": result["total_duration"],
+            "eval_count": result["eval_count"],
+        }))
+    }
 }
 
-/// Run a benchmark job — times a short inference request.
+/// Run a benchmark job -- times a short inference request.
 async fn run_benchmark_job(
     job_id: &str,
     model: &str,
     total_steps: u32,
+    cancel_token: &CancellationToken,
     state: &Arc<AppState>,
 ) -> Result<serde_json::Value, String> {
     let prompts = vec![
@@ -441,8 +650,13 @@ async fn run_benchmark_job(
         "What is the meaning of life?",
     ];
     let mut results = Vec::new();
+    let client = ollama_client(60)?;
 
     for (i, prompt) in prompts.iter().enumerate() {
+        if cancel_token.is_cancelled() {
+            return Err("Job cancelled by user".to_string());
+        }
+
         let progress = i as f32 / prompts.len() as f32;
         update_job_progress(
             job_id,
@@ -452,22 +666,7 @@ async fn run_benchmark_job(
         )
         .await;
 
-        // Check for cancellation
-        {
-            let jobs = state.gpu_jobs.read().await;
-            if let Some(job) = jobs.get(job_id) {
-                if job.status == JobStatus::Cancelled {
-                    return Err("Job cancelled by user".to_string());
-                }
-            }
-        }
-
         let start = std::time::Instant::now();
-
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(60))
-            .build()
-            .map_err(|e| format!("HTTP client error: {}", e))?;
 
         let body = serde_json::json!({
             "model": model,
@@ -475,12 +674,14 @@ async fn run_benchmark_job(
             "stream": false
         });
 
-        let resp = client
-            .post("http://127.0.0.1:11434/api/generate")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| format!("Ollama request failed: {}. Is Ollama running?", e))?;
+        let resp = tokio::select! {
+            r = client.post(format!("{}/api/generate", OLLAMA_BASE)).json(&body).send() => {
+                r.map_err(|e| format!("Ollama request failed: {}. Is Ollama running?", e))?
+            }
+            _ = cancel_token.cancelled() => {
+                return Err("Job cancelled by user".to_string());
+            }
+        };
 
         let elapsed_ms = start.elapsed().as_millis();
 
@@ -510,6 +711,9 @@ async fn run_benchmark_job(
 
     // Final progress simulation
     for step in 0..total_steps {
+        if cancel_token.is_cancelled() {
+            return Err("Job cancelled by user".to_string());
+        }
         let progress = 0.9 + (step as f32 / total_steps as f32) * 0.1;
         update_job_progress(job_id, progress.min(0.99), "Computing statistics...", state).await;
         tokio::time::sleep(std::time::Duration::from_millis(30)).await;
@@ -539,25 +743,27 @@ async fn run_simulated_job(
     job_id: &str,
     job_type: &JobType,
     total_steps: u32,
+    cancel_token: &CancellationToken,
     state: &Arc<AppState>,
 ) -> Result<serde_json::Value, String> {
     for step in 0..total_steps {
+        if cancel_token.is_cancelled() {
+            return Err("Job cancelled by user".to_string());
+        }
+
         let progress = (step + 1) as f32 / total_steps as f32;
         let msg = format!(
-            "Step {}/{} — {} in progress...",
+            "Step {}/{} -- {} in progress...",
             step + 1,
             total_steps,
             job_type
         );
         update_job_progress(job_id, progress.min(0.99), &msg, state).await;
 
-        // Sleep to simulate work
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-
-        // Check for cancellation
-        let jobs = state.gpu_jobs.read().await;
-        if let Some(job) = jobs.get(job_id) {
-            if job.status == JobStatus::Cancelled {
+        // Sleep to simulate work, but respect cancellation
+        tokio::select! {
+            _ = tokio::time::sleep(std::time::Duration::from_millis(200)) => {}
+            _ = cancel_token.cancelled() => {
                 return Err("Job cancelled by user".to_string());
             }
         }
@@ -621,6 +827,8 @@ async fn launch_job(
     let job_id = uuid::Uuid::new_v4().to_string();
     let now = Utc::now();
 
+    let cancel_token = CancellationToken::new();
+
     let job = GpuJob {
         id: job_id.clone(),
         job_type: req.job_type.clone(),
@@ -639,6 +847,7 @@ async fn launch_job(
             req.job_type,
             req.model
         )],
+        cancel_token: cancel_token.clone(),
     };
 
     // Store the job
@@ -653,8 +862,9 @@ async fn launch_job(
     let bg_model = req.model.clone();
     let bg_config = req.config.clone();
     let bg_id = job_id.clone();
+    let bg_token = cancel_token;
     tokio::spawn(async move {
-        run_gpu_job(bg_id, bg_job_type, bg_model, bg_config, bg_state).await;
+        run_gpu_job(bg_id, bg_job_type, bg_model, bg_config, bg_token, bg_state).await;
     });
 
     Ok((StatusCode::CREATED, Json(job)))
@@ -682,6 +892,8 @@ async fn cancel_job(
 
     match job.status {
         JobStatus::Queued | JobStatus::Running => {
+            // Signal the background task to stop via the CancellationToken
+            job.cancel_token.cancel();
             job.status = JobStatus::Cancelled;
             job.completed_at = Some(Utc::now());
             job.logs.push(format!(
@@ -927,6 +1139,7 @@ mod tests {
             result: None,
             error: None,
             logs: Vec::new(),
+            cancel_token: CancellationToken::new(),
         };
 
         let json = serde_json::to_string(&job).unwrap();
@@ -941,6 +1154,8 @@ mod tests {
         assert!(!json.contains("\"result\""));
         assert!(!json.contains("\"error\""));
         assert!(!json.contains("\"logs\""));
+        // cancel_token is #[serde(skip)] so must not appear
+        assert!(!json.contains("\"cancel_token\""));
     }
 
     #[test]
@@ -959,6 +1174,7 @@ mod tests {
             result: Some(serde_json::json!({ "avg_ms": 250 })),
             error: None,
             logs: vec!["step 1".to_string(), "step 2".to_string()],
+            cancel_token: CancellationToken::new(),
         };
 
         let json = serde_json::to_string_pretty(&job).unwrap();
@@ -996,6 +1212,50 @@ mod tests {
         assert!(job.started_at.is_some());
         assert_eq!(job.config["batch_size"], 32);
         assert_eq!(job.logs.len(), 1);
+        // cancel_token defaults to a fresh (non-cancelled) token via #[serde(skip)]
+        assert!(!job.cancel_token.is_cancelled());
+    }
+
+    // -- CancellationToken integration ----------------------------------------
+
+    #[test]
+    fn test_cancel_token_is_skipped_in_serialization() {
+        let token = CancellationToken::new();
+        token.cancel();
+        let job = GpuJob {
+            id: "ct-1".to_string(),
+            job_type: JobType::Inference,
+            model: "test".to_string(),
+            status: JobStatus::Running,
+            progress: 0.5,
+            created_at: Utc::now(),
+            started_at: None,
+            completed_at: None,
+            config: serde_json::json!({}),
+            result: None,
+            error: None,
+            logs: Vec::new(),
+            cancel_token: token,
+        };
+        let json = serde_json::to_string(&job).unwrap();
+        assert!(!json.contains("cancel_token"));
+    }
+
+    #[test]
+    fn test_cancel_token_clone_shares_state() {
+        let token = CancellationToken::new();
+        let cloned = token.clone();
+        assert!(!cloned.is_cancelled());
+        token.cancel();
+        assert!(cloned.is_cancelled());
+    }
+
+    // -- ollama_client helper -------------------------------------------------
+
+    #[test]
+    fn test_ollama_client_creation() {
+        let client = ollama_client(10);
+        assert!(client.is_ok());
     }
 
     // -- LaunchJobRequest deserialization --------------------------------------

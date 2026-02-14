@@ -1,10 +1,30 @@
-import { useState, useCallback } from 'react';
-import { useAgentChat, AgentInfo } from '../../hooks/useAgentChat';
+import { useState, useEffect, useCallback } from 'react';
+import { getApiUrl } from '../../config';
 import { SGStatusDot, SGBadge, SGEmptyState } from './shared';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface AgentInfo {
+  id: string;
+  name: string;
+  role: string;
+  displayName: string;
+  status: 'online' | 'offline' | 'busy' | 'error';
+  model: string;
+  lastHeartbeat: string;
+}
+
+interface AgentRegistryResponse {
+  agents: AgentInfo[];
+}
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
+
+const POLL_INTERVAL_MS = 10000;
 
 const STATUS_COLORS: Record<AgentInfo['status'], string> = {
   online: '#22c55e',
@@ -57,7 +77,7 @@ function AgentCard({
       className={`sg-card ${expanded ? 'ring-1 ring-emerald-500/30' : ''}`}
       data-testid={`agent-card-${agent.id}`}
       role="article"
-      aria-label={`Agent: ${agent.displayName}`}
+      aria-label={`Agent: ${agent.displayName || agent.name}`}
     >
       {/* Header */}
       <button
@@ -65,7 +85,7 @@ function AgentCard({
         style={{ background: 'transparent', border: 'none', textAlign: 'left' }}
         onClick={onToggle}
         aria-expanded={expanded}
-        aria-label={`Toggle details for ${agent.displayName}`}
+        aria-label={`Toggle details for ${agent.displayName || agent.name}`}
       >
         <div className="flex items-center gap-3">
           {/* Status dot */}
@@ -85,7 +105,7 @@ function AgentCard({
               className="font-medium"
               style={{ color: 'var(--sg-text-1)', fontSize: '0.875rem' }}
             >
-              {agent.displayName}
+              {agent.displayName || agent.name}
             </div>
             <div style={{ color: 'var(--sg-text-3)', fontSize: '0.75rem' }}>
               {agent.role}
@@ -142,7 +162,7 @@ function AgentCard({
                 className="sg-btn sg-btn-primary"
                 style={{ fontSize: '0.75rem', padding: '4px 10px' }}
                 onClick={() => onWake(agent.id)}
-                aria-label={`Wake ${agent.displayName}`}
+                aria-label={`Wake ${agent.displayName || agent.name}`}
               >
                 Wake
               </button>
@@ -151,14 +171,14 @@ function AgentCard({
               className="sg-btn sg-btn-ghost"
               style={{ fontSize: '0.75rem', padding: '4px 10px' }}
               onClick={() => onSendMessage(agent.id)}
-              aria-label={`Send message to ${agent.displayName}`}
+              aria-label={`Send message to ${agent.displayName || agent.name}`}
             >
               Send Message
             </button>
             <button
               className="sg-btn sg-btn-ghost"
               style={{ fontSize: '0.75rem', padding: '4px 10px' }}
-              aria-label={`View logs for ${agent.displayName}`}
+              aria-label={`View logs for ${agent.displayName || agent.name}`}
             >
               View Logs
             </button>
@@ -174,9 +194,54 @@ function AgentCard({
 // ---------------------------------------------------------------------------
 
 export default function AgentRegistryPanel() {
-  const { agents, connected, wakeAgent, sendMessage } = useAgentChat();
+  const [agents, setAgents] = useState<AgentInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // --- Fetch agents from REST API ---
+  const fetchAgents = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setFetchError(null);
+      const res = await fetch(getApiUrl('/api/agents/registry'), { signal });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      const data: AgentRegistryResponse = await res.json();
+      if (!signal?.aborted) {
+        setAgents(
+          (data.agents || []).map((a) => ({
+            ...a,
+            displayName: a.displayName || a.name || a.id,
+            lastHeartbeat: a.lastHeartbeat || new Date().toISOString(),
+            status: a.status || 'offline',
+            model: a.model || 'unknown',
+            role: a.role || 'agent',
+          })),
+        );
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      if (!signal?.aborted) {
+        setFetchError(err instanceof Error ? err.message : 'Failed to fetch agents');
+      }
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, []);
+
+  // Fetch on mount + poll
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchAgents(controller.signal);
+    const interval = setInterval(() => fetchAgents(controller.signal), POLL_INTERVAL_MS);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
+  }, [fetchAgents]);
+
+  // --- Actions ---
   const handleToggle = useCallback(
     (id: string) => {
       setExpandedId((prev) => (prev === id ? null : id));
@@ -185,24 +250,45 @@ export default function AgentRegistryPanel() {
   );
 
   const handleWake = useCallback(
-    (agentId: string) => {
-      wakeAgent(agentId, 'Manual wake from registry panel');
+    async (agentId: string) => {
+      try {
+        await fetch(getApiUrl('/api/agents/wake'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentId, reason: 'Manual wake from registry panel' }),
+        });
+        // Optimistic update
+        setAgents((prev) =>
+          prev.map((a) => (a.id === agentId ? { ...a, status: 'busy' as const } : a)),
+        );
+      } catch {
+        /* silent */
+      }
     },
-    [wakeAgent],
+    [],
   );
 
   const handleSendMessage = useCallback(
-    (agentId: string) => {
+    async (agentId: string) => {
       const content = window.prompt(`Send message to ${agentId}:`);
       if (content) {
-        sendMessage(agentId, content, 'direct');
+        try {
+          await fetch(getApiUrl('/ag-ui/message'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content, to: agentId }),
+          });
+        } catch {
+          /* silent */
+        }
       }
     },
-    [sendMessage],
+    [],
   );
 
   const onlineCount = agents.filter((a) => a.status === 'online').length;
   const offlineCount = agents.filter((a) => a.status === 'offline').length;
+  const connected = !loading && !fetchError;
 
   return (
     <div className="space-y-4" role="region" aria-label="Agent Registry Panel">
@@ -219,8 +305,37 @@ export default function AgentRegistryPanel() {
         </div>
       </div>
 
+      {/* Loading state */}
+      {loading && (
+        <div className="sg-card" style={{ padding: '1.5rem', textAlign: 'center' }} data-testid="registry-loading">
+          <p style={{ color: 'var(--sg-text-4)', fontSize: '0.875rem' }}>Loading agents...</p>
+        </div>
+      )}
+
+      {/* Error state */}
+      {fetchError && !loading && (
+        <div className="sg-card" style={{ padding: '1rem' }} data-testid="registry-error">
+          <p style={{ color: 'var(--sg-red, #ef4444)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+            {fetchError}
+          </p>
+          <button
+            onClick={() => fetchAgents()}
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--sg-accent)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Agent list */}
-      {agents.length > 0 ? (
+      {!loading && !fetchError && agents.length > 0 ? (
         <div className="space-y-2" role="list" aria-label="Registered agents">
           {agents.map((agent) => (
             <AgentCard
@@ -233,9 +348,9 @@ export default function AgentRegistryPanel() {
             />
           ))}
         </div>
-      ) : (
+      ) : !loading && !fetchError ? (
         <SGEmptyState message="No agents registered" />
-      )}
+      ) : null}
     </div>
   );
 }

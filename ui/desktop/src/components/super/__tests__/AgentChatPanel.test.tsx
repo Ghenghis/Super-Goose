@@ -4,68 +4,119 @@ import AgentChatPanel from '../AgentChatPanel';
 
 // --- Mocks ----------------------------------------------------------------
 
-const mockUseAgentChat = vi.fn();
-vi.mock('../../../hooks/useAgentChat', () => ({
-  useAgentChat: (...args: unknown[]) => mockUseAgentChat(...args),
+// jsdom has no EventSource — must mock useAgUi
+const mockSendMessage = vi.fn();
+const mockApproveToolCall = vi.fn();
+const mockRejectToolCall = vi.fn();
+const mockReconnect = vi.fn();
+const mockAbortRun = vi.fn();
+const mockRegisterTool = vi.fn();
+const mockUnregisterTool = vi.fn();
+const mockSubscribe = vi.fn().mockReturnValue(() => {});
+
+const mockUseAgUi = vi.fn();
+vi.mock('../../../ag-ui/useAgUi', () => ({
+  useAgUi: (...args: unknown[]) => mockUseAgUi(...args),
 }));
 
 // --- Helpers ---------------------------------------------------------------
 
-const mockSendMessage = vi.fn();
-const mockWakeAgent = vi.fn();
-const mockClearMessages = vi.fn();
-
 function defaults() {
-  mockSendMessage.mockResolvedValue(undefined);
-  mockWakeAgent.mockResolvedValue(undefined);
-  mockClearMessages.mockReturnValue(undefined);
+  mockSendMessage.mockReturnValue(undefined);
 
-  mockUseAgentChat.mockReturnValue({
-    messages: [],
-    agents: [],
+  mockUseAgUi.mockReturnValue({
     connected: false,
-    sendMessage: mockSendMessage,
-    wakeAgent: mockWakeAgent,
-    clearMessages: mockClearMessages,
-  });
-}
-
-function withAgents(agents: Array<{
-  id: string;
-  role: string;
-  displayName: string;
-  status: 'online' | 'offline' | 'busy' | 'error';
-  model: string;
-  lastHeartbeat: string;
-}>) {
-  mockUseAgentChat.mockReturnValue({
+    error: null,
+    runId: null,
+    threadId: null,
+    isRunning: false,
+    currentStep: null,
     messages: [],
-    agents,
-    connected: true,
+    agentState: { core_type: 'default', status: 'idle' },
+    activeToolCalls: new Map(),
+    pendingApprovals: [],
+    activities: [],
+    reasoningMessages: [],
+    isReasoning: false,
+    customEvents: [],
+    runCount: 0,
+    approveToolCall: mockApproveToolCall,
+    rejectToolCall: mockRejectToolCall,
+    reconnect: mockReconnect,
+    abortRun: mockAbortRun,
+    registerTool: mockRegisterTool,
+    unregisterTool: mockUnregisterTool,
+    subscribe: mockSubscribe,
     sendMessage: mockSendMessage,
-    wakeAgent: mockWakeAgent,
-    clearMessages: mockClearMessages,
   });
 }
 
 function withMessages(msgs: Array<{
-  id: string;
-  from: string;
-  to: string;
-  channel: 'direct' | 'team' | 'broadcast' | 'system';
-  priority: 'critical' | 'high' | 'normal' | 'low';
-  payload: unknown;
-  timestamp: string;
-  delivered: boolean;
-  acknowledged: boolean;
+  messageId: string;
+  role: 'agent' | 'user' | 'system';
+  content: string;
+  streaming: boolean;
+  timestamp: number;
 }>) {
-  mockUseAgentChat.mockReturnValue({
-    messages: msgs,
-    agents: [],
+  mockUseAgUi.mockReturnValue({
     connected: true,
+    error: null,
+    runId: 'run-1',
+    threadId: 'thread-1',
+    isRunning: false,
+    currentStep: null,
+    messages: msgs,
+    agentState: { core_type: 'default', status: 'idle' },
+    activeToolCalls: new Map(),
+    pendingApprovals: [],
+    activities: [],
+    reasoningMessages: [],
+    isReasoning: false,
+    customEvents: [],
+    runCount: 1,
+    approveToolCall: mockApproveToolCall,
+    rejectToolCall: mockRejectToolCall,
+    reconnect: mockReconnect,
+    abortRun: mockAbortRun,
+    registerTool: mockRegisterTool,
+    unregisterTool: mockUnregisterTool,
+    subscribe: mockSubscribe,
     sendMessage: mockSendMessage,
-    wakeAgent: mockWakeAgent,
-    clearMessages: mockClearMessages,
+  });
+}
+
+function withToolCalls(toolCalls: Array<{
+  toolCallId: string;
+  toolCallName: string;
+  args: string;
+  status: 'active' | 'completed' | 'error';
+  timestamp: number;
+}>) {
+  const map = new Map(toolCalls.map((tc) => [tc.toolCallId, tc]));
+  mockUseAgUi.mockReturnValue({
+    connected: true,
+    error: null,
+    runId: 'run-1',
+    threadId: 'thread-1',
+    isRunning: true,
+    currentStep: null,
+    messages: [],
+    agentState: { core_type: 'default', status: 'idle' },
+    activeToolCalls: map,
+    pendingApprovals: [],
+    activities: [],
+    reasoningMessages: [],
+    isReasoning: false,
+    customEvents: [],
+    runCount: 1,
+    approveToolCall: mockApproveToolCall,
+    rejectToolCall: mockRejectToolCall,
+    reconnect: mockReconnect,
+    abortRun: mockAbortRun,
+    registerTool: mockRegisterTool,
+    unregisterTool: mockUnregisterTool,
+    subscribe: mockSubscribe,
+    sendMessage: mockSendMessage,
   });
 }
 
@@ -91,33 +142,29 @@ describe('AgentChatPanel', () => {
   });
 
   it('shows connected status when connected', () => {
-    mockUseAgentChat.mockReturnValue({
-      messages: [],
-      agents: [],
+    mockUseAgUi.mockReturnValue({
+      ...mockUseAgUi(),
       connected: true,
-      sendMessage: mockSendMessage,
-      wakeAgent: mockWakeAgent,
-      clearMessages: mockClearMessages,
     });
     render(<AgentChatPanel />);
     expect(screen.getByText('Connected')).toBeDefined();
   });
 
-  it('shows agent count', () => {
-    withAgents([
-      { id: 'a1', role: 'coder', displayName: 'Coder', status: 'online', model: 'gpt-4', lastHeartbeat: new Date().toISOString() },
-      { id: 'a2', role: 'reviewer', displayName: 'Reviewer', status: 'offline', model: 'claude', lastHeartbeat: new Date().toISOString() },
+  it('shows message count', () => {
+    withMessages([
+      { messageId: 'm1', role: 'agent', content: 'Hello', streaming: false, timestamp: Date.now() },
+      { messageId: 'm2', role: 'user', content: 'Hi', streaming: false, timestamp: Date.now() },
     ]);
     render(<AgentChatPanel />);
-    expect(screen.getByText('2 agents')).toBeDefined();
+    expect(screen.getByText('2 messages')).toBeDefined();
   });
 
-  it('shows singular agent count for 1 agent', () => {
-    withAgents([
-      { id: 'a1', role: 'coder', displayName: 'Coder', status: 'online', model: 'gpt-4', lastHeartbeat: new Date().toISOString() },
+  it('shows singular message count for 1 message', () => {
+    withMessages([
+      { messageId: 'm1', role: 'agent', content: 'Hello', streaming: false, timestamp: Date.now() },
     ]);
     render(<AgentChatPanel />);
-    expect(screen.getByText('1 agent')).toBeDefined();
+    expect(screen.getByText('1 message')).toBeDefined();
   });
 
   // -- Empty state ----------------------------------------------------------
@@ -126,41 +173,25 @@ describe('AgentChatPanel', () => {
     expect(screen.getByText('No messages yet')).toBeDefined();
   });
 
-  // -- Agent registry bar ---------------------------------------------------
-  it('renders agent dots in the registry bar', () => {
-    withAgents([
-      { id: 'a1', role: 'coder', displayName: 'Coder Agent', status: 'online', model: 'gpt-4', lastHeartbeat: new Date().toISOString() },
-      { id: 'a2', role: 'reviewer', displayName: 'Review Agent', status: 'offline', model: 'claude', lastHeartbeat: new Date().toISOString() },
+  // -- Tool calls bar -------------------------------------------------------
+  it('renders active tool calls in the tool calls bar', () => {
+    withToolCalls([
+      { toolCallId: 'tc1', toolCallName: 'read_file', args: '{}', status: 'active', timestamp: Date.now() },
+      { toolCallId: 'tc2', toolCallName: 'write_file', args: '{}', status: 'active', timestamp: Date.now() },
     ]);
     render(<AgentChatPanel />);
 
-    expect(screen.getByText('Coder Agent')).toBeDefined();
-    expect(screen.getByText('Review Agent')).toBeDefined();
+    expect(screen.getByText('read_file')).toBeDefined();
+    expect(screen.getByText('write_file')).toBeDefined();
   });
 
-  it('shows Wake button only for offline agents', () => {
-    withAgents([
-      { id: 'a1', role: 'coder', displayName: 'Coder Agent', status: 'online', model: 'gpt-4', lastHeartbeat: new Date().toISOString() },
-      { id: 'a2', role: 'reviewer', displayName: 'Review Agent', status: 'offline', model: 'claude', lastHeartbeat: new Date().toISOString() },
+  it('shows Running indicator when agent is running', () => {
+    withToolCalls([
+      { toolCallId: 'tc1', toolCallName: 'test', args: '{}', status: 'active', timestamp: Date.now() },
     ]);
     render(<AgentChatPanel />);
 
-    const wakeButtons = screen.getAllByRole('button', { name: /Wake/ });
-    expect(wakeButtons.length).toBe(1);
-    expect(wakeButtons[0].getAttribute('aria-label')).toBe('Wake Review Agent');
-  });
-
-  it('calls wakeAgent when Wake button is clicked', async () => {
-    withAgents([
-      { id: 'a2', role: 'reviewer', displayName: 'Review Agent', status: 'offline', model: 'claude', lastHeartbeat: new Date().toISOString() },
-    ]);
-    render(<AgentChatPanel />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Wake Review Agent' }));
-
-    await waitFor(() => {
-      expect(mockWakeAgent).toHaveBeenCalledWith('a2', 'Manual wake from chat panel');
-    });
+    expect(screen.getByText('Running')).toBeDefined();
   });
 
   // -- Channel filter tabs --------------------------------------------------
@@ -168,8 +199,8 @@ describe('AgentChatPanel', () => {
     render(<AgentChatPanel />);
 
     expect(screen.getByRole('tab', { name: 'All' })).toBeDefined();
-    expect(screen.getByRole('tab', { name: 'Team' })).toBeDefined();
-    expect(screen.getByRole('tab', { name: 'Direct' })).toBeDefined();
+    expect(screen.getByRole('tab', { name: 'Agent' })).toBeDefined();
+    expect(screen.getByRole('tab', { name: 'User' })).toBeDefined();
     expect(screen.getByRole('tab', { name: 'System' })).toBeDefined();
   });
 
@@ -179,139 +210,82 @@ describe('AgentChatPanel', () => {
     expect(allTab.getAttribute('aria-selected')).toBe('true');
   });
 
-  it('switching to Direct tab updates selection', () => {
+  it('switching to Agent tab updates selection', () => {
     render(<AgentChatPanel />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Direct' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Agent' }));
 
-    expect(screen.getByRole('tab', { name: 'Direct' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Agent' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('tab', { name: 'All' }).getAttribute('aria-selected')).toBe('false');
   });
 
-  it('filters messages by channel', () => {
+  it('filters messages by role', () => {
     withMessages([
-      {
-        id: 'm1', from: 'coder', to: 'reviewer', channel: 'team', priority: 'normal',
-        payload: 'Team message here', timestamp: '2026-02-14T10:00:00Z', delivered: true, acknowledged: false,
-      },
-      {
-        id: 'm2', from: 'coder', to: 'reviewer', channel: 'direct', priority: 'normal',
-        payload: 'Direct message here', timestamp: '2026-02-14T10:01:00Z', delivered: true, acknowledged: false,
-      },
-      {
-        id: 'm3', from: 'system', to: 'all', channel: 'system', priority: 'low',
-        payload: 'System alert', timestamp: '2026-02-14T10:02:00Z', delivered: true, acknowledged: false,
-      },
+      { messageId: 'm1', role: 'agent', content: 'Agent message', streaming: false, timestamp: Date.now() },
+      { messageId: 'm2', role: 'user', content: 'User message', streaming: false, timestamp: Date.now() },
+      { messageId: 'm3', role: 'system', content: 'System alert', streaming: false, timestamp: Date.now() },
     ]);
     render(<AgentChatPanel />);
 
     // All shows everything
-    expect(screen.getByText('Team message here')).toBeDefined();
-    expect(screen.getByText('Direct message here')).toBeDefined();
+    expect(screen.getByText('Agent message')).toBeDefined();
+    expect(screen.getByText('User message')).toBeDefined();
     expect(screen.getByText('System alert')).toBeDefined();
 
-    // Switch to Direct
-    fireEvent.click(screen.getByRole('tab', { name: 'Direct' }));
-    expect(screen.getByText('Direct message here')).toBeDefined();
-    expect(screen.queryByText('Team message here')).toBeNull();
+    // Switch to Agent
+    fireEvent.click(screen.getByRole('tab', { name: 'Agent' }));
+    expect(screen.getByText('Agent message')).toBeDefined();
+    expect(screen.queryByText('User message')).toBeNull();
     expect(screen.queryByText('System alert')).toBeNull();
 
     // Switch to System
     fireEvent.click(screen.getByRole('tab', { name: 'System' }));
     expect(screen.getByText('System alert')).toBeDefined();
-    expect(screen.queryByText('Direct message here')).toBeNull();
+    expect(screen.queryByText('Agent message')).toBeNull();
   });
 
   // -- Message rendering ----------------------------------------------------
-  it('renders messages with from/to labels', () => {
+  it('renders messages with role labels', () => {
     withMessages([
-      {
-        id: 'm1', from: 'coder', to: 'reviewer', channel: 'team', priority: 'normal',
-        payload: 'Hello reviewer!', timestamp: '2026-02-14T10:00:00Z', delivered: true, acknowledged: false,
-      },
+      { messageId: 'm1', role: 'agent', content: 'Hello user!', streaming: false, timestamp: Date.now() },
     ]);
     render(<AgentChatPanel />);
 
-    expect(screen.getByText('coder')).toBeDefined();
-    expect(screen.getByText('reviewer')).toBeDefined();
-    expect(screen.getByText('Hello reviewer!')).toBeDefined();
+    // "agent" appears in both the <strong> label and the <SGBadge>
+    const agentLabels = screen.getAllByText('agent');
+    expect(agentLabels.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Hello user!')).toBeDefined();
   });
 
-  it('renders channel badge on messages', () => {
+  it('shows streaming indicator for streaming messages', () => {
     withMessages([
-      {
-        id: 'm1', from: 'coder', to: 'reviewer', channel: 'direct', priority: 'normal',
-        payload: 'DM content', timestamp: '2026-02-14T10:00:00Z', delivered: true, acknowledged: false,
-      },
+      { messageId: 'm1', role: 'agent', content: 'Thinking...', streaming: true, timestamp: Date.now() },
     ]);
     render(<AgentChatPanel />);
-    expect(screen.getByText('direct')).toBeDefined();
+    expect(screen.getByText('streaming...')).toBeDefined();
   });
 
-  it('shows Delivered indicator for delivered messages', () => {
+  // -- Streaming messages indicator ------------------------------------------
+  it('shows streaming messages count', () => {
     withMessages([
-      {
-        id: 'm1', from: 'coder', to: 'all', channel: 'team', priority: 'normal',
-        payload: 'Delivered msg', timestamp: '2026-02-14T10:00:00Z', delivered: true, acknowledged: false,
-      },
+      { messageId: 'm1', role: 'agent', content: 'Streaming 1', streaming: true, timestamp: Date.now() },
+      { messageId: 'm2', role: 'agent', content: 'Streaming 2', streaming: true, timestamp: Date.now() },
     ]);
     render(<AgentChatPanel />);
-    expect(screen.getByText('Delivered')).toBeDefined();
+    expect(screen.getByText('2 messages streaming')).toBeDefined();
   });
 
-  it('shows ACK indicator for acknowledged messages', () => {
+  it('does not show streaming section when no messages are streaming', () => {
     withMessages([
-      {
-        id: 'm1', from: 'coder', to: 'all', channel: 'team', priority: 'normal',
-        payload: 'Acked msg', timestamp: '2026-02-14T10:00:00Z', delivered: true, acknowledged: true,
-      },
+      { messageId: 'm1', role: 'agent', content: 'Done', streaming: false, timestamp: Date.now() },
     ]);
     render(<AgentChatPanel />);
-    expect(screen.getByText('ACK')).toBeDefined();
-  });
-
-  it('shows Queued indicator for undelivered messages', () => {
-    withMessages([
-      {
-        id: 'm1', from: 'user', to: 'offline-agent', channel: 'direct', priority: 'normal',
-        payload: 'Queued message', timestamp: '2026-02-14T10:00:00Z', delivered: false, acknowledged: false,
-      },
-    ]);
-    render(<AgentChatPanel />);
-    expect(screen.getByText('Queued')).toBeDefined();
-  });
-
-  // -- Queued messages section -----------------------------------------------
-  it('shows queued messages count', () => {
-    withMessages([
-      {
-        id: 'm1', from: 'user', to: 'offline-agent', channel: 'direct', priority: 'normal',
-        payload: 'Queued 1', timestamp: '2026-02-14T10:00:00Z', delivered: false, acknowledged: false,
-      },
-      {
-        id: 'm2', from: 'user', to: 'offline-agent', channel: 'direct', priority: 'normal',
-        payload: 'Queued 2', timestamp: '2026-02-14T10:01:00Z', delivered: false, acknowledged: false,
-      },
-    ]);
-    render(<AgentChatPanel />);
-    expect(screen.getByText('2 messages queued for offline agents')).toBeDefined();
-  });
-
-  it('does not show queued section when all messages are delivered', () => {
-    withMessages([
-      {
-        id: 'm1', from: 'coder', to: 'all', channel: 'team', priority: 'normal',
-        payload: 'Delivered', timestamp: '2026-02-14T10:00:00Z', delivered: true, acknowledged: false,
-      },
-    ]);
-    render(<AgentChatPanel />);
-    expect(screen.queryByText(/queued for offline agents/)).toBeNull();
+    expect(screen.queryByText(/streaming/i)).toBeNull();
   });
 
   // -- Message sending ------------------------------------------------------
-  it('renders message input fields', () => {
+  it('renders message input field', () => {
     render(<AgentChatPanel />);
 
-    expect(screen.getByLabelText('Recipient')).toBeDefined();
     expect(screen.getByLabelText('Message content')).toBeDefined();
     expect(screen.getByLabelText('Send message')).toBeDefined();
   });
@@ -332,38 +306,11 @@ describe('AgentChatPanel', () => {
   it('calls sendMessage when Send button is clicked', async () => {
     render(<AgentChatPanel />);
 
-    fireEvent.change(screen.getByLabelText('Recipient'), { target: { value: 'agent-1' } });
     fireEvent.change(screen.getByLabelText('Message content'), { target: { value: 'Test message' } });
     fireEvent.click(screen.getByLabelText('Send message'));
 
     await waitFor(() => {
-      expect(mockSendMessage).toHaveBeenCalledWith('agent-1', 'Test message', 'team');
-    });
-  });
-
-  it('sends to "all" when recipient is empty', async () => {
-    render(<AgentChatPanel />);
-
-    fireEvent.change(screen.getByLabelText('Message content'), { target: { value: 'Broadcast msg' } });
-    fireEvent.click(screen.getByLabelText('Send message'));
-
-    await waitFor(() => {
-      expect(mockSendMessage).toHaveBeenCalledWith('all', 'Broadcast msg', 'team');
-    });
-  });
-
-  it('uses active channel filter when sending', async () => {
-    render(<AgentChatPanel />);
-
-    // Switch to Direct channel
-    fireEvent.click(screen.getByRole('tab', { name: 'Direct' }));
-
-    fireEvent.change(screen.getByLabelText('Recipient'), { target: { value: 'agent-1' } });
-    fireEvent.change(screen.getByLabelText('Message content'), { target: { value: 'Direct msg' } });
-    fireEvent.click(screen.getByLabelText('Send message'));
-
-    await waitFor(() => {
-      expect(mockSendMessage).toHaveBeenCalledWith('agent-1', 'Direct msg', 'direct');
+      expect(mockSendMessage).toHaveBeenCalledWith('Test message');
     });
   });
 
@@ -387,38 +334,8 @@ describe('AgentChatPanel', () => {
     fireEvent.keyDown(msgInput, { key: 'Enter' });
 
     await waitFor(() => {
-      expect(mockSendMessage).toHaveBeenCalledWith('all', 'Enter message', 'team');
+      expect(mockSendMessage).toHaveBeenCalledWith('Enter message');
     });
-  });
-
-  // -- Clear messages -------------------------------------------------------
-  it('shows Clear button when messages exist', () => {
-    withMessages([
-      {
-        id: 'm1', from: 'coder', to: 'all', channel: 'team', priority: 'normal',
-        payload: 'msg', timestamp: '2026-02-14T10:00:00Z', delivered: true, acknowledged: false,
-      },
-    ]);
-    render(<AgentChatPanel />);
-    expect(screen.getByLabelText('Clear messages')).toBeDefined();
-  });
-
-  it('does not show Clear button when no messages', () => {
-    render(<AgentChatPanel />);
-    expect(screen.queryByLabelText('Clear messages')).toBeNull();
-  });
-
-  it('calls clearMessages when Clear button is clicked', () => {
-    withMessages([
-      {
-        id: 'm1', from: 'coder', to: 'all', channel: 'team', priority: 'normal',
-        payload: 'msg', timestamp: '2026-02-14T10:00:00Z', delivered: true, acknowledged: false,
-      },
-    ]);
-    render(<AgentChatPanel />);
-
-    fireEvent.click(screen.getByLabelText('Clear messages'));
-    expect(mockClearMessages).toHaveBeenCalledTimes(1);
   });
 
   // -- Accessibility --------------------------------------------------------
@@ -432,72 +349,17 @@ describe('AgentChatPanel', () => {
     expect(screen.getByRole('log', { name: 'Chat messages' })).toBeDefined();
   });
 
-  it('agent registry bar has list role', () => {
-    withAgents([
-      { id: 'a1', role: 'coder', displayName: 'Coder', status: 'online', model: 'gpt-4', lastHeartbeat: new Date().toISOString() },
-    ]);
-    render(<AgentChatPanel />);
-    expect(screen.getByRole('list', { name: 'Agent registry' })).toBeDefined();
-  });
-
-  // -- Message with different priorities ------------------------------------
-  it('renders messages with different priorities', () => {
+  // -- Messages with different roles ----------------------------------------
+  it('renders messages from agent, user, and system roles', () => {
     withMessages([
-      {
-        id: 'm1', from: 'system', to: 'all', channel: 'system', priority: 'critical',
-        payload: 'Critical alert', timestamp: '2026-02-14T10:00:00Z', delivered: true, acknowledged: false,
-      },
-      {
-        id: 'm2', from: 'coder', to: 'all', channel: 'team', priority: 'low',
-        payload: 'Low priority note', timestamp: '2026-02-14T10:01:00Z', delivered: true, acknowledged: false,
-      },
+      { messageId: 'm1', role: 'agent', content: 'Agent says hello', streaming: false, timestamp: Date.now() },
+      { messageId: 'm2', role: 'user', content: 'User responds', streaming: false, timestamp: Date.now() },
+      { messageId: 'm3', role: 'system', content: 'System notification', streaming: false, timestamp: Date.now() },
     ]);
     render(<AgentChatPanel />);
 
-    expect(screen.getByText('Critical alert')).toBeDefined();
-    expect(screen.getByText('Low priority note')).toBeDefined();
-  });
-
-  // -- Message with non-string payload --------------------------------------
-  it('renders JSON payload as stringified text', () => {
-    withMessages([
-      {
-        id: 'm1', from: 'agent', to: 'all', channel: 'system', priority: 'normal',
-        payload: { action: 'deploy', target: 'prod' },
-        timestamp: '2026-02-14T10:00:00Z', delivered: true, acknowledged: false,
-      },
-    ]);
-    render(<AgentChatPanel />);
-
-    expect(screen.getByText('{"action":"deploy","target":"prod"}')).toBeDefined();
-  });
-
-  // -- Agents in different states -------------------------------------------
-  it('renders agents in online, offline, busy, error states', () => {
-    withAgents([
-      { id: 'a1', role: 'coder', displayName: 'Online Agent', status: 'online', model: 'gpt-4', lastHeartbeat: new Date().toISOString() },
-      { id: 'a2', role: 'reviewer', displayName: 'Offline Agent', status: 'offline', model: 'claude', lastHeartbeat: new Date().toISOString() },
-      { id: 'a3', role: 'tester', displayName: 'Busy Agent', status: 'busy', model: 'llama', lastHeartbeat: new Date().toISOString() },
-      { id: 'a4', role: 'deployer', displayName: 'Error Agent', status: 'error', model: 'gpt-4', lastHeartbeat: new Date().toISOString() },
-    ]);
-    render(<AgentChatPanel />);
-
-    expect(screen.getByText('Online Agent')).toBeDefined();
-    expect(screen.getByText('Offline Agent')).toBeDefined();
-    expect(screen.getByText('Busy Agent')).toBeDefined();
-    expect(screen.getByText('Error Agent')).toBeDefined();
-  });
-
-  it('only offline agents have Wake buttons', () => {
-    withAgents([
-      { id: 'a1', role: 'coder', displayName: 'Online Agent', status: 'online', model: 'gpt-4', lastHeartbeat: new Date().toISOString() },
-      { id: 'a2', role: 'reviewer', displayName: 'Offline Agent', status: 'offline', model: 'claude', lastHeartbeat: new Date().toISOString() },
-      { id: 'a3', role: 'tester', displayName: 'Busy Agent', status: 'busy', model: 'llama', lastHeartbeat: new Date().toISOString() },
-    ]);
-    render(<AgentChatPanel />);
-
-    const wakeButtons = screen.getAllByRole('button', { name: /Wake/ });
-    expect(wakeButtons.length).toBe(1);
-    expect(wakeButtons[0].getAttribute('aria-label')).toBe('Wake Offline Agent');
+    expect(screen.getByText('Agent says hello')).toBeDefined();
+    expect(screen.getByText('User responds')).toBeDefined();
+    expect(screen.getByText('System notification')).toBeDefined();
   });
 });

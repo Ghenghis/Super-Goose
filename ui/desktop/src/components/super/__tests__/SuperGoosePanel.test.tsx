@@ -1,18 +1,55 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SuperGoosePanel from '../SuperGoosePanel';
 
-// Mock fetch and EventSource for child panels that use hooks
-class MockEventSource {
-  onopen: (() => void) | null = null;
-  onmessage: ((e: { data: string }) => void) | null = null;
-  onerror: (() => void) | null = null;
-  close = vi.fn();
-}
+// Mock useAgUi — jsdom has no EventSource
+vi.mock('../../../ag-ui/useAgUi', () => ({
+  useAgUi: () => ({
+    connected: false,
+    error: null,
+    runId: null,
+    threadId: null,
+    isRunning: false,
+    currentStep: null,
+    messages: [],
+    agentState: { core_type: 'default', status: 'idle' },
+    activeToolCalls: new Map(),
+    pendingApprovals: [],
+    activities: [],
+    reasoningMessages: [],
+    isReasoning: false,
+    customEvents: [],
+    runCount: 0,
+    approveToolCall: vi.fn(),
+    rejectToolCall: vi.fn(),
+    reconnect: vi.fn(),
+    abortRun: vi.fn(),
+    registerTool: vi.fn(),
+    unregisterTool: vi.fn(),
+    subscribe: vi.fn().mockReturnValue(() => {}),
+    sendMessage: vi.fn(),
+  }),
+}));
 
+// Mock backendApi so child panels (AgentsPanel, MarketplacePanel) don't make real API calls
+vi.mock('../../../utils/backendApi', () => ({
+  backendApi: {
+    getCoreConfig: vi.fn().mockResolvedValue(null),
+    setCoreConfig: vi.fn().mockResolvedValue({ success: true }),
+    listCores: vi.fn().mockResolvedValue([]),
+    switchCore: vi.fn().mockResolvedValue({ success: true, active_core: 'freeform', message: 'ok' }),
+    getExtensions: vi.fn().mockResolvedValue([]),
+    toggleExtension: vi.fn().mockResolvedValue(true),
+    getGpuInfo: vi.fn().mockResolvedValue(null),
+  },
+}));
+
+// Mock fetch for any remaining fetch calls (e.g., StudiosPanel)
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
-  vi.stubGlobal('EventSource', MockEventSource);
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    ok: true,
+    json: () => Promise.resolve({ extensions: [] }),
+  }));
 });
 
 afterEach(() => {
@@ -38,10 +75,12 @@ describe('SuperGoosePanel', () => {
     expect(screen.getByText('Hardware')).toBeDefined();
   });
 
-  it('switches to Studios panel on click', () => {
+  it('switches to Studios panel on click', async () => {
     render(<SuperGoosePanel />);
     fireEvent.click(screen.getByTitle('Studios'));
-    expect(screen.getByText('Core Studio')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText('Core Studio')).toBeDefined();
+    });
     expect(screen.getByText('Agent Studio')).toBeDefined();
   });
 

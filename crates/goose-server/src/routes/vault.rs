@@ -6,9 +6,9 @@ use axum::{
     Json, Router,
 };
 use chrono::{DateTime, Utc};
+use goose::config::Config;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
@@ -25,20 +25,20 @@ const KNOWN_PROVIDERS: &[(&str, &str, &str)] = &[
     ("OLLAMA_HOST", "ollama", ""),
 ];
 
+/// Config key under which vault metadata is stored in config.yaml.
+const VAULT_CONFIG_KEY: &str = "vault_entries";
+
 // ---------------------------------------------------------------------------
 // Data Types
 // ---------------------------------------------------------------------------
 
-/// A single stored key entry (persisted to vault.json).
+/// Metadata for a stored key entry (persisted to config.yaml — no raw values).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VaultEntry {
+pub struct VaultEntryMeta {
     /// The key name (e.g. "ANTHROPIC_API_KEY").
     pub name: String,
     /// The provider this key belongs to (e.g. "anthropic").
     pub provider: String,
-    /// The full key value (only stored on disk, never returned via API).
-    #[serde(default)]
-    pub value: String,
     /// Masked version shown in API responses (e.g. "sk-...abc123").
     #[serde(default)]
     pub masked_value: String,
@@ -61,8 +61,8 @@ pub struct VaultEntryResponse {
     pub is_valid: Option<bool>,
 }
 
-impl From<&VaultEntry> for VaultEntryResponse {
-    fn from(e: &VaultEntry) -> Self {
+impl From<&VaultEntryMeta> for VaultEntryResponse {
+    fn from(e: &VaultEntryMeta) -> Self {
         Self {
             name: e.name.clone(),
             provider: e.provider.clone(),
@@ -108,115 +108,57 @@ pub struct ProviderTestResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Vault Store (encrypted JSON file)
+// Vault Persistence via goose Config system
 // ---------------------------------------------------------------------------
 
-/// On-disk representation of the vault.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-struct VaultStore {
-    /// Version tag for future schema migrations.
-    version: u32,
-    /// Map from key name to entry.
-    entries: HashMap<String, VaultEntry>,
+/// The vault key name used in the goose secret store for each API key.
+/// We prefix with `vault_` to avoid collisions with other secrets.
+fn vault_secret_key(name: &str) -> String {
+    format!("vault_{}", name)
 }
 
-/// Path to the vault file: `~/.config/goose/vault.json`
-fn vault_path() -> PathBuf {
-    let config_dir = dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("goose");
-    config_dir.join("vault.json")
-}
+/// Load all vault entry metadata from config.yaml.
+fn load_vault_metadata() -> Result<HashMap<String, VaultEntryMeta>, String> {
+    let config = Config::global();
 
-/// Derive a 32-byte encryption key from a machine-specific seed.
-///
-/// Current implementation: XOR a fixed constant with a user/machine identifier
-/// derived from the config directory path (which includes the username on all
-/// platforms). This is not cryptographically strong — it simply deters casual
-/// reading of the vault file.
-///
-/// TODO: Upgrade to proper HKDF with a real crypto crate (ring / aes-gcm).
-fn derive_encryption_key() -> [u8; 32] {
-    // Use the config directory path as a machine+user-specific seed.
-    // On Windows this is typically `C:\Users\<name>\AppData\Roaming`,
-    // on macOS `~/Library/Application Support`, on Linux `~/.config`.
-    let seed = dirs::config_dir()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|| "goose-default-host".to_string());
-
-    // Simple key derivation: pad hostname to 32 bytes, XOR with constant.
-    let constant: [u8; 32] = [
-        0x6f, 0x9a, 0x3b, 0xd7, 0x12, 0xe4, 0x5c, 0x88,
-        0xa1, 0x2f, 0x7d, 0xc3, 0x49, 0x86, 0x0e, 0xf5,
-        0x3a, 0xb8, 0x61, 0xd0, 0x17, 0xec, 0x4f, 0x93,
-        0xa6, 0x2c, 0x78, 0xc1, 0x55, 0x8a, 0x0d, 0xf2,
-    ];
-
-    let mut key = [0u8; 32];
-    let seed_bytes = seed.as_bytes();
-    for i in 0..32 {
-        let h = if i < seed_bytes.len() {
-            seed_bytes[i]
-        } else {
-            (i as u8).wrapping_mul(0x37)
-        };
-        key[i] = h ^ constant[i];
+    match config.get_param::<HashMap<String, VaultEntryMeta>>(VAULT_CONFIG_KEY) {
+        Ok(entries) => Ok(entries),
+        Err(goose::config::ConfigError::NotFound(_)) => Ok(HashMap::new()),
+        Err(e) => Err(format!("Failed to load vault metadata: {}", e)),
     }
-    key
 }
 
-/// XOR-encrypt / decrypt bytes with a repeating key.
-///
-/// This is a symmetric cipher — the same function encrypts and decrypts.
-/// It is **not** cryptographically strong (no authentication, no IV).
-/// TODO: Replace with AES-256-GCM once a crypto crate is added.
-fn xor_cipher(data: &[u8], key: &[u8; 32]) -> Vec<u8> {
-    data.iter()
-        .enumerate()
-        .map(|(i, b)| b ^ key[i % 32])
-        .collect()
+/// Save all vault entry metadata to config.yaml.
+fn save_vault_metadata(entries: &HashMap<String, VaultEntryMeta>) -> Result<(), String> {
+    let config = Config::global();
+    config
+        .set_param(VAULT_CONFIG_KEY, entries)
+        .map_err(|e| format!("Failed to save vault metadata: {}", e))
 }
 
-/// Load the vault from disk, decrypting if the file exists.
-fn load_vault() -> Result<VaultStore, String> {
-    let path = vault_path();
-    if !path.exists() {
-        return Ok(VaultStore {
-            version: 1,
-            entries: HashMap::new(),
-        });
-    }
-
-    let raw = std::fs::read(&path).map_err(|e| format!("Failed to read vault file: {}", e))?;
-
-    let key = derive_encryption_key();
-    let decrypted = xor_cipher(&raw, &key);
-
-    let store: VaultStore = serde_json::from_slice(&decrypted)
-        .map_err(|e| format!("Failed to parse vault JSON: {}", e))?;
-
-    Ok(store)
+/// Store an API key value in the goose secret store (keyring with file fallback).
+fn store_secret_value(name: &str, value: &str) -> Result<(), String> {
+    let config = Config::global();
+    let key = vault_secret_key(name);
+    config
+        .set_secret(&key, &value.to_string())
+        .map_err(|e| format!("Failed to store secret '{}': {}", name, e))
 }
 
-/// Save the vault to disk, encrypting before write.
-fn save_vault(store: &VaultStore) -> Result<(), String> {
-    let path = vault_path();
+/// Retrieve an API key value from the goose secret store.
+fn get_secret_value(name: &str) -> Option<String> {
+    let config = Config::global();
+    let key = vault_secret_key(name);
+    config.get_secret::<String>(&key).ok()
+}
 
-    // Ensure parent directory exists.
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create vault directory: {}", e))?;
-    }
-
-    let json =
-        serde_json::to_vec_pretty(store).map_err(|e| format!("Failed to serialize vault: {}", e))?;
-
-    let key = derive_encryption_key();
-    let encrypted = xor_cipher(&json, &key);
-
-    std::fs::write(&path, &encrypted).map_err(|e| format!("Failed to write vault file: {}", e))?;
-
-    Ok(())
+/// Delete an API key value from the goose secret store.
+fn delete_secret_value(name: &str) -> Result<(), String> {
+    let config = Config::global();
+    let key = vault_secret_key(name);
+    config
+        .delete_secret(&key)
+        .map_err(|e| format!("Failed to delete secret '{}': {}", name, e))
 }
 
 /// Mask a key value for display purposes.
@@ -244,12 +186,13 @@ pub fn mask_key(value: &str) -> String {
     format!("{}...{}", &value[..4], &value[suffix_start..])
 }
 
-/// Attempt to read a key value, checking vault first, then environment variables.
+/// Attempt to read a key value, checking the goose secret store first, then
+/// environment variables.
 fn resolve_key_value(name: &str) -> Option<(String, String)> {
-    // 1. Check the vault.
-    if let Ok(store) = load_vault() {
-        if let Some(entry) = store.entries.get(name) {
-            return Some((entry.value.clone(), "vault".to_string()));
+    // 1. Check the goose secret store.
+    if let Some(val) = get_secret_value(name) {
+        if !val.is_empty() {
+            return Some((val, "vault".to_string()));
         }
     }
 
@@ -264,22 +207,155 @@ fn resolve_key_value(name: &str) -> Option<(String, String)> {
 }
 
 // ---------------------------------------------------------------------------
+// Migration from legacy vault.json
+// ---------------------------------------------------------------------------
+
+/// One-time migration from the legacy encrypted vault.json to the goose Config
+/// system. Runs silently on first access; if vault.json does not exist or has
+/// already been migrated, this is a no-op.
+fn maybe_migrate_legacy_vault() {
+    let legacy_path = dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("goose")
+        .join("vault.json");
+
+    if !legacy_path.exists() {
+        return;
+    }
+
+    // Check if we already migrated (marker in config.yaml).
+    let config = Config::global();
+    if let Ok(true) = config.get_param::<bool>("vault_legacy_migrated") {
+        return;
+    }
+
+    tracing::info!("Migrating legacy vault.json to goose Config system...");
+
+    // Attempt to read and decrypt.
+    let raw = match std::fs::read(&legacy_path) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!("Could not read legacy vault.json: {}", e);
+            return;
+        }
+    };
+
+    let key = derive_legacy_encryption_key();
+    let decrypted = legacy_xor_cipher(&raw, &key);
+
+    #[derive(Deserialize)]
+    struct LegacyVaultStore {
+        #[allow(dead_code)]
+        version: u32,
+        entries: HashMap<String, LegacyVaultEntry>,
+    }
+    #[derive(Deserialize)]
+    struct LegacyVaultEntry {
+        name: String,
+        provider: String,
+        value: String,
+        masked_value: String,
+        created_at: DateTime<Utc>,
+        last_used: Option<DateTime<Utc>>,
+        is_valid: Option<bool>,
+    }
+
+    let store: LegacyVaultStore = match serde_json::from_slice(&decrypted) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("Could not parse legacy vault.json: {}", e);
+            return;
+        }
+    };
+
+    // Migrate each entry.
+    let mut metadata = load_vault_metadata().unwrap_or_default();
+
+    for (key_name, entry) in &store.entries {
+        // Store the secret value.
+        if let Err(e) = store_secret_value(key_name, &entry.value) {
+            tracing::warn!("Failed to migrate secret '{}': {}", key_name, e);
+            continue;
+        }
+
+        // Store the metadata.
+        metadata.insert(
+            key_name.clone(),
+            VaultEntryMeta {
+                name: entry.name.clone(),
+                provider: entry.provider.clone(),
+                masked_value: entry.masked_value.clone(),
+                created_at: entry.created_at,
+                last_used: entry.last_used,
+                is_valid: entry.is_valid,
+            },
+        );
+    }
+
+    if let Err(e) = save_vault_metadata(&metadata) {
+        tracing::warn!("Failed to save migrated vault metadata: {}", e);
+        return;
+    }
+
+    // Mark migration as complete.
+    let _ = config.set_param("vault_legacy_migrated", true);
+
+    tracing::info!(
+        "Successfully migrated {} keys from legacy vault.json",
+        store.entries.len()
+    );
+}
+
+/// Legacy XOR cipher for reading old vault.json files during migration.
+fn legacy_xor_cipher(data: &[u8], key: &[u8; 32]) -> Vec<u8> {
+    data.iter()
+        .enumerate()
+        .map(|(i, b)| b ^ key[i % 32])
+        .collect()
+}
+
+/// Legacy key derivation for reading old vault.json files during migration.
+fn derive_legacy_encryption_key() -> [u8; 32] {
+    let seed = dirs::config_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| "goose-default-host".to_string());
+
+    let constant: [u8; 32] = [
+        0x6f, 0x9a, 0x3b, 0xd7, 0x12, 0xe4, 0x5c, 0x88, 0xa1, 0x2f, 0x7d, 0xc3, 0x49, 0x86,
+        0x0e, 0xf5, 0x3a, 0xb8, 0x61, 0xd0, 0x17, 0xec, 0x4f, 0x93, 0xa6, 0x2c, 0x78, 0xc1,
+        0x55, 0x8a, 0x0d, 0xf2,
+    ];
+
+    let mut key = [0u8; 32];
+    let seed_bytes = seed.as_bytes();
+    for i in 0..32 {
+        let h = if i < seed_bytes.len() {
+            seed_bytes[i]
+        } else {
+            (i as u8).wrapping_mul(0x37)
+        };
+        key[i] = h ^ constant[i];
+    }
+    key
+}
+
+// ---------------------------------------------------------------------------
 // Key Management Handlers
 // ---------------------------------------------------------------------------
 
 /// `GET /api/vault/keys` — List all stored keys (masked values only).
 async fn list_keys() -> Result<Json<Vec<VaultEntryResponse>>, ErrorResponse> {
-    let store = load_vault().map_err(ErrorResponse::internal)?;
+    // Migrate legacy data on first access.
+    maybe_migrate_legacy_vault();
 
-    let mut entries: Vec<VaultEntryResponse> = store
-        .entries
-        .values()
-        .map(VaultEntryResponse::from)
-        .collect();
+    let metadata = load_vault_metadata().map_err(ErrorResponse::internal)?;
+
+    let mut entries: Vec<VaultEntryResponse> =
+        metadata.values().map(VaultEntryResponse::from).collect();
 
     // Also include keys detected from environment that are NOT in the vault.
     for &(env_var, provider, _) in KNOWN_PROVIDERS {
-        if !store.entries.contains_key(env_var) {
+        if !metadata.contains_key(env_var) {
             if let Ok(val) = std::env::var(env_var) {
                 if !val.is_empty() {
                     entries.push(VaultEntryResponse {
@@ -315,39 +391,51 @@ async fn store_key(
         return Err(ErrorResponse::bad_request("Provider cannot be empty"));
     }
 
-    let mut store = load_vault().map_err(ErrorResponse::internal)?;
+    // Migrate legacy data on first write too.
+    maybe_migrate_legacy_vault();
+
+    // Store the raw key value in the goose secret store (keyring/file).
+    store_secret_value(&request.name, &request.value).map_err(ErrorResponse::internal)?;
+
+    // Store metadata in config.yaml (no raw key value).
+    let mut metadata = load_vault_metadata().map_err(ErrorResponse::internal)?;
 
     let masked = mask_key(&request.value);
-    let entry = VaultEntry {
+    let entry_meta = VaultEntryMeta {
         name: request.name.clone(),
         provider: request.provider.clone(),
-        value: request.value,
         masked_value: masked,
         created_at: Utc::now(),
         last_used: None,
         is_valid: None,
     };
 
-    store.entries.insert(request.name.clone(), entry.clone());
-    save_vault(&store).map_err(ErrorResponse::internal)?;
+    metadata.insert(request.name.clone(), entry_meta.clone());
+    save_vault_metadata(&metadata).map_err(ErrorResponse::internal)?;
 
-    Ok(Json(VaultEntryResponse::from(&entry)))
+    Ok(Json(VaultEntryResponse::from(&entry_meta)))
 }
 
 /// `DELETE /api/vault/keys/{name}` — Remove a stored key.
 async fn delete_key(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, ErrorResponse> {
-    let mut store = load_vault().map_err(ErrorResponse::internal)?;
+    let mut metadata = load_vault_metadata().map_err(ErrorResponse::internal)?;
 
-    if store.entries.remove(&name).is_none() {
+    if metadata.remove(&name).is_none() {
         return Err(ErrorResponse::not_found(format!(
             "Key '{}' not found in vault",
             name
         )));
     }
 
-    save_vault(&store).map_err(ErrorResponse::internal)?;
+    // Remove the secret from the goose secret store.
+    if let Err(e) = delete_secret_value(&name) {
+        tracing::warn!("Failed to delete secret for '{}': {}", name, e);
+        // Continue — metadata removal is the critical path.
+    }
+
+    save_vault_metadata(&metadata).map_err(ErrorResponse::internal)?;
 
     Ok(Json(serde_json::json!({
         "message": format!("Key '{}' removed successfully", name),
@@ -371,13 +459,13 @@ async fn key_status(
 
     let is_valid = test_key_validity(&name, &value, provider).await;
 
-    // Update the vault entry if it exists.
+    // Update the vault metadata if this key is from the vault.
     if source == "vault" {
-        if let Ok(mut store) = load_vault() {
-            if let Some(entry) = store.entries.get_mut(&name) {
+        if let Ok(mut metadata) = load_vault_metadata() {
+            if let Some(entry) = metadata.get_mut(&name) {
                 entry.is_valid = Some(is_valid);
                 entry.last_used = Some(Utc::now());
-                let _ = save_vault(&store);
+                let _ = save_vault_metadata(&metadata);
             }
         }
     }
@@ -402,18 +490,21 @@ async fn rotate_key(
         return Err(ErrorResponse::bad_request("New key value cannot be empty"));
     }
 
-    let mut store = load_vault().map_err(ErrorResponse::internal)?;
+    let mut metadata = load_vault_metadata().map_err(ErrorResponse::internal)?;
 
-    let entry = store.entries.get_mut(&request.name).ok_or_else(|| {
+    let entry = metadata.get_mut(&request.name).ok_or_else(|| {
         ErrorResponse::not_found(format!("Key '{}' not found in vault", request.name))
     })?;
 
-    entry.value = request.new_value.clone();
+    // Update the secret value.
+    store_secret_value(&request.name, &request.new_value).map_err(ErrorResponse::internal)?;
+
+    // Update metadata.
     entry.masked_value = mask_key(&request.new_value);
     entry.is_valid = None; // Reset validation after rotation.
 
     let response = VaultEntryResponse::from(&*entry);
-    save_vault(&store).map_err(ErrorResponse::internal)?;
+    save_vault_metadata(&metadata).map_err(ErrorResponse::internal)?;
 
     Ok(Json(response))
 }
@@ -424,14 +515,17 @@ async fn rotate_key(
 
 /// `GET /api/vault/providers` — List known providers with key availability status.
 async fn list_providers() -> Result<Json<Vec<ProviderStatus>>, ErrorResponse> {
-    let store = load_vault().map_err(ErrorResponse::internal)?;
+    // Migrate legacy data on first access.
+    maybe_migrate_legacy_vault();
+
+    let metadata = load_vault_metadata().map_err(ErrorResponse::internal)?;
 
     let providers: Vec<ProviderStatus> = KNOWN_PROVIDERS
         .iter()
         .map(|(env_var, name, _)| {
-            // Check vault first, then env.
+            // Check vault metadata first, then env.
             let (has_key, key_source, is_valid) =
-                if let Some(entry) = store.entries.get(*env_var) {
+                if let Some(entry) = metadata.get(*env_var) {
                     (true, Some("vault".to_string()), entry.is_valid)
                 } else if std::env::var(env_var).map(|v| !v.is_empty()).unwrap_or(false) {
                     (true, Some("environment".to_string()), None)
@@ -676,14 +770,13 @@ mod tests {
         assert!(masked.ends_with("345678"), "Got: {}", masked);
     }
 
-    // --- VaultEntry serialization tests ---
+    // --- VaultEntryMeta serialization tests ---
 
     #[test]
-    fn test_vault_entry_serialization() {
-        let entry = VaultEntry {
+    fn test_vault_entry_meta_serialization() {
+        let entry = VaultEntryMeta {
             name: "OPENAI_API_KEY".to_string(),
             provider: "openai".to_string(),
-            value: "sk-live-abcdefghijklmnop".to_string(),
             masked_value: "sk-...lmnop".to_string(),
             created_at: Utc::now(),
             last_used: None,
@@ -696,117 +789,28 @@ mod tests {
         assert_eq!(parsed["name"], "OPENAI_API_KEY");
         assert_eq!(parsed["provider"], "openai");
         assert_eq!(parsed["is_valid"], true);
+        // Metadata struct should never contain a raw "value" field.
+        assert!(parsed.get("value").is_none());
     }
 
     #[test]
-    fn test_vault_entry_response_omits_value() {
-        let entry = VaultEntry {
+    fn test_vault_entry_response_from_meta() {
+        let meta = VaultEntryMeta {
             name: "ANTHROPIC_API_KEY".to_string(),
             provider: "anthropic".to_string(),
-            value: "sk-ant-secret-value-do-not-leak".to_string(),
             masked_value: "sk-...t-leak".to_string(),
             created_at: Utc::now(),
             last_used: None,
             is_valid: None,
         };
 
-        let response = VaultEntryResponse::from(&entry);
+        let response = VaultEntryResponse::from(&meta);
         let json_str = serde_json::to_string(&response).unwrap();
 
-        // The response must NOT contain the raw value.
-        assert!(!json_str.contains("secret-value-do-not-leak"));
         assert!(json_str.contains("sk-...t-leak"));
         assert!(json_str.contains("ANTHROPIC_API_KEY"));
-    }
-
-    // --- VaultStore tests ---
-
-    #[test]
-    fn test_vault_store_default() {
-        let store = VaultStore::default();
-        assert_eq!(store.version, 0);
-        assert!(store.entries.is_empty());
-    }
-
-    #[test]
-    fn test_vault_store_round_trip() {
-        let mut store = VaultStore {
-            version: 1,
-            entries: HashMap::new(),
-        };
-
-        store.entries.insert(
-            "TEST_KEY".to_string(),
-            VaultEntry {
-                name: "TEST_KEY".to_string(),
-                provider: "test".to_string(),
-                value: "secret123".to_string(),
-                masked_value: "***".to_string(),
-                created_at: Utc::now(),
-                last_used: None,
-                is_valid: None,
-            },
-        );
-
-        let json = serde_json::to_string(&store).unwrap();
-        let restored: VaultStore = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(restored.version, 1);
-        assert_eq!(restored.entries.len(), 1);
-        assert!(restored.entries.contains_key("TEST_KEY"));
-        assert_eq!(restored.entries["TEST_KEY"].value, "secret123");
-    }
-
-    // --- XOR cipher tests ---
-
-    #[test]
-    fn test_xor_cipher_round_trip() {
-        let key = derive_encryption_key();
-        let plaintext = b"Hello, vault! This is a secret key value.";
-
-        let encrypted = xor_cipher(plaintext, &key);
-        assert_ne!(encrypted.as_slice(), plaintext.as_slice());
-
-        let decrypted = xor_cipher(&encrypted, &key);
-        assert_eq!(decrypted.as_slice(), plaintext.as_slice());
-    }
-
-    #[test]
-    fn test_xor_cipher_empty_input() {
-        let key = derive_encryption_key();
-        let encrypted = xor_cipher(b"", &key);
-        assert!(encrypted.is_empty());
-    }
-
-    #[test]
-    fn test_xor_cipher_deterministic() {
-        let key = derive_encryption_key();
-        let data = b"consistent output test";
-
-        let enc1 = xor_cipher(data, &key);
-        let enc2 = xor_cipher(data, &key);
-        assert_eq!(enc1, enc2, "Same input + key must produce same output");
-    }
-
-    // --- derive_encryption_key tests ---
-
-    #[test]
-    fn test_derive_encryption_key_is_32_bytes() {
-        let key = derive_encryption_key();
-        assert_eq!(key.len(), 32);
-    }
-
-    #[test]
-    fn test_derive_encryption_key_deterministic() {
-        let k1 = derive_encryption_key();
-        let k2 = derive_encryption_key();
-        assert_eq!(k1, k2, "Key derivation must be deterministic");
-    }
-
-    #[test]
-    fn test_derive_encryption_key_not_all_zeros() {
-        let key = derive_encryption_key();
-        assert!(key.iter().any(|&b| b != 0), "Key should not be all zeros");
+        // No raw value field in the response.
+        assert!(!json_str.contains("\"value\""));
     }
 
     // --- StoreKeyRequest deserialization ---
@@ -920,16 +924,12 @@ mod tests {
         assert!(env_vars.contains(&"OLLAMA_HOST"));
     }
 
-    // --- vault_path test ---
+    // --- vault_secret_key tests ---
 
     #[test]
-    fn test_vault_path_ends_with_vault_json() {
-        let path = vault_path();
-        assert!(
-            path.ends_with("goose/vault.json"),
-            "Expected path ending with goose/vault.json, got: {:?}",
-            path
-        );
+    fn test_vault_secret_key_format() {
+        assert_eq!(vault_secret_key("OPENAI_API_KEY"), "vault_OPENAI_API_KEY");
+        assert_eq!(vault_secret_key("test"), "vault_test");
     }
 
     // --- Route creation test ---
@@ -962,60 +962,36 @@ mod tests {
         assert!(masked.starts_with("xai-..."), "Got: {}", masked);
     }
 
-    // --- Integration-style: full store/load cycle via in-memory JSON ---
+    // --- Legacy migration helpers ---
 
     #[test]
-    fn test_vault_store_json_cycle() {
-        let mut store = VaultStore {
-            version: 1,
-            entries: HashMap::new(),
-        };
+    fn test_legacy_xor_cipher_round_trip() {
+        let key = derive_legacy_encryption_key();
+        let plaintext = b"Hello, vault! This is a secret key value.";
 
-        // Store multiple keys.
-        for (env_var, provider, _) in KNOWN_PROVIDERS {
-            store.entries.insert(
-                env_var.to_string(),
-                VaultEntry {
-                    name: env_var.to_string(),
-                    provider: provider.to_string(),
-                    value: format!("fake-{}-key-value", provider),
-                    masked_value: mask_key(&format!("fake-{}-key-value", provider)),
-                    created_at: Utc::now(),
-                    last_used: None,
-                    is_valid: None,
-                },
-            );
-        }
+        let encrypted = legacy_xor_cipher(plaintext, &key);
+        assert_ne!(encrypted.as_slice(), plaintext.as_slice());
 
-        // Serialize then encrypt.
-        let json = serde_json::to_vec_pretty(&store).unwrap();
-        let key = derive_encryption_key();
-        let encrypted = xor_cipher(&json, &key);
+        let decrypted = legacy_xor_cipher(&encrypted, &key);
+        assert_eq!(decrypted.as_slice(), plaintext.as_slice());
+    }
 
-        // Decrypt then deserialize.
-        let decrypted = xor_cipher(&encrypted, &key);
-        let restored: VaultStore = serde_json::from_slice(&decrypted).unwrap();
+    #[test]
+    fn test_legacy_encryption_key_is_32_bytes() {
+        let key = derive_legacy_encryption_key();
+        assert_eq!(key.len(), 32);
+    }
 
-        assert_eq!(restored.version, 1);
-        assert_eq!(restored.entries.len(), 5);
-        assert_eq!(
-            restored.entries["OPENAI_API_KEY"].provider,
-            "openai"
-        );
-        assert_eq!(
-            restored.entries["ANTHROPIC_API_KEY"].provider,
-            "anthropic"
-        );
+    #[test]
+    fn test_legacy_encryption_key_deterministic() {
+        let k1 = derive_legacy_encryption_key();
+        let k2 = derive_legacy_encryption_key();
+        assert_eq!(k1, k2, "Key derivation must be deterministic");
+    }
 
-        // Verify none of the response conversions leak the raw value.
-        for entry in restored.entries.values() {
-            let resp = VaultEntryResponse::from(entry);
-            let json_str = serde_json::to_string(&resp).unwrap();
-            assert!(
-                !json_str.contains(&entry.value),
-                "Response must not contain raw key value for {}",
-                entry.name
-            );
-        }
+    #[test]
+    fn test_legacy_encryption_key_not_all_zeros() {
+        let key = derive_legacy_encryption_key();
+        assert!(key.iter().any(|&b| b != 0), "Key should not be all zeros");
     }
 }

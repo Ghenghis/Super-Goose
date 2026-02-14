@@ -1,11 +1,11 @@
 use crate::routes::agent_stream::AgentStreamEvent;
 use crate::state::AppState;
 use axum::{
-    extract::State,
-    http,
+    extract::{rejection::JsonRejection, State},
+    http::{self, StatusCode},
     response::IntoResponse,
     routing::{get, post},
-    Router,
+    Json, Router,
 };
 use bytes::Bytes;
 use futures::Stream;
@@ -50,6 +50,10 @@ pub enum AgUiEvent {
     RUN_ERROR {
         message: String,
         code: Option<String>,
+    },
+    RUN_CANCELLED {
+        reason: Option<String>,
+        timestamp: String,
     },
     STEP_STARTED {
         step_name: String,
@@ -494,17 +498,17 @@ async fn ag_ui_stream(
 /// Request body for POST /api/ag-ui/tool-result
 #[derive(Debug, Deserialize)]
 pub struct ToolResultRequest {
-    #[serde(rename = "toolCallId")]
+    /// The tool_call_id that this result belongs to.
+    /// Accepts both `tool_call_id` and `toolCallId` (camelCase alias).
+    #[serde(alias = "toolCallId")]
     pub tool_call_id: String,
-    pub content: String,
+    /// The result value from the tool execution.
+    pub result: serde_json::Value,
 }
 
 /// Request body for POST /api/ag-ui/abort
 #[derive(Debug, Deserialize)]
 pub struct AbortRequest {
-    /// Optional run ID to cancel a specific run. If omitted, cancels the current run.
-    #[serde(rename = "runId", default)]
-    pub run_id: Option<String>,
     /// Optional reason for aborting.
     #[serde(default)]
     pub reason: Option<String>,
@@ -528,89 +532,159 @@ pub struct AgUiPostResponse {
     pub event_id: String,
 }
 
+/// Structured error response for AG-UI POST endpoints.
+///
+/// Uses a `code` field to determine the HTTP status:
+/// - `"BAD_REQUEST"` -> 400 (malformed JSON, missing Content-Type)
+/// - `"VALIDATION_ERROR"` -> 422 (empty required field, invalid data)
+/// - anything else -> 500
+#[derive(Debug, Serialize)]
+pub struct AgUiErrorResponse {
+    pub error: String,
+    pub code: String,
+}
+
+impl IntoResponse for AgUiErrorResponse {
+    fn into_response(self) -> axum::response::Response {
+        let status = match self.code.as_str() {
+            "BAD_REQUEST" => StatusCode::BAD_REQUEST,
+            "VALIDATION_ERROR" => StatusCode::UNPROCESSABLE_ENTITY,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        (status, Json(self)).into_response()
+    }
+}
+
+/// Converts an axum `JsonRejection` into a structured `AgUiErrorResponse`.
+///
+/// All JSON parse/extraction failures are mapped to 400 BAD_REQUEST since
+/// the client sent a request that could not be understood.
+fn json_rejection_to_error(rejection: JsonRejection) -> AgUiErrorResponse {
+    let error = match &rejection {
+        JsonRejection::JsonDataError(err) => {
+            let msg = err.body_text();
+            msg.strip_prefix("Failed to deserialize the JSON body into the target type: ")
+                .unwrap_or(&msg)
+                .to_string()
+        }
+        JsonRejection::JsonSyntaxError(err) => {
+            format!("Invalid JSON: {}", err.body_text())
+        }
+        JsonRejection::MissingJsonContentType(_) => {
+            "Missing Content-Type: application/json header".to_string()
+        }
+        JsonRejection::BytesRejection(err) => {
+            format!("Failed to read request body: {}", err.body_text())
+        }
+        _ => rejection.body_text(),
+    };
+    AgUiErrorResponse {
+        error,
+        code: "BAD_REQUEST".to_string(),
+    }
+}
+
+/// Result type for AG-UI POST handlers that can return either a success
+/// response or a structured error.
+type AgUiPostResult = Result<Json<AgUiPostResponse>, AgUiErrorResponse>;
+
 // ---------------------------------------------------------------------------
 // POST Handlers
 // ---------------------------------------------------------------------------
 
 /// POST /api/ag-ui/tool-result — receives a tool-call result from the frontend.
 ///
-/// Emits a `TOOL_CALL_RESULT` event through the AG-UI event bus so that all
-/// connected SSE clients are notified of the tool result.
+/// Emits a `TOOL_CALL_RESULT` event followed by a `TOOL_CALL_END` event through
+/// the AG-UI event bus. The `TOOL_CALL_RESULT` delivers the result payload, and
+/// `TOOL_CALL_END` signals the tool call lifecycle is complete.
+///
+/// Returns 400 for malformed JSON, 422 for validation errors (empty tool_call_id).
 async fn ag_ui_tool_result(
     State(state): State<Arc<AppState>>,
-    axum::Json(payload): axum::Json<ToolResultRequest>,
-) -> axum::Json<AgUiPostResponse> {
+    payload: Result<Json<ToolResultRequest>, JsonRejection>,
+) -> AgUiPostResult {
+    let Json(payload) = payload.map_err(json_rejection_to_error)?;
+
+    // Validate: tool_call_id must not be empty.
+    if payload.tool_call_id.trim().is_empty() {
+        return Err(AgUiErrorResponse {
+            error: "tool_call_id must not be empty".to_string(),
+            code: "VALIDATION_ERROR".to_string(),
+        });
+    }
+
     let message_id = format!("msg-tr-{}", uuid::Uuid::new_v4());
+    let result_str = serde_json::to_string(&payload.result).unwrap_or_default();
 
     tracing::info!(
         tool_call_id = %payload.tool_call_id,
         message_id = %message_id,
-        content_len = payload.content.len(),
-        "AG-UI tool-result received, emitting TOOL_CALL_RESULT event"
+        result_len = result_str.len(),
+        "AG-UI tool-result received, emitting TOOL_CALL_RESULT + TOOL_CALL_END events"
     );
 
-    let event = AgUiEvent::TOOL_CALL_RESULT {
+    // Emit TOOL_CALL_RESULT with the tool output.
+    let result_event = AgUiEvent::TOOL_CALL_RESULT {
         message_id: message_id.clone(),
-        tool_call_id: payload.tool_call_id,
-        content: payload.content,
+        tool_call_id: payload.tool_call_id.clone(),
+        content: result_str,
         role: Some("tool".to_string()),
     };
+    emit_ag_ui_event_typed(&state, &result_event);
 
-    let ok = emit_ag_ui_event_typed(&state, &event);
+    // Emit TOOL_CALL_END to close the tool call lifecycle.
+    let end_event = AgUiEvent::TOOL_CALL_END {
+        tool_call_id: payload.tool_call_id,
+    };
+    let ok = emit_ag_ui_event_typed(&state, &end_event);
 
-    axum::Json(AgUiPostResponse {
+    Ok(Json(AgUiPostResponse {
         ok,
         event_id: message_id,
-    })
+    }))
 }
 
 /// POST /api/ag-ui/abort — cancels the current agent run.
 ///
-/// Emits a `RUN_ERROR` event (with code `"ABORTED"`) followed by a `CUSTOM`
-/// event named `"abort"` through the AG-UI event bus. The `RUN_ERROR` signals
-/// the canonical AG-UI lifecycle termination, while the `CUSTOM` event carries
-/// the abort metadata for frontend-specific handling.
+/// Emits a `RUN_CANCELLED` event followed by a `RUN_FINISHED` event through
+/// the AG-UI event bus. The `RUN_CANCELLED` event carries the optional reason,
+/// and `RUN_FINISHED` closes the run lifecycle per the AG-UI protocol.
+///
+/// Returns 400 for malformed JSON.
 async fn ag_ui_abort(
     State(state): State<Arc<AppState>>,
-    axum::Json(payload): axum::Json<AbortRequest>,
-) -> axum::Json<AgUiPostResponse> {
-    let run_id = payload
-        .run_id
-        .clone()
-        .unwrap_or_else(|| format!("run-{}", uuid::Uuid::new_v4()));
-    let reason = payload.reason.clone().unwrap_or_else(|| "User requested abort".to_string());
+    payload: Result<Json<AbortRequest>, JsonRejection>,
+) -> AgUiPostResult {
+    let Json(payload) = payload.map_err(json_rejection_to_error)?;
+
     let event_id = format!("abort-{}", uuid::Uuid::new_v4());
+    let reason = payload.reason.clone();
 
     tracing::info!(
-        run_id = %run_id,
         event_id = %event_id,
-        reason = %reason,
-        "AG-UI abort requested, emitting RUN_ERROR + CUSTOM abort events"
+        reason = ?reason,
+        "AG-UI abort requested, emitting RUN_CANCELLED + RUN_FINISHED events"
     );
 
-    // Emit RUN_ERROR to signal the lifecycle termination per AG-UI spec.
-    let run_error = AgUiEvent::RUN_ERROR {
-        message: reason.clone(),
-        code: Some("ABORTED".to_string()),
+    // Emit RUN_CANCELLED to signal the run was cancelled.
+    let cancelled_event = AgUiEvent::RUN_CANCELLED {
+        reason,
+        timestamp: now_rfc3339(),
     };
-    emit_ag_ui_event_typed(&state, &run_error);
+    emit_ag_ui_event_typed(&state, &cancelled_event);
 
-    // Emit CUSTOM abort event with full metadata.
-    let abort_event = AgUiEvent::CUSTOM {
-        name: "abort".to_string(),
-        value: serde_json::json!({
-            "event_id": event_id,
-            "run_id": run_id,
-            "reason": reason,
-            "timestamp": now_rfc3339(),
-        }),
+    // Emit RUN_FINISHED to close the run lifecycle.
+    let finished_event = AgUiEvent::RUN_FINISHED {
+        thread_id: String::new(),
+        run_id: event_id.clone(),
+        result: None,
     };
-    let ok = emit_ag_ui_event_typed(&state, &abort_event);
+    let ok = emit_ag_ui_event_typed(&state, &finished_event);
 
-    axum::Json(AgUiPostResponse {
+    Ok(Json(AgUiPostResponse {
         ok,
         event_id,
-    })
+    }))
 }
 
 /// POST /api/ag-ui/message — receives a user message for the agent.
@@ -619,10 +693,22 @@ async fn ag_ui_abort(
 /// `TEXT_MESSAGE_CONTENT` -> `TEXT_MESSAGE_END`) through the AG-UI event bus.
 /// This follows the AG-UI protocol's streaming message pattern, delivering
 /// the full content in a single delta for non-streaming sources.
+///
+/// Returns 400 for malformed JSON, 422 for empty content.
 async fn ag_ui_message(
     State(state): State<Arc<AppState>>,
-    axum::Json(payload): axum::Json<SendMessageRequest>,
-) -> axum::Json<AgUiPostResponse> {
+    payload: Result<Json<SendMessageRequest>, JsonRejection>,
+) -> AgUiPostResult {
+    let Json(payload) = payload.map_err(json_rejection_to_error)?;
+
+    // Validate: content must not be empty or whitespace-only.
+    if payload.content.trim().is_empty() {
+        return Err(AgUiErrorResponse {
+            error: "content must not be empty".to_string(),
+            code: "VALIDATION_ERROR".to_string(),
+        });
+    }
+
     let message_id = format!("msg-{}", uuid::Uuid::new_v4());
     let role = payload.role.unwrap_or_else(|| "user".to_string());
 
@@ -653,10 +739,10 @@ async fn ag_ui_message(
     };
     let ok = emit_ag_ui_event_typed(&state, &end_event);
 
-    axum::Json(AgUiPostResponse {
+    Ok(Json(AgUiPostResponse {
         ok,
         event_id: message_id,
-    })
+    }))
 }
 
 // ---------------------------------------------------------------------------
@@ -1154,6 +1240,9 @@ mod tests {
             ("RUN_ERROR", AgUiEvent::RUN_ERROR {
                 message: "".into(), code: None,
             }),
+            ("RUN_CANCELLED", AgUiEvent::RUN_CANCELLED {
+                reason: None, timestamp: "".into(),
+            }),
             ("STEP_STARTED", AgUiEvent::STEP_STARTED {
                 step_name: "".into(),
             }),
@@ -1231,8 +1320,8 @@ mod tests {
                 event, expected_tag,
             );
         }
-        // Ensure we tested every variant (24 total).
-        assert_eq!(cases.len(), 24, "Should cover all 24 AgUiEvent variants");
+        // Ensure we tested every variant (25 total).
+        assert_eq!(cases.len(), 25, "Should cover all 25 AgUiEvent variants");
     }
 
     // ===================================================================
@@ -1664,13 +1753,26 @@ mod tests {
 
     #[test]
     fn test_tool_result_request_deserialization() {
+        // Using snake_case field name
         let json = serde_json::json!({
-            "toolCallId": "tc-123",
-            "content": "{\"approved\": true}"
+            "tool_call_id": "tc-123",
+            "result": {"approved": true}
         });
         let req: ToolResultRequest = serde_json::from_value(json).unwrap();
         assert_eq!(req.tool_call_id, "tc-123");
-        assert_eq!(req.content, "{\"approved\": true}");
+        assert_eq!(req.result, serde_json::json!({"approved": true}));
+    }
+
+    #[test]
+    fn test_tool_result_request_deserialization_camel_case() {
+        // Using camelCase alias
+        let json = serde_json::json!({
+            "toolCallId": "tc-456",
+            "result": "plain string result"
+        });
+        let req: ToolResultRequest = serde_json::from_value(json).unwrap();
+        assert_eq!(req.tool_call_id, "tc-456");
+        assert_eq!(req.result, serde_json::json!("plain string result"));
     }
 
     #[test]
@@ -1693,18 +1795,15 @@ mod tests {
     fn test_abort_request_deserialization_empty() {
         let json = serde_json::json!({});
         let req: AbortRequest = serde_json::from_value(json).unwrap();
-        assert!(req.run_id.is_none());
         assert!(req.reason.is_none());
     }
 
     #[test]
-    fn test_abort_request_deserialization_full() {
+    fn test_abort_request_deserialization_with_reason() {
         let json = serde_json::json!({
-            "runId": "run-abc-123",
             "reason": "User cancelled"
         });
         let req: AbortRequest = serde_json::from_value(json).unwrap();
-        assert_eq!(req.run_id.as_deref(), Some("run-abc-123"));
         assert_eq!(req.reason.as_deref(), Some("User cancelled"));
     }
 
@@ -1986,80 +2085,92 @@ mod tests {
     // directly by constructing events the way the handlers do and
     // verifying them through the channel.
 
-    /// Simulate the tool-result handler: emits a single TOOL_CALL_RESULT event.
+    /// Simulate the tool-result handler: emits TOOL_CALL_RESULT + TOOL_CALL_END.
     #[test]
-    fn test_tool_result_handler_emits_correct_event() {
+    fn test_tool_result_handler_emits_correct_events() {
         let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
 
         // Simulate what ag_ui_tool_result does
         let message_id = "msg-tr-test-001".to_string();
-        let event = AgUiEvent::TOOL_CALL_RESULT {
+        let tool_call_id = "tc-456".to_string();
+        let result = serde_json::json!({"approved": true});
+        let result_str = serde_json::to_string(&result).unwrap_or_default();
+
+        let result_event = AgUiEvent::TOOL_CALL_RESULT {
             message_id: message_id.clone(),
-            tool_call_id: "tc-456".to_string(),
-            content: "Tool output data".to_string(),
+            tool_call_id: tool_call_id.clone(),
+            content: result_str,
             role: Some("tool".to_string()),
         };
-        let frame = format_ag_ui_sse(&event);
-        tx.send(frame).unwrap();
+        tx.send(format_ag_ui_sse(&result_event)).unwrap();
 
-        let received = rx.try_recv().unwrap();
-        let payload = received.strip_prefix("data: ").unwrap().trim_end();
-        let parsed: serde_json::Value = serde_json::from_str(payload).unwrap();
-
-        assert_eq!(parsed["type"], "TOOL_CALL_RESULT");
-        assert_eq!(parsed["message_id"], "msg-tr-test-001");
-        assert_eq!(parsed["tool_call_id"], "tc-456");
-        assert_eq!(parsed["content"], "Tool output data");
-        assert_eq!(parsed["role"], "tool");
-    }
-
-    /// Simulate the abort handler: emits RUN_ERROR + CUSTOM abort events.
-    #[test]
-    fn test_abort_handler_emits_correct_events() {
-        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
-
-        // Simulate what ag_ui_abort does
-        let run_id = "run-test-001".to_string();
-        let reason = "User cancelled".to_string();
-        let event_id = "abort-test-001".to_string();
-
-        let run_error = AgUiEvent::RUN_ERROR {
-            message: reason.clone(),
-            code: Some("ABORTED".to_string()),
+        let end_event = AgUiEvent::TOOL_CALL_END {
+            tool_call_id: tool_call_id.clone(),
         };
-        tx.send(format_ag_ui_sse(&run_error)).unwrap();
+        tx.send(format_ag_ui_sse(&end_event)).unwrap();
 
-        let abort_event = AgUiEvent::CUSTOM {
-            name: "abort".to_string(),
-            value: serde_json::json!({
-                "event_id": event_id,
-                "run_id": run_id,
-                "reason": reason,
-                "timestamp": "2026-02-14T00:00:00Z",
-            }),
-        };
-        tx.send(format_ag_ui_sse(&abort_event)).unwrap();
-
-        // Verify RUN_ERROR event
+        // Verify TOOL_CALL_RESULT event
         let frame1 = rx.try_recv().unwrap();
         let p1: serde_json::Value = serde_json::from_str(
             frame1.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
-        assert_eq!(p1["type"], "RUN_ERROR");
-        assert_eq!(p1["message"], "User cancelled");
-        assert_eq!(p1["code"], "ABORTED");
+        assert_eq!(p1["type"], "TOOL_CALL_RESULT");
+        assert_eq!(p1["message_id"], "msg-tr-test-001");
+        assert_eq!(p1["tool_call_id"], "tc-456");
+        assert_eq!(p1["role"], "tool");
 
-        // Verify CUSTOM abort event
+        // Verify TOOL_CALL_END event
         let frame2 = rx.try_recv().unwrap();
         let p2: serde_json::Value = serde_json::from_str(
             frame2.strip_prefix("data: ").unwrap().trim_end()
         ).unwrap();
-        assert_eq!(p2["type"], "CUSTOM");
-        assert_eq!(p2["name"], "abort");
-        assert_eq!(p2["value"]["event_id"], "abort-test-001");
-        assert_eq!(p2["value"]["run_id"], "run-test-001");
-        assert_eq!(p2["value"]["reason"], "User cancelled");
-        assert!(p2["value"]["timestamp"].is_string());
+        assert_eq!(p2["type"], "TOOL_CALL_END");
+        assert_eq!(p2["tool_call_id"], "tc-456");
+    }
+
+    /// Simulate the abort handler: emits a single RUN_CANCELLED event.
+    #[test]
+    fn test_abort_handler_emits_run_cancelled_event() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+
+        // Simulate what ag_ui_abort does
+        let reason = Some("User cancelled".to_string());
+        let timestamp = "2026-02-14T00:00:00Z".to_string();
+
+        let cancelled_event = AgUiEvent::RUN_CANCELLED {
+            reason: reason.clone(),
+            timestamp: timestamp.clone(),
+        };
+        tx.send(format_ag_ui_sse(&cancelled_event)).unwrap();
+
+        // Verify RUN_CANCELLED event
+        let frame = rx.try_recv().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(
+            frame.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(parsed["type"], "RUN_CANCELLED");
+        assert_eq!(parsed["reason"], "User cancelled");
+        assert_eq!(parsed["timestamp"], "2026-02-14T00:00:00Z");
+    }
+
+    /// Simulate the abort handler with no reason: emits RUN_CANCELLED with null reason.
+    #[test]
+    fn test_abort_handler_emits_run_cancelled_no_reason() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+
+        let cancelled_event = AgUiEvent::RUN_CANCELLED {
+            reason: None,
+            timestamp: "2026-02-14T00:00:00Z".to_string(),
+        };
+        tx.send(format_ag_ui_sse(&cancelled_event)).unwrap();
+
+        let frame = rx.try_recv().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(
+            frame.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(parsed["type"], "RUN_CANCELLED");
+        assert!(parsed["reason"].is_null());
+        assert!(parsed["timestamp"].is_string());
     }
 
     /// Simulate the message handler: emits TEXT_MESSAGE_START + CONTENT + END.
@@ -2166,25 +2277,461 @@ mod tests {
         assert_eq!(role, "user");
     }
 
-    /// Verify abort with explicit run_id passes it through.
+    /// Verify abort with explicit reason passes it through.
     #[test]
-    fn test_abort_handler_uses_provided_run_id() {
+    fn test_abort_handler_uses_provided_reason() {
         let req = AbortRequest {
-            run_id: Some("run-explicit-123".into()),
             reason: Some("Testing abort".into()),
         };
-        let run_id = req.run_id.unwrap_or_else(|| "fallback".to_string());
-        assert_eq!(run_id, "run-explicit-123");
+        assert_eq!(req.reason.as_deref(), Some("Testing abort"));
     }
 
-    /// Verify abort without run_id generates a fallback.
+    /// Verify abort without reason defaults to None.
     #[test]
-    fn test_abort_handler_generates_run_id_when_missing() {
+    fn test_abort_handler_reason_defaults_to_none() {
         let req = AbortRequest {
-            run_id: None,
             reason: None,
         };
-        let run_id = req.run_id.unwrap_or_else(|| format!("run-{}", uuid::Uuid::new_v4()));
-        assert!(run_id.starts_with("run-"), "Generated run_id should start with 'run-'");
+        assert!(req.reason.is_none());
+    }
+
+    // ===================================================================
+    // RUN_CANCELLED event serialization / roundtrip
+    // ===================================================================
+
+    #[test]
+    fn test_run_cancelled_event_serialization() {
+        let ev = AgUiEvent::RUN_CANCELLED {
+            reason: Some("User requested abort".into()),
+            timestamp: "2026-02-14T12:00:00Z".into(),
+        };
+        let json = serde_json::to_value(&ev).unwrap();
+        assert_eq!(json["type"], "RUN_CANCELLED");
+        assert_eq!(json["reason"], "User requested abort");
+        assert_eq!(json["timestamp"], "2026-02-14T12:00:00Z");
+    }
+
+    #[test]
+    fn test_run_cancelled_event_no_reason() {
+        let ev = AgUiEvent::RUN_CANCELLED {
+            reason: None,
+            timestamp: "2026-02-14T12:00:00Z".into(),
+        };
+        let json = serde_json::to_value(&ev).unwrap();
+        assert_eq!(json["type"], "RUN_CANCELLED");
+        assert!(json["reason"].is_null());
+    }
+
+    #[test]
+    fn test_roundtrip_run_cancelled() {
+        let event = AgUiEvent::RUN_CANCELLED {
+            reason: Some("timeout".into()),
+            timestamp: "2026-02-14T12:00:00Z".into(),
+        };
+        let json = serde_json::to_value(&event).unwrap();
+        let restored: AgUiEvent = serde_json::from_value(json).unwrap();
+        assert_eq!(event, restored);
+    }
+
+    // ===================================================================
+    // Axum integration tests — call handlers through the router with
+    // tower::ServiceExt::oneshot and verify both HTTP responses and
+    // events on the broadcast channel.
+    // ===================================================================
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_post_tool_result_integration() {
+        let state = AppState::new().await.unwrap();
+        let mut event_rx = state.event_sender().subscribe();
+        let app = routes(state);
+
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/tool-result")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from(
+                serde_json::to_string(&serde_json::json!({
+                    "tool_call_id": "tc-integration-001",
+                    "result": {"output": "success", "code": 0}
+                }))
+                .unwrap(),
+            ))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(response.status(), http::StatusCode::OK);
+
+        // Parse the response body.
+        let body_bytes = axum::body::to_bytes(response.into_body(), 4096).await.unwrap();
+        let resp: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+        assert_eq!(resp["ok"], true);
+        assert!(resp["event_id"].as_str().unwrap().starts_with("msg-tr-"));
+
+        // Verify events arrived on the broadcast channel.
+        // Event 1: TOOL_CALL_RESULT
+        let frame1 = event_rx.try_recv().unwrap();
+        let p1: serde_json::Value = serde_json::from_str(
+            frame1.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p1["type"], "TOOL_CALL_RESULT");
+        assert_eq!(p1["tool_call_id"], "tc-integration-001");
+        assert_eq!(p1["role"], "tool");
+
+        // Event 2: TOOL_CALL_END
+        let frame2 = event_rx.try_recv().unwrap();
+        let p2: serde_json::Value = serde_json::from_str(
+            frame2.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p2["type"], "TOOL_CALL_END");
+        assert_eq!(p2["tool_call_id"], "tc-integration-001");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_post_abort_integration() {
+        let state = AppState::new().await.unwrap();
+        let mut event_rx = state.event_sender().subscribe();
+        let app = routes(state);
+
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/abort")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from(
+                serde_json::to_string(&serde_json::json!({
+                    "reason": "User pressed stop"
+                }))
+                .unwrap(),
+            ))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(response.status(), http::StatusCode::OK);
+
+        // Parse the response body.
+        let body_bytes = axum::body::to_bytes(response.into_body(), 4096).await.unwrap();
+        let resp: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+        assert_eq!(resp["ok"], true);
+        assert!(resp["event_id"].as_str().unwrap().starts_with("abort-"));
+
+        // Verify RUN_CANCELLED event arrived on the broadcast channel.
+        let frame = event_rx.try_recv().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(
+            frame.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(parsed["type"], "RUN_CANCELLED");
+        assert_eq!(parsed["reason"], "User pressed stop");
+        assert!(parsed["timestamp"].as_str().is_some());
+
+        // Verify RUN_FINISHED event closes the run lifecycle.
+        let frame2 = event_rx.try_recv().unwrap();
+        let p2: serde_json::Value = serde_json::from_str(
+            frame2.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p2["type"], "RUN_FINISHED");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_post_message_integration() {
+        let state = AppState::new().await.unwrap();
+        let mut event_rx = state.event_sender().subscribe();
+        let app = routes(state);
+
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/message")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from(
+                serde_json::to_string(&serde_json::json!({
+                    "content": "Hello, agent!",
+                    "role": "user"
+                }))
+                .unwrap(),
+            ))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(response.status(), http::StatusCode::OK);
+
+        // Parse the response body.
+        let body_bytes = axum::body::to_bytes(response.into_body(), 4096).await.unwrap();
+        let resp: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+        assert_eq!(resp["ok"], true);
+        assert!(resp["event_id"].as_str().unwrap().starts_with("msg-"));
+
+        let message_id = resp["event_id"].as_str().unwrap();
+
+        // Verify TEXT_MESSAGE_START
+        let frame1 = event_rx.try_recv().unwrap();
+        let p1: serde_json::Value = serde_json::from_str(
+            frame1.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p1["type"], "TEXT_MESSAGE_START");
+        assert_eq!(p1["message_id"], message_id);
+        assert_eq!(p1["role"], "user");
+
+        // Verify TEXT_MESSAGE_CONTENT
+        let frame2 = event_rx.try_recv().unwrap();
+        let p2: serde_json::Value = serde_json::from_str(
+            frame2.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p2["type"], "TEXT_MESSAGE_CONTENT");
+        assert_eq!(p2["message_id"], message_id);
+        assert_eq!(p2["delta"], "Hello, agent!");
+
+        // Verify TEXT_MESSAGE_END
+        let frame3 = event_rx.try_recv().unwrap();
+        let p3: serde_json::Value = serde_json::from_str(
+            frame3.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p3["type"], "TEXT_MESSAGE_END");
+        assert_eq!(p3["message_id"], message_id);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_post_abort_empty_body_integration() {
+        let state = AppState::new().await.unwrap();
+        let mut event_rx = state.event_sender().subscribe();
+        let app = routes(state);
+
+        // Empty JSON body — reason should be None
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/abort")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from("{}"))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(response.status(), http::StatusCode::OK);
+
+        let frame = event_rx.try_recv().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(
+            frame.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(parsed["type"], "RUN_CANCELLED");
+        assert!(parsed["reason"].is_null(), "reason should be null when not provided");
+
+        // RUN_FINISHED also emitted.
+        let frame2 = event_rx.try_recv().unwrap();
+        let p2: serde_json::Value = serde_json::from_str(
+            frame2.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p2["type"], "RUN_FINISHED");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_post_message_default_role_integration() {
+        let state = AppState::new().await.unwrap();
+        let mut event_rx = state.event_sender().subscribe();
+        let app = routes(state);
+
+        // Omit role — should default to "user"
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/message")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from(
+                serde_json::to_string(&serde_json::json!({
+                    "content": "No role provided"
+                }))
+                .unwrap(),
+            ))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(response.status(), http::StatusCode::OK);
+
+        // Verify TEXT_MESSAGE_START has role "user" (the default)
+        let frame = event_rx.try_recv().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(
+            frame.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(parsed["type"], "TEXT_MESSAGE_START");
+        assert_eq!(parsed["role"], "user");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_post_tool_result_camel_case_integration() {
+        let state = AppState::new().await.unwrap();
+        let mut event_rx = state.event_sender().subscribe();
+        let app = routes(state);
+
+        // Use camelCase toolCallId alias
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/tool-result")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from(
+                serde_json::to_string(&serde_json::json!({
+                    "toolCallId": "tc-camel-001",
+                    "result": "simple string result"
+                }))
+                .unwrap(),
+            ))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(response.status(), http::StatusCode::OK);
+
+        // Verify TOOL_CALL_RESULT uses the correct tool_call_id
+        let frame = event_rx.try_recv().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(
+            frame.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(parsed["type"], "TOOL_CALL_RESULT");
+        assert_eq!(parsed["tool_call_id"], "tc-camel-001");
+    }
+
+    // ===================================================================
+    // Error handling and validation tests
+    // ===================================================================
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_tool_result_malformed_json_returns_400() {
+        let state = AppState::new().await.unwrap();
+        let app = routes(state);
+
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/tool-result")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from("not json"))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(
+            response.status(),
+            http::StatusCode::BAD_REQUEST,
+            "Malformed JSON should return 400"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_tool_result_missing_field_returns_400() {
+        let state = AppState::new().await.unwrap();
+        let app = routes(state);
+
+        // Missing 'result' field — deserialization should fail.
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/tool-result")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from(
+                serde_json::to_string(&serde_json::json!({ "tool_call_id": "tc-1" })).unwrap(),
+            ))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(
+            response.status(),
+            http::StatusCode::BAD_REQUEST,
+            "Missing required field should return 400"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_tool_result_empty_tool_call_id_returns_422() {
+        let state = AppState::new().await.unwrap();
+        let app = routes(state);
+
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/tool-result")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from(
+                serde_json::to_string(&serde_json::json!({
+                    "tool_call_id": "  ",
+                    "result": "ok"
+                }))
+                .unwrap(),
+            ))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(
+            response.status(),
+            http::StatusCode::UNPROCESSABLE_ENTITY,
+            "Empty tool_call_id should return 422"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_abort_malformed_json_returns_400() {
+        let state = AppState::new().await.unwrap();
+        let app = routes(state);
+
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/abort")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from("{broken"))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(
+            response.status(),
+            http::StatusCode::BAD_REQUEST,
+            "Malformed JSON should return 400"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_message_missing_content_returns_400() {
+        let state = AppState::new().await.unwrap();
+        let app = routes(state);
+
+        // Missing required 'content' field — deserialization should fail.
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/message")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from(
+                serde_json::to_string(&serde_json::json!({ "role": "user" })).unwrap(),
+            ))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(
+            response.status(),
+            http::StatusCode::BAD_REQUEST,
+            "Missing required field should return 400"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_message_empty_content_returns_422() {
+        let state = AppState::new().await.unwrap();
+        let app = routes(state);
+
+        let request = axum::http::Request::builder()
+            .uri("/api/ag-ui/message")
+            .method("POST")
+            .header("Content-Type", "application/json")
+            .body(axum::body::Body::from(
+                serde_json::to_string(&serde_json::json!({
+                    "content": "   ",
+                    "role": "user"
+                }))
+                .unwrap(),
+            ))
+            .unwrap();
+
+        let response = tower::ServiceExt::oneshot(app, request).await.unwrap();
+        assert_eq!(
+            response.status(),
+            http::StatusCode::UNPROCESSABLE_ENTITY,
+            "Empty/whitespace content should return 422"
+        );
+    }
+
+    #[test]
+    fn test_ag_ui_error_response_serialization() {
+        let err = AgUiErrorResponse {
+            error: "test error".to_string(),
+            code: "BAD_REQUEST".to_string(),
+        };
+        let json = serde_json::to_value(&err).unwrap();
+        assert_eq!(json["error"], "test error");
+        assert_eq!(json["code"], "BAD_REQUEST");
     }
 }
