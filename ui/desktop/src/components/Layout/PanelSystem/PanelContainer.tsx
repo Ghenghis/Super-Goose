@@ -7,7 +7,7 @@
  * In locked mode, the header is hidden for the center zone (chat stays clean).
  */
 
-import { GripVertical, Minimize2, Maximize2, X } from 'lucide-react';
+import { GripVertical, Minimize2, X } from 'lucide-react';
 import { cn } from '../../../utils';
 import type { PanelConfig, LayoutZone } from './types';
 import { usePanelSystem } from './PanelSystemProvider';
@@ -69,25 +69,16 @@ export function PanelContainer({
               <button
                 onClick={() => toggleZoneCollapsed(zone)}
                 className="p-0.5 rounded hover:bg-background-medium text-text-muted hover:text-text-default transition-colors"
-                title="Minimize"
+                title="Toggle collapse"
               >
                 <Minimize2 className="w-3 h-3" />
-              </button>
-            )}
-            {config.collapsible && (
-              <button
-                onClick={() => toggleZoneCollapsed(zone)}
-                className="p-0.5 rounded hover:bg-background-medium text-text-muted hover:text-text-default transition-colors"
-                title="Maximize"
-              >
-                <Maximize2 className="w-3 h-3" />
               </button>
             )}
             {config.closable && (
               <button
                 onClick={() => togglePanel(config.id)}
                 className="p-0.5 rounded hover:bg-background-medium text-text-muted hover:text-text-default transition-colors"
-                title="Close"
+                title="Close panel"
               >
                 <X className="w-3 h-3" />
               </button>

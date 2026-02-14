@@ -78,26 +78,39 @@ impl AgentCore for FreeformCore {
     }
 
     async fn execute(&self, _ctx: &mut AgentContext, task: &str) -> Result<CoreOutput> {
-        // FreeformCore delegates to Agent::reply_internal() — the existing behavior.
-        // This method is called by the Agent dispatcher which handles the actual
-        // reply_internal() invocation. The core just records metrics.
+        // ──────────────────────────────────────────────────────────────────
+        // Architecture note: FreeformCore is the "classic Goose" execution
+        // path.  It does NOT re-implement the reply loop here because the
+        // Agent already drives reply_internal() directly when this core is
+        // selected.
         //
-        // In the initial wiring phase, FreeformCore is a pass-through.
-        // The Agent continues to call reply_internal() directly when FreeformCore
-        // is active, since reply_internal() IS the freeform execution strategy.
+        // The planned migration path is:
+        //
+        //   1. Agent::reply() currently calls reply_internal() directly.
+        //   2. When the dispatcher is refactored to route through
+        //      core.execute() for ALL cores (not just specialized ones),
+        //      FreeformCore.execute() will receive an AgentContext that
+        //      carries the Provider + Conversation, and it will call
+        //      reply_internal() itself.
+        //   3. Until then, this method is invoked by the Agent only for
+        //      bookkeeping (metrics, core selection tracking).
+        //
+        // DO NOT add LLM calls here without first completing step 2.
+        // The Agent's reply_internal() handles: reflexion, guardrails,
+        // memory, HITL, compaction, checkpointing, and streaming.
+        // ──────────────────────────────────────────────────────────────────
 
         let start = std::time::Instant::now();
-
-        // The actual execution happens in Agent::reply() which streams events.
-        // This execute() is a placeholder that will be fully wired when the
-        // Agent dispatcher switches from direct reply_internal() to core.execute().
-        //
-        // For now, we record that freeform was "selected" and return a pass-through output.
+        let task_preview = truncate(task, 100);
         let elapsed = start.elapsed();
+
         let output = CoreOutput {
             completed: true,
-            summary: format!("Freeform execution of: {}", truncate(task, 100)),
-            turns_used: 0, // Will be populated by Agent dispatcher
+            summary: format!(
+                "Freeform pass-through (Agent::reply_internal handles execution): {}",
+                task_preview
+            ),
+            turns_used: 0, // Populated by Agent dispatcher after reply_internal() completes
             artifacts: vec![],
             metrics: CoreMetricsSnapshot::default(),
         };
@@ -166,5 +179,27 @@ mod tests {
     fn test_freeform_description() {
         let core = FreeformCore::new();
         assert!(!core.description().is_empty());
+        assert!(core.description().contains("LLM loop"));
+    }
+
+    #[test]
+    fn test_freeform_metrics_ref() {
+        let core = FreeformCore::new();
+        let snapshot = core.metrics_ref().snapshot();
+        assert_eq!(snapshot.total_executions, 0);
+    }
+
+    #[test]
+    fn test_truncate_function() {
+        assert_eq!(truncate("hello", 10), "hello");
+        assert_eq!(truncate("hello world", 5), "hello");
+        assert_eq!(truncate("", 5), "");
+    }
+
+    #[test]
+    fn test_freeform_default_impl() {
+        let core = FreeformCore::default();
+        assert_eq!(core.name(), "freeform");
+        assert_eq!(core.core_type(), CoreType::Freeform);
     }
 }

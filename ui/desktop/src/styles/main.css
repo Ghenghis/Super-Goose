@@ -471,32 +471,32 @@
    Panel System — Resize Handles, Transitions, Zone Animations
    ──────────────────────────────────────────────────────────────────────────── */
 
-/* Resize handle base */
-[data-panel-group-direction="horizontal"] > [data-resize-handle] {
-  width: 1px;
+/* Resize handle base — react-resizable-panels uses [role="separator"] */
+[role="separator"][data-separator] {
+  transition: background-color 150ms ease, box-shadow 150ms ease;
   background: var(--border-default, hsl(var(--border)));
-  transition: width 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+/* Horizontal separators — used inside #sg-main-horizontal */
+[role="separator"][aria-orientation="vertical"] {
+  width: 6px;
   cursor: col-resize;
 }
 
-[data-panel-group-direction="vertical"] > [data-resize-handle] {
-  height: 1px;
-  background: var(--border-default, hsl(var(--border)));
-  transition: height 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
-  cursor: row-resize;
-}
-
-/* Resize handle hover glow */
-[data-panel-group-direction="horizontal"] > [data-resize-handle]:hover,
-[data-panel-group-direction="horizontal"] > [data-resize-handle][data-resize-handle-active] {
-  width: 4px;
+[role="separator"][aria-orientation="vertical"]:hover,
+[role="separator"][aria-orientation="vertical"][data-separator="dragging"] {
   background: var(--sg-indigo, #6366f1);
   box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
 }
 
-[data-panel-group-direction="vertical"] > [data-resize-handle]:hover,
-[data-panel-group-direction="vertical"] > [data-resize-handle][data-resize-handle-active] {
-  height: 4px;
+/* Vertical separators — used inside #sg-main-vertical */
+[role="separator"][aria-orientation="horizontal"] {
+  height: 6px;
+  cursor: row-resize;
+}
+
+[role="separator"][aria-orientation="horizontal"]:hover,
+[role="separator"][aria-orientation="horizontal"][data-separator="dragging"] {
   background: var(--sg-indigo, #6366f1);
   box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
 }
@@ -525,13 +525,11 @@
   letter-spacing: 0.01em;
 }
 
-/* Lock mode — hide resize handles completely */
-.layout-locked [data-resize-handle] {
-  width: 1px !important;
-  height: 1px !important;
+/* Lock mode — disable resize handles but preserve their size for layout stability */
+.layout-locked [role="separator"] {
   cursor: default !important;
   pointer-events: none;
-  opacity: 0.3;
+  opacity: 0.15;
 }
 
 /* Fade-in animation for panels appearing */
@@ -570,8 +568,8 @@
 }
 
 /* Super-Goose panel system overrides — scoped */
-[data-super="true"] [data-resize-handle]:hover,
-[data-super="true"] [data-resize-handle][data-resize-handle-active] {
+[data-super="true"] [role="separator"]:hover,
+[data-super="true"] [role="separator"][data-separator="dragging"] {
   background: var(--sg-gold, #fbbf24);
   box-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
 }

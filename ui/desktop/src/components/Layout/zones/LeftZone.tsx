@@ -16,7 +16,7 @@ interface LeftZoneProps {
 export function LeftZone({ children, className }: LeftZoneProps) {
   return (
     <div
-      className={cn('h-full overflow-hidden flex flex-col', className)}
+      className={cn('h-full overflow-hidden flex flex-col min-w-0', className)}
       data-testid="left-zone"
     >
       {children}

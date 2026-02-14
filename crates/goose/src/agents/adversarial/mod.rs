@@ -72,6 +72,19 @@ pub struct QualityStandards {
     pub require_docs: bool,
     /// Custom quality checks
     pub custom_checks: Vec<String>,
+    /// Minimum quality score threshold (0.0 to 1.0) — work below this
+    /// score is automatically rejected regardless of individual checks.
+    /// Defaults to 0.5 (reject anything below 50% quality).
+    #[serde(default = "default_min_quality_score")]
+    pub min_quality_score: f32,
+    /// Maximum allowed error-like lines in output. Each detected error
+    /// line deducts 0.1 from the quality score. Set to 0 for no limit.
+    #[serde(default)]
+    pub max_error_lines: usize,
+}
+
+fn default_min_quality_score() -> f32 {
+    0.5
 }
 
 impl Default for QualityStandards {
@@ -84,6 +97,8 @@ impl Default for QualityStandards {
             no_todos: true,
             require_docs: true,
             custom_checks: Vec::new(),
+            min_quality_score: 0.5,
+            max_error_lines: 0, // 0 = no limit (deduction still applies)
         }
     }
 }
@@ -99,6 +114,8 @@ impl QualityStandards {
             no_todos: false,
             require_docs: false,
             custom_checks: Vec::new(),
+            min_quality_score: 0.3, // Very lenient
+            max_error_lines: 0,
         }
     }
 
@@ -115,6 +132,8 @@ impl QualityStandards {
                 "cargo clippy --all-targets -- -D warnings".to_string(),
                 "cargo audit".to_string(),
             ],
+            min_quality_score: 0.8, // Must score at least 80%
+            max_error_lines: 0,     // Any error lines cause deduction
         }
     }
 }

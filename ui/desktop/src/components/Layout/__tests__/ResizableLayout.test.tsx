@@ -47,6 +47,7 @@ const defaultPanelSystemValue = {
   resetLayout: vi.fn(),
   saveCustomLayout: vi.fn(),
   handlePanelResize: vi.fn(),
+  handleVerticalResize: vi.fn(),
 };
 
 const mockUsePanelSystem = vi.fn(() => defaultPanelSystemValue);

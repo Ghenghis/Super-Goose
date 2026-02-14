@@ -127,7 +127,7 @@ mod tests {
 
         let output = result.unwrap();
         assert!(output.completed);
-        assert!(output.summary.contains("Freeform execution"));
+        assert!(output.summary.contains("Freeform pass-through"));
     }
 
     #[tokio::test]

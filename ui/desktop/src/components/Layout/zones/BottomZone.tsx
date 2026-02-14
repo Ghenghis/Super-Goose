@@ -1,9 +1,10 @@
 /**
- * BottomZone — collapsible bottom panel for Pipeline, Terminal, Logs.
+ * BottomZone — resizable bottom panel for Pipeline, Terminal, Logs.
  *
  * Features:
  *   - Tab strip for switching between panels
- *   - Collapsible to a thin 32px tab strip
+ *   - Vertically resizable via react-resizable-panels (parent Group)
+ *   - Tab strip doubles as collapse/expand toggle
  *   - Pipeline docked here instead of inline in BaseChat
  */
 
@@ -36,7 +37,7 @@ export function BottomZone({ panelComponents, children, className }: BottomZoneP
   return (
     <div
       className={cn(
-        'flex flex-col border-t border-border-default bg-background-default overflow-hidden',
+        'flex flex-col h-full border-t border-border-default bg-background-default overflow-hidden',
         className
       )}
       data-testid="bottom-zone"
@@ -86,7 +87,7 @@ export function BottomZone({ panelComponents, children, className }: BottomZoneP
         </button>
       </div>
 
-      {/* Panel content — hidden when collapsed */}
+      {/* Panel content — fills remaining height */}
       {!isCollapsed && (
         <div className="flex-1 min-h-0 overflow-auto">
           {panelComponents && activePanel && panelComponents[activePanel]

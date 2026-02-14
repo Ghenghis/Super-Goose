@@ -19,7 +19,6 @@ vi.mock('../PanelSystem/PanelSystemProvider', () => ({
 vi.mock('lucide-react', () => ({
   GripVertical: () => <span data-testid="icon-grip-vertical" />,
   Minimize2: () => <span data-testid="icon-minimize2" />,
-  Maximize2: () => <span data-testid="icon-maximize2" />,
   X: () => <span data-testid="icon-x" />,
 }));
 
@@ -137,7 +136,7 @@ describe('PanelContainer', () => {
         <div>Content</div>
       </PanelContainer>
     );
-    expect(screen.getByTitle('Close')).toBeInTheDocument();
+    expect(screen.getByTitle('Close panel')).toBeInTheDocument();
   });
 
   it('hides close button for non-closable panels', () => {
@@ -147,7 +146,7 @@ describe('PanelContainer', () => {
         <div>Content</div>
       </PanelContainer>
     );
-    expect(screen.queryByTitle('Close')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Close panel')).not.toBeInTheDocument();
   });
 
   it('calls togglePanel when close button clicked', () => {
@@ -157,7 +156,7 @@ describe('PanelContainer', () => {
         <div>Content</div>
       </PanelContainer>
     );
-    fireEvent.click(screen.getByTitle('Close'));
+    fireEvent.click(screen.getByTitle('Close panel'));
     expect(mockTogglePanel).toHaveBeenCalledWith('pipeline');
   });
 
@@ -168,7 +167,7 @@ describe('PanelContainer', () => {
         <div>Content</div>
       </PanelContainer>
     );
-    fireEvent.click(screen.getByTitle('Minimize'));
+    fireEvent.click(screen.getByTitle('Toggle collapse'));
     expect(mockToggleZoneCollapsed).toHaveBeenCalledWith('bottom');
   });
 

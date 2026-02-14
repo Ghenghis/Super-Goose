@@ -1,21 +1,24 @@
 /**
  * ResizableLayout — main layout orchestrator using react-resizable-panels.
  *
- * Replaces the fixed Sidebar+SidebarInset layout in AppLayout with a
- * fully resizable, customizable zone-based system.
- *
  * Structure:
- *   ┌─────┬──────────┬──────┐
- *   │Left │  Center  │Right │   ← Horizontal Group
- *   │     │          │      │
- *   ├─────┴──────────┴──────┤
- *   │      Bottom Zone      │   ← Vertical (outside horizontal group)
- *   ├───────────────────────┤
- *   │      Status Bar       │   ← Fixed 28px
- *   └───────────────────────┘
+ *   ┌─────────────────────────┐
+ *   │  Vertical PanelGroup    │
+ *   │ ┌─────┬────────┬──────┐ │
+ *   │ │Left │ Center │Right │ │  ← Top Panel (Horizontal Group)
+ *   │ │     │        │      │ │
+ *   │ ├─────┴────────┴──────┤ │
+ *   │ │  ═══ resize bar ═══ │ │  ← Vertical Separator
+ *   │ ├─────────────────────┤ │
+ *   │ │    Bottom Zone      │ │  ← Bottom Panel (resizable)
+ *   │ └─────────────────────┘ │
+ *   ├─────────────────────────┤
+ *   │      Status Bar         │  ← Fixed 28px
+ *   └─────────────────────────┘
  */
 
-import { Group, Panel, Separator } from 'react-resizable-panels';
+import { useCallback } from 'react';
+import { Group, Panel, Separator, type Layout } from 'react-resizable-panels';
 import { cn } from '../../utils';
 import { usePanelSystem } from './PanelSystem/PanelSystemProvider';
 import { LeftZone } from './zones/LeftZone';
@@ -25,50 +28,108 @@ import { BottomZone } from './zones/BottomZone';
 import { StatusBar } from './zones/StatusBar';
 import type { PanelId } from './PanelSystem/types';
 
-// ---------------------------------------------------------------------------
-// Resize Handle Component
-// ---------------------------------------------------------------------------
+/** Separator size in pixels — must match CSS [role="separator"] width/height */
+const SEP_SIZE = 6;
 
-function ResizeHandle({
-  direction,
-  isLocked,
-}: {
-  direction: 'horizontal' | 'vertical';
-  isLocked: boolean;
-}) {
-  if (isLocked) {
-    return (
-      <div
-        className={cn(
-          direction === 'horizontal' ? 'w-px' : 'h-px',
-          'bg-border-default'
-        )}
-      />
-    );
-  }
-
+/** Vertical separator (between left/center/right panels) */
+function VSeparator({ disabled, id }: { disabled: boolean; id: string }) {
   return (
     <Separator
-      className={cn(
-        'group relative transition-colors',
-        direction === 'horizontal'
-          ? 'w-1 hover:w-1.5 cursor-col-resize'
-          : 'h-1 hover:h-1.5 cursor-row-resize',
-        'bg-border-default hover:bg-accent',
-        'data-[separator]:hover:bg-accent'
-      )}
+      disabled={disabled}
+      id={id}
+      style={{ width: SEP_SIZE, flexBasis: SEP_SIZE }}
+    />
+  );
+}
+
+/** Horizontal separator (between top/bottom panels) */
+function HSeparator({ disabled, id }: { disabled: boolean; id: string }) {
+  return (
+    <Separator
+      disabled={disabled}
+      id={id}
+      style={{ height: SEP_SIZE, flexBasis: SEP_SIZE }}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Horizontal Content (Left + Center + Right)
+// ---------------------------------------------------------------------------
+
+function HorizontalContent({
+  leftContent,
+  centerContent,
+  rightPanelComponents,
+  showLeft,
+  showRight,
+  left,
+  right,
+  isLocked,
+  onLayoutChanged,
+  layoutGeneration,
+}: {
+  leftContent: React.ReactNode;
+  centerContent: React.ReactNode;
+  rightPanelComponents?: Partial<Record<PanelId, React.ReactNode>>;
+  showLeft: boolean;
+  showRight: boolean;
+  left: { sizePercent: number };
+  right: { sizePercent: number };
+  isLocked: boolean;
+  onLayoutChanged?: (layout: Layout) => void;
+  layoutGeneration?: number;
+}) {
+  return (
+    <Group
+      key={`h-gen-${layoutGeneration ?? 0}`}
+      orientation="horizontal"
+      id="sg-main-horizontal"
+      className="h-full"
+      onLayoutChanged={onLayoutChanged}
     >
-      {/* Visual indicator dot on hover */}
-      <div
-        className={cn(
-          'absolute opacity-0 group-hover:opacity-100 transition-opacity',
-          'bg-accent rounded-full',
-          direction === 'horizontal'
-            ? 'w-1 h-8 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'
-            : 'h-1 w-8 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'
-        )}
-      />
-    </Separator>
+      {/* LEFT PANEL — icon sidebar, collapsible to 0 */}
+      {showLeft && (
+        <>
+          <Panel
+            id="left-zone"
+            defaultSize={Math.max(left.sizePercent, 10)}
+            minSize={3}
+            maxSize={30}
+            collapsible={true}
+            collapsedSize={0}
+          >
+            <LeftZone>{leftContent}</LeftZone>
+          </Panel>
+          <VSeparator disabled={isLocked} id="sep-left-center" />
+        </>
+      )}
+
+      {/* CENTER PANEL (always visible) */}
+      <Panel
+        id="center-zone"
+        minSize={20}
+      >
+        <CenterZone>{centerContent}</CenterZone>
+      </Panel>
+
+      {/* RIGHT PANEL — agent panel, collapsible to 0 */}
+      {showRight && (
+        <>
+          <VSeparator disabled={isLocked} id="sep-center-right" />
+          <Panel
+            id="right-zone"
+            defaultSize={Math.max(right.sizePercent, 15)}
+            minSize={8}
+            maxSize={50}
+            collapsible={true}
+            collapsedSize={0}
+          >
+            <RightZone panelComponents={rightPanelComponents} />
+          </Panel>
+        </>
+      )}
+    </Group>
   );
 }
 
@@ -98,72 +159,109 @@ export function ResizableLayout({
   statusBarContent,
   className,
 }: ResizableLayoutProps) {
-  const { layout, isLocked } = usePanelSystem();
+  const { layout, isLocked, handlePanelResize, handleVerticalResize, layoutGeneration } = usePanelSystem();
   const { left, right, bottom } = layout.zones;
 
   const showLeft = left.visible;
   const showRight = right.visible && right.panels.length > 0;
   const showBottom = bottom.visible && bottom.panels.length > 0;
 
+  // Sync horizontal panel sizes back to state
+  // Uses the same showLeft/showRight booleans that control rendering
+  const onHorizontalLayout = useCallback(
+    (layoutObj: Layout) => {
+      const sizes: number[] = [];
+      if (showLeft && layoutObj['left-zone'] != null) sizes.push(layoutObj['left-zone']);
+      sizes.push(layoutObj['center-zone'] ?? 100);
+      if (showRight && layoutObj['right-zone'] != null) sizes.push(layoutObj['right-zone']);
+      handlePanelResize(sizes);
+    },
+    [handlePanelResize, showLeft, showRight]
+  );
+
+  // Sync vertical panel sizes (top/bottom split) back to state
+  const onVerticalLayout = useCallback(
+    (layoutObj: Layout) => {
+      const bottomSize = layoutObj['bottom-zone'];
+      if (bottomSize != null) {
+        handleVerticalResize(bottomSize);
+      }
+    },
+    [handleVerticalResize]
+  );
+
   return (
     <div
-      className={cn('flex flex-col h-full w-full min-h-0', className)}
+      className={cn(
+        'flex flex-col h-full w-full min-h-0',
+        isLocked && 'layout-locked',
+        className,
+      )}
       data-testid="resizable-layout"
     >
-      {/* ── Main horizontal split ──────────────────────────────────── */}
+      {/* ── Vertical split: top content + bottom zone ─────────────── */}
       <div className="flex-1 min-h-0">
-        <Group
-          orientation="horizontal"
-          id="sg-main-horizontal"
-        >
-          {/* LEFT PANEL */}
-          {showLeft && (
-            <>
-              <Panel
-                id="left-zone"
-                defaultSize={left.sizePercent}
-                minSize={10}
-                maxSize={30}
-                collapsible={true}
-                collapsedSize={0}
-              >
-                <LeftZone>{leftContent}</LeftZone>
-              </Panel>
-              <ResizeHandle direction="horizontal" isLocked={isLocked} />
-            </>
-          )}
-
-          {/* CENTER PANEL (always visible) */}
-          <Panel
-            id="center-zone"
-            minSize={30}
+        {showBottom ? (
+          <Group
+            key={`v-gen-${layoutGeneration}`}
+            orientation="vertical"
+            id="sg-main-vertical"
+            className="h-full"
+            onLayoutChanged={onVerticalLayout}
           >
-            <CenterZone>{centerContent}</CenterZone>
-          </Panel>
+            {/* TOP: Horizontal layout (left + center + right) */}
+            <Panel
+              id="top-content"
+              defaultSize={bottom.collapsed ? 95 : 100 - bottom.sizePercent}
+              minSize={30}
+            >
+              <HorizontalContent
+                leftContent={leftContent}
+                centerContent={centerContent}
+                rightPanelComponents={rightPanelComponents}
+                showLeft={showLeft}
+                showRight={showRight}
+                left={left}
+                right={right}
+                isLocked={isLocked}
+                onLayoutChanged={onHorizontalLayout}
+                layoutGeneration={layoutGeneration}
+              />
+            </Panel>
 
-          {/* RIGHT PANEL */}
-          {showRight && (
-            <>
-              <ResizeHandle direction="horizontal" isLocked={isLocked} />
-              <Panel
-                id="right-zone"
-                defaultSize={right.sizePercent}
-                minSize={15}
-                maxSize={45}
-                collapsible={true}
-                collapsedSize={0}
-              >
-                <RightZone panelComponents={rightPanelComponents} />
-              </Panel>
-            </>
-          )}
-        </Group>
+            {/* Vertical resize handle between top and bottom */}
+            <HSeparator
+              disabled={isLocked || bottom.collapsed}
+              id="sep-top-bottom"
+            />
+
+            {/* BOTTOM: Pipeline, Terminal, Logs */}
+            <Panel
+              id="bottom-zone"
+              defaultSize={bottom.collapsed ? 5 : bottom.sizePercent}
+              minSize={5}
+              maxSize={50}
+              collapsible={true}
+              collapsedSize={5}
+            >
+              <BottomZone panelComponents={bottomPanelComponents} />
+            </Panel>
+          </Group>
+        ) : (
+          /* No bottom zone — just the horizontal layout */
+          <HorizontalContent
+            leftContent={leftContent}
+            centerContent={centerContent}
+            rightPanelComponents={rightPanelComponents}
+            showLeft={showLeft}
+            showRight={showRight}
+            left={left}
+            right={right}
+            isLocked={isLocked}
+            onLayoutChanged={onHorizontalLayout}
+          />
+        )}
       </div>
-
-      {/* ── Bottom zone ────────────────────────────────────────────── */}
-      {showBottom && (
-        <BottomZone panelComponents={bottomPanelComponents} />
-      )}
 
       {/* ── Status bar (always visible) ────────────────────────────── */}
       <StatusBar>{statusBarContent}</StatusBar>

@@ -255,10 +255,15 @@ class ElectronTerminal {
       this.outputCallbacks.set(session.id, new Set());
 
       // Subscribe to output events from this session
-      const unsubscribe = this.api.on(`terminal:output:${session.id}`, (data: string) => {
+      // Electron IPC passes (event, ...args) — we must skip the event parameter
+      const channel = `terminal:output:${session.id}`;
+      const handler = (_event: unknown, data: string) => {
         this.handleOutput(session.id, data);
+      };
+      this.api.on(channel, handler as any);
+      this.ipcUnsubscribers.set(session.id, () => {
+        this.api.off?.(channel, handler as any);
       });
-      this.ipcUnsubscribers.set(session.id, unsubscribe);
 
       return session;
     } catch (error) {

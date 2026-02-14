@@ -66,7 +66,7 @@ export function PanelToolbar() {
         </button>
 
         {presetOpen && (
-          <div className="absolute bottom-full left-0 mb-1 w-48 py-1 bg-background-default border border-border-default rounded-lg shadow-lg z-50">
+          <div className="absolute bottom-full right-0 mb-1 w-52 py-1 bg-background-default border border-border-default rounded-lg shadow-lg z-50">
             {presets.map((preset) => (
               <button
                 key={preset.id}
@@ -141,7 +141,7 @@ export function PanelToolbar() {
             </button>
 
             {panelsOpen && (
-              <div className="absolute bottom-full left-0 mb-1 w-44 py-1 bg-background-default border border-border-default rounded-lg shadow-lg z-50">
+              <div className="absolute bottom-full right-0 mb-1 w-48 py-1 bg-background-default border border-border-default rounded-lg shadow-lg z-50">
                 {toggleablePanels.map((panel) => {
                   const visible = isPanelVisible(panel.id);
                   return (

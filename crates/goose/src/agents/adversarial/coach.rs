@@ -446,6 +446,53 @@ impl CoachAgent {
             }
         }
 
+        // --- Check 6: error line count — count error-like patterns in output ---
+        {
+            let error_patterns = [
+                "error:", "error[", "Error:", "ERROR:", "panic:", "PANIC:",
+                "exception:", "Exception:", "EXCEPTION:", "fatal:", "FATAL:",
+            ];
+            let error_line_count = player_result
+                .output
+                .lines()
+                .filter(|line| error_patterns.iter().any(|pat| line.contains(pat)))
+                .count();
+
+            if error_line_count > 0 {
+                // Enforce max_error_lines if configured (0 = no hard limit)
+                if standards.max_error_lines > 0 && error_line_count > standards.max_error_lines {
+                    issues.push(ReviewIssue {
+                        severity: IssueSeverity::Critical,
+                        category: IssueCategory::CompilationError,
+                        description: format!(
+                            "Output contains {} error lines (max allowed: {})",
+                            error_line_count, standards.max_error_lines,
+                        ),
+                        location: None,
+                    });
+                    suggestions.push(format!(
+                        "Reduce error count to at most {} before submitting",
+                        standards.max_error_lines,
+                    ));
+                } else if error_line_count > 0 {
+                    issues.push(ReviewIssue {
+                        severity: IssueSeverity::Info,
+                        category: IssueCategory::CodeQuality,
+                        description: format!(
+                            "Detected {} error-like line(s) in output",
+                            error_line_count,
+                        ),
+                        location: None,
+                    });
+                }
+
+                debug!(
+                    error_line_count,
+                    "Error-like lines detected in player output"
+                );
+            }
+        }
+
         // --- Score calculation ---
         // Start at 1.0 and deduct based on issue severity
         let mut quality_score: f32 = 1.0;
@@ -464,7 +511,19 @@ impl CoachAgent {
             .iter()
             .any(|i| i.severity == IssueSeverity::Critical);
         let has_major = issues.iter().any(|i| i.severity == IssueSeverity::Major);
-        let approved = !has_critical && !has_major;
+
+        // Apply configurable quality threshold: even if no critical/major issues,
+        // reject work that falls below the minimum quality score.
+        let below_threshold = quality_score < standards.min_quality_score;
+        if below_threshold && !has_critical && !has_major {
+            info!(
+                quality_score,
+                min = standards.min_quality_score,
+                "Work rejected: quality score below configurable threshold"
+            );
+        }
+
+        let approved = !has_critical && !has_major && !below_threshold;
 
         let feedback = if approved {
             if positive_notes.is_empty() {
@@ -678,5 +737,81 @@ mod tests {
         coach.reset_stats();
         assert_eq!(coach.review_count(), 0);
         assert_eq!(coach.approval_rate(), 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_coach_review_error_lines_detected() {
+        let mut coach = CoachAgent::new();
+
+        // Result with error lines in output
+        let mut player_result = PlayerResult::success("Compiled with errors");
+        player_result.output = "Building...\nerror: missing semicolon\nerror: unknown type\nDone.\n".to_string();
+
+        let review = coach.review_work(&player_result).await.unwrap();
+        // Should have an informational issue about error lines
+        let error_issues: Vec<_> = review
+            .issues
+            .iter()
+            .filter(|i| i.description.contains("error-like line"))
+            .collect();
+        assert!(!error_issues.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_coach_review_max_error_lines_enforced() {
+        let mut config = CoachConfig::default();
+        config.quality_standards.max_error_lines = 1; // only allow 1 error line
+        let mut coach = CoachAgent::with_config(config);
+
+        // Result with 3 error lines — exceeds limit
+        let mut player_result = PlayerResult::success("Build output");
+        player_result.output =
+            "error: first\nerror: second\nerror: third\n".to_string();
+
+        let review = coach.review_work(&player_result).await.unwrap();
+
+        // Should be rejected (critical issue for exceeding max_error_lines)
+        assert!(!review.approved);
+        let critical_errors: Vec<_> = review
+            .issues
+            .iter()
+            .filter(|i| {
+                i.severity == IssueSeverity::Critical
+                    && i.description.contains("error lines")
+            })
+            .collect();
+        assert!(!critical_errors.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_coach_review_quality_threshold() {
+        let mut config = CoachConfig::default();
+        // Set a high threshold — even minor issues will cause rejection
+        config.quality_standards.min_quality_score = 0.95;
+        config.quality_standards.no_todos = true;
+        let mut coach = CoachAgent::with_config(config);
+
+        // Result with TODO markers (minor issue, -0.2 score)
+        let mut player_result = PlayerResult::success("Task complete");
+        player_result.output = "TODO: clean up later\nFIXME: handle edge case\n".to_string();
+
+        let review = coach.review_work(&player_result).await.unwrap();
+        // Score should be below 0.95 due to TODO markers (Major -0.2)
+        assert!(review.quality_score < 0.95);
+        assert!(!review.approved, "Should be rejected due to quality threshold");
+    }
+
+    #[tokio::test]
+    async fn test_coach_review_relaxed_threshold_approves() {
+        let mut config = CoachConfig::default();
+        config.quality_standards = QualityStandards::relaxed();
+        let mut coach = CoachAgent::with_config(config);
+
+        // Clean success output — should pass relaxed standards easily
+        let player_result = PlayerResult::success("Everything looks good");
+
+        let review = coach.review_work(&player_result).await.unwrap();
+        assert!(review.approved);
+        assert!(review.quality_score >= 0.3); // relaxed threshold
     }
 }

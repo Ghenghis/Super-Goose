@@ -23,6 +23,7 @@ pub mod session;
 pub mod settings;
 pub mod setup;
 pub mod status;
+pub mod system;
 pub mod telemetry;
 pub mod tunnel;
 pub mod utils;
@@ -58,5 +59,6 @@ pub fn configure(state: Arc<crate::state::AppState>, secret_key: String) -> Rout
         .merge(extensions::routes(state.clone()))
         .merge(agent_stream::routes(state.clone()))
         .merge(ag_ui_stream::routes(state.clone()))
+        .merge(system::routes(state.clone()))
         .merge(mcp_app_proxy::routes(secret_key))
 }

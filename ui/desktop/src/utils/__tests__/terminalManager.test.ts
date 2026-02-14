@@ -20,6 +20,7 @@ import {
 interface MockElectronAPI {
   invoke: ReturnType<typeof vi.fn>;
   on: ReturnType<typeof vi.fn>;
+  off: ReturnType<typeof vi.fn>;
   platform?: string;
 }
 
@@ -27,7 +28,8 @@ interface MockElectronAPI {
 function setupMockElectron(): MockElectronAPI {
   const mockAPI: MockElectronAPI = {
     invoke: vi.fn(),
-    on: vi.fn(() => vi.fn()), // Return unsubscribe function
+    on: vi.fn(),
+    off: vi.fn(),
     platform: 'win32',
   };
 
@@ -311,24 +313,27 @@ describe('TerminalManager', () => {
         createdAt: new Date().toISOString(),
       };
 
-      let outputCallback: ((data: string) => void) | null = null;
+      // Capture the handler registered via api.on(channel, handler)
+      let outputHandler: ((_event: unknown, data: string) => void) | null = null;
 
       mockAPI.invoke.mockResolvedValueOnce(mockSession);
-      mockAPI.on.mockImplementationOnce((channel: string, callback: (data: string) => void) => {
-        expect(channel).toBe(`terminal:output:${mockSession.id}`);
-        outputCallback = callback;
-        return vi.fn(); // Return unsubscribe function
-      });
+      mockAPI.on.mockImplementationOnce(
+        (channel: string, callback: (_event: unknown, data: string) => void) => {
+          expect(channel).toBe(`terminal:output:${mockSession.id}`);
+          outputHandler = callback;
+        }
+      );
 
       const session = await manager.createSession();
       const outputs: TerminalOutput[] = [];
 
       manager.onOutput(session.id, (output) => outputs.push(output));
 
-      // Simulate output from Electron
-      expect(outputCallback).toBeTruthy();
-      outputCallback!('Hello from terminal\r\n');
-      outputCallback!('Another line\r\n');
+      // Simulate output from Electron IPC — passes (event, data) like real ipcRenderer
+      const fakeEvent = { sender: {}, ports: [] }; // Mimics IpcRendererEvent
+      expect(outputHandler).toBeTruthy();
+      outputHandler!(fakeEvent, 'Hello from terminal\r\n');
+      outputHandler!(fakeEvent, 'Another line\r\n');
 
       expect(outputs).toHaveLength(2);
       expect(outputs[0].data).toBe('Hello from terminal\r\n');
@@ -368,9 +373,7 @@ describe('TerminalManager', () => {
         createdAt: new Date().toISOString(),
       };
 
-      const mockUnsubscribe = vi.fn();
       mockAPI.invoke.mockResolvedValueOnce(mockSession);
-      mockAPI.on.mockReturnValueOnce(mockUnsubscribe);
 
       const session = await manager.createSession();
 
@@ -378,7 +381,11 @@ describe('TerminalManager', () => {
 
       await manager.closeSession(session.id);
 
-      expect(mockUnsubscribe).toHaveBeenCalled();
+      // Should unsubscribe by calling api.off with the channel
+      expect(mockAPI.off).toHaveBeenCalledWith(
+        `terminal:output:${session.id}`,
+        expect.any(Function)
+      );
       expect(mockAPI.invoke).toHaveBeenCalledWith('terminal:close', {
         sessionId: session.id,
       });
@@ -503,7 +510,6 @@ describe('TerminalManager', () => {
     });
 
     it('should invoke "terminal:close" for session teardown', async () => {
-      const mockUnsubscribe = vi.fn();
       mockAPI.invoke.mockResolvedValueOnce({
         id: 'chan-test-4',
         pid: 9003,
@@ -511,7 +517,6 @@ describe('TerminalManager', () => {
         cwd: '/tmp',
         createdAt: new Date().toISOString(),
       });
-      mockAPI.on.mockReturnValueOnce(mockUnsubscribe);
 
       const manager = new TerminalManager();
       const session = await manager.createSession();
@@ -535,7 +540,6 @@ describe('TerminalManager', () => {
       const capturedChannels: string[] = [];
       mockAPI.on.mockImplementation((channel: string) => {
         capturedChannels.push(channel);
-        return vi.fn();
       });
 
       const manager = new TerminalManager();
@@ -638,7 +642,6 @@ describe('TerminalManager', () => {
     });
 
     it('should include sessionId in terminal:close payload', async () => {
-      const mockUnsubscribe = vi.fn();
       mockAPI.invoke.mockResolvedValueOnce({
         id: 'close-payload-test',
         pid: 9021,
@@ -646,7 +649,6 @@ describe('TerminalManager', () => {
         cwd: '/tmp',
         createdAt: new Date().toISOString(),
       });
-      mockAPI.on.mockReturnValueOnce(mockUnsubscribe);
 
       const manager = new TerminalManager();
       const session = await manager.createSession();

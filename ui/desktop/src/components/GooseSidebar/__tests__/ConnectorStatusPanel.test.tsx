@@ -97,4 +97,53 @@ describe('ConnectorStatusPanel', () => {
     render(<ConnectorStatusPanel />);
     expect(screen.getByText('0/0')).toBeInTheDocument();
   });
+
+  it('renders extension-derived connectors with well-known fallbacks', () => {
+    mockState.connectors = [
+      { id: 'ext-developer', name: 'Developer', state: 'connected', description: 'builtin' },
+      { id: 'ext-memory', name: 'Memory', state: 'available', description: 'stdio' },
+      { id: 'wk-github', name: 'GitHub', state: 'available', description: 'Repository hosting' },
+      { id: 'wk-docker-hub', name: 'Docker Hub', state: 'available', description: 'Container registry' },
+      { id: 'wk-ollama', name: 'Ollama', state: 'available', description: 'Local model runtime' },
+    ];
+    render(<ConnectorStatusPanel />);
+
+    // 1 connected out of 5 total
+    expect(screen.getByText('1/5')).toBeInTheDocument();
+    expect(screen.getByText('Developer')).toBeInTheDocument();
+    expect(screen.getByText('Memory')).toBeInTheDocument();
+    expect(screen.getByText('GitHub')).toBeInTheDocument();
+    expect(screen.getByText('Docker Hub')).toBeInTheDocument();
+    expect(screen.getByText('Ollama')).toBeInTheDocument();
+  });
+
+  it('shows only well-known connectors as available when no extensions match', () => {
+    mockState.connectors = [
+      { id: 'wk-github', name: 'GitHub', state: 'available', description: 'Repository hosting' },
+      { id: 'wk-docker-hub', name: 'Docker Hub', state: 'available', description: 'Container registry' },
+      { id: 'wk-ollama', name: 'Ollama', state: 'available', description: 'Local model runtime' },
+      { id: 'wk-claude-api', name: 'Claude API', state: 'available', description: 'Anthropic API' },
+      { id: 'wk-openai', name: 'OpenAI', state: 'available', description: 'OpenAI API' },
+    ];
+    render(<ConnectorStatusPanel />);
+
+    // 0 connected out of 5 total
+    expect(screen.getByText('0/5')).toBeInTheDocument();
+
+    // All should show "Available" label — 5 text labels + 5 aria-labels
+    const availableLabels = screen.getAllByText('Available');
+    expect(availableLabels).toHaveLength(5);
+  });
+
+  it('shows all connectors as connected when extensions are all enabled', () => {
+    mockState.connectors = [
+      { id: 'ext-a', name: 'ExtA', state: 'connected', description: 'builtin' },
+      { id: 'ext-b', name: 'ExtB', state: 'connected', description: 'stdio' },
+    ];
+    render(<ConnectorStatusPanel />);
+
+    expect(screen.getByText('2/2')).toBeInTheDocument();
+    const connectedLabels = screen.getAllByText('Connected');
+    expect(connectedLabels.length).toBeGreaterThanOrEqual(2);
+  });
 });

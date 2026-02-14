@@ -30,7 +30,7 @@ export function RightZone({ children, panelComponents, className }: RightZonePro
 
   return (
     <div
-      className={cn('h-full overflow-hidden flex flex-col', className)}
+      className={cn('h-full overflow-hidden flex flex-col min-w-0', className)}
       data-testid="right-zone"
     >
       {/* Tab strip — only show when multiple panels */}

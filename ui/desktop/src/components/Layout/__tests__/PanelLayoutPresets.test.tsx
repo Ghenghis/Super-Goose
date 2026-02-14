@@ -40,12 +40,14 @@ describe('PanelLayoutPresets', () => {
     expect(PRESET_FOCUS.zones.center.panels).toContain('chat');
   });
 
-  it('standard preset shows sidebar + chat + bottom pipeline', () => {
+  it('standard preset shows sidebar + chat + agent panel + pipeline', () => {
     expect(PRESET_STANDARD.zones.left.visible).toBe(true);
     expect(PRESET_STANDARD.zones.left.panels).toContain('sidebar');
     expect(PRESET_STANDARD.zones.center.panels).toContain('chat');
     expect(PRESET_STANDARD.zones.bottom.panels).toContain('pipeline');
-    expect(PRESET_STANDARD.zones.right.visible).toBe(false);
+    expect(PRESET_STANDARD.zones.right.visible).toBe(true);
+    expect(PRESET_STANDARD.zones.right.panels).toContain('agentPanel');
+    expect(PRESET_STANDARD.zones.right.panels).toContain('superGoose');
   });
 
   it('full preset shows all zones', () => {

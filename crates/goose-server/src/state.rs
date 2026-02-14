@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::task::JoinHandle;
 
 use crate::tunnel::TunnelManager;
@@ -48,6 +48,10 @@ pub struct AppState {
     pub extension_loading_tasks: ExtensionLoadingTasks,
     /// Shared OTA build progress — written by background build task, read by polling endpoint.
     pub ota_build_progress: Arc<RwLock<Option<OtaBuildProgress>>>,
+    /// Broadcast channel for AG-UI events. Producers (agent execution, POST endpoints) send
+    /// serialized JSON event strings; the SSE handler subscribes to receive and forward them.
+    /// Uses `String` to avoid complex `Send`/`Sync` type constraints on the broadcast channel.
+    pub event_bus: broadcast::Sender<String>,
 }
 
 impl AppState {
@@ -56,6 +60,9 @@ impl AppState {
 
         let agent_manager = AgentManager::instance().await?;
         let tunnel_manager = Arc::new(TunnelManager::new());
+        // 4096-slot broadcast channel — lagging subscribers will get a RecvError::Lagged.
+        // Sized generously to absorb burst tool-call traffic without dropping events.
+        let (event_bus, _) = broadcast::channel::<String>(4096);
 
         Ok(Arc::new(Self {
             agent_manager,
@@ -64,6 +71,7 @@ impl AppState {
             tunnel_manager,
             extension_loading_tasks: Arc::new(Mutex::new(HashMap::new())),
             ota_build_progress: Arc::new(RwLock::new(None)),
+            event_bus,
         }))
     }
 
@@ -125,6 +133,14 @@ impl AppState {
             sessions.insert(session_id.to_string());
             true
         }
+    }
+
+    /// Returns a reference to the AG-UI event broadcast sender.
+    ///
+    /// Callers can use this to publish serialized AG-UI events that will be
+    /// delivered to all connected SSE clients.
+    pub fn event_sender(&self) -> &broadcast::Sender<String> {
+        &self.event_bus
     }
 
     pub async fn get_agent(&self, session_id: String) -> anyhow::Result<Arc<goose::agents::Agent>> {

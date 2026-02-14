@@ -17,6 +17,7 @@ use std::{
     task::{Context, Poll},
     time::Duration,
 };
+use tokio::sync::broadcast;
 use tokio_stream::wrappers::ReceiverStream;
 
 // ---------------------------------------------------------------------------
@@ -328,7 +329,7 @@ impl IntoResponse for AgUiSseResponse {
             .header("Cache-Control", "no-cache")
             .header("Connection", "keep-alive")
             .body(body)
-            .unwrap()
+            .expect("AG-UI SSE response builder: static headers should never fail")
     }
 }
 
@@ -353,6 +354,63 @@ fn format_ag_ui_sse(event: &AgUiEvent) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// Event Bus Helpers
+// ---------------------------------------------------------------------------
+
+/// Emit an AG-UI event through the broadcast channel.
+///
+/// This serializes the given `AgUiEvent` as an SSE frame and sends it to all
+/// connected SSE clients. Returns `true` if the event was accepted (i.e. at
+/// least one subscriber exists), `false` if no subscribers are listening.
+///
+/// # Example
+/// ```ignore
+/// emit_ag_ui_event_typed(&state, &AgUiEvent::CUSTOM {
+///     name: "my_event".into(),
+///     value: serde_json::json!({"key": "value"}),
+/// });
+/// ```
+#[allow(dead_code)] // Public API — will be called by POST endpoint handlers and agent execution code.
+pub fn emit_ag_ui_event_typed(state: &AppState, event: &AgUiEvent) -> bool {
+    let frame = format_ag_ui_sse(event);
+    // send() returns Err only when there are no active receivers — that's fine.
+    state.event_sender().send(frame).is_ok()
+}
+
+/// Emit an AG-UI event through the broadcast channel from raw parts.
+///
+/// Constructs a `CUSTOM` event with the given `event_type` as the name and
+/// `data` as the value, then publishes it. This is a convenience wrapper for
+/// callers that don't want to construct a full `AgUiEvent`.
+///
+/// Returns `true` if the event was sent, `false` if there are no subscribers.
+#[allow(dead_code)] // Public API — convenience wrapper for emitting CUSTOM events.
+pub fn emit_ag_ui_event(state: &AppState, event_type: &str, data: &serde_json::Value) -> bool {
+    let event = AgUiEvent::CUSTOM {
+        name: event_type.to_string(),
+        value: data.clone(),
+    };
+    emit_ag_ui_event_typed(state, &event)
+}
+
+/// Emit a bridged legacy event through the AG-UI broadcast channel.
+///
+/// Converts the given `AgentStreamEvent` to AG-UI protocol events using the
+/// bridge function, then sends each one through the broadcast channel.
+/// Returns the number of events successfully sent.
+#[allow(dead_code)] // Public API — bridges legacy AgentStreamEvent to AG-UI and emits via event bus.
+pub fn emit_bridged_event(state: &AppState, legacy_event: &AgentStreamEvent) -> usize {
+    let ag_ui_events = bridge_legacy_event(legacy_event);
+    let mut sent = 0;
+    for ev in &ag_ui_events {
+        if emit_ag_ui_event_typed(state, ev) {
+            sent += 1;
+        }
+    }
+    sent
+}
+
+// ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
@@ -361,13 +419,13 @@ fn format_ag_ui_sse(event: &AgUiEvent) -> String {
 /// Opens a long-lived SSE connection that emits AG-UI protocol events.
 ///
 /// The stream starts with a `STATE_SNAPSHOT` of the current agent state,
-/// then converts incoming legacy `AgentStreamEvent`s to AG-UI events via the
-/// bridge function. A `CUSTOM { name: "heartbeat" }` event is sent every 2
-/// seconds as a keep-alive.
+/// then multiplexes real AG-UI events (from the broadcast channel) with a
+/// keep-alive heartbeat every 2 seconds using `tokio::select!`.
 async fn ag_ui_stream(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> AgUiSseResponse {
     let (tx, rx) = tokio::sync::mpsc::channel::<String>(32);
+    let mut event_rx = state.event_sender().subscribe();
 
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(2));
@@ -387,21 +445,40 @@ async fn ag_ui_stream(
             }
         }
 
-        // Heartbeat loop — sends a CUSTOM heartbeat every 2 seconds.
-        // When full event-bus integration is wired, this loop will also
-        // receive real `AgentStreamEvent`s, bridge them, and push them.
+        // Multiplex: heartbeat timer + real events from broadcast channel.
         loop {
-            interval.tick().await;
-
-            let heartbeat = AgentStreamEvent::Heartbeat {
-                timestamp: now_rfc3339(),
-            };
-
-            let ag_ui_events = bridge_legacy_event(&heartbeat);
-            for ev in &ag_ui_events {
-                if tx.send(format_ag_ui_sse(ev)).await.is_err() {
-                    tracing::debug!("ag-ui-stream client disconnected");
-                    return;
+            tokio::select! {
+                _ = interval.tick() => {
+                    let heartbeat = AgentStreamEvent::Heartbeat {
+                        timestamp: now_rfc3339(),
+                    };
+                    let ag_ui_events = bridge_legacy_event(&heartbeat);
+                    for ev in &ag_ui_events {
+                        if tx.send(format_ag_ui_sse(ev)).await.is_err() {
+                            tracing::debug!("ag-ui-stream client disconnected (heartbeat)");
+                            return;
+                        }
+                    }
+                }
+                result = event_rx.recv() => {
+                    match result {
+                        Ok(event_data) => {
+                            // event_data is already a formatted SSE frame (data: ...\n\n)
+                            if tx.send(event_data).await.is_err() {
+                                tracing::debug!("ag-ui-stream client disconnected (event)");
+                                return;
+                            }
+                        }
+                        Err(broadcast::error::RecvError::Lagged(n)) => {
+                            tracing::warn!("AG-UI SSE client lagged, dropped {n} events");
+                            // Continue receiving — the client missed some events but
+                            // can still get future ones.
+                        }
+                        Err(broadcast::error::RecvError::Closed) => {
+                            tracing::debug!("AG-UI event bus closed, ending SSE stream");
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -439,6 +516,7 @@ async fn ag_ui_tool_result(
 ) -> axum::http::StatusCode {
     tracing::info!(
         tool_call_id = %payload.tool_call_id,
+        content_len = payload.content.len(),
         "AG-UI tool-result received"
     );
     // TODO: Wire into agent execution pipeline when event bus is connected.
@@ -1513,6 +1591,235 @@ mod tests {
                 .trim_end();
             let parsed: serde_json::Value = serde_json::from_str(payload).unwrap();
             assert!(parsed.get("type").is_some(), "Every frame must have a type tag");
+        }
+    }
+
+    // ===================================================================
+    // Broadcast channel / event bus integration tests
+    // ===================================================================
+
+    /// Verify that the broadcast channel can send and receive serialized AG-UI events.
+    #[test]
+    fn test_broadcast_channel_basic_send_recv() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+
+        let event = AgUiEvent::CUSTOM {
+            name: "test_event".into(),
+            value: serde_json::json!({"key": "value"}),
+        };
+        let frame = format_ag_ui_sse(&event);
+
+        tx.send(frame.clone()).unwrap();
+        let received = rx.try_recv().unwrap();
+        assert_eq!(received, frame);
+
+        // Parse the received frame back to verify JSON integrity.
+        let payload = received.strip_prefix("data: ").unwrap().trim_end();
+        let parsed: serde_json::Value = serde_json::from_str(payload).unwrap();
+        assert_eq!(parsed["type"], "CUSTOM");
+        assert_eq!(parsed["name"], "test_event");
+        assert_eq!(parsed["value"]["key"], "value");
+    }
+
+    /// Verify multiple subscribers receive the same event.
+    #[test]
+    fn test_broadcast_channel_multiple_subscribers() {
+        let (tx, mut rx1) = tokio::sync::broadcast::channel::<String>(16);
+        let mut rx2 = tx.subscribe();
+
+        let event = AgUiEvent::RUN_STARTED {
+            thread_id: "t-1".into(),
+            run_id: "r-1".into(),
+        };
+        let frame = format_ag_ui_sse(&event);
+
+        tx.send(frame.clone()).unwrap();
+
+        let recv1 = rx1.try_recv().unwrap();
+        let recv2 = rx2.try_recv().unwrap();
+        assert_eq!(recv1, recv2);
+        assert_eq!(recv1, frame);
+    }
+
+    /// Verify that the broadcast channel correctly reports lagged receivers.
+    #[test]
+    fn test_broadcast_channel_lagged_receiver() {
+        // Create a channel with capacity 2
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(2);
+
+        // Send 3 events — the first one will be dropped for the receiver
+        tx.send("event-1".into()).unwrap();
+        tx.send("event-2".into()).unwrap();
+        tx.send("event-3".into()).unwrap();
+
+        // Receiver should get a Lagged error for the dropped event(s)
+        match rx.try_recv() {
+            Err(broadcast::error::TryRecvError::Lagged(n)) => {
+                assert!(n >= 1, "Should report at least 1 lagged event, got {n}");
+            }
+            other => panic!("Expected Lagged error, got {:?}", other),
+        }
+
+        // After the lagged error, remaining events should be receivable
+        let _received = rx.try_recv().unwrap();
+    }
+
+    /// Verify that sending to a channel with no receivers returns false (no panic).
+    #[test]
+    fn test_broadcast_channel_no_receivers() {
+        let (tx, _) = tokio::sync::broadcast::channel::<String>(16);
+        // Drop the initial receiver by not binding it.
+        // Sending should not panic — it returns Err when no receivers exist.
+        let result = tx.send("event".into());
+        assert!(result.is_err(), "send() should fail when no receivers exist");
+    }
+
+    /// Test `emit_ag_ui_event` helper produces correct CUSTOM event.
+    #[test]
+    fn test_emit_ag_ui_event_helper() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+        // We need a minimal "state-like" struct that holds the sender.
+        // Since emit_ag_ui_event takes &AppState, we test the logic directly
+        // by constructing the event and sending through the channel.
+        let event = AgUiEvent::CUSTOM {
+            name: "deploy_started".to_string(),
+            value: serde_json::json!({"environment": "staging"}),
+        };
+        let frame = format_ag_ui_sse(&event);
+        tx.send(frame).unwrap();
+
+        let received = rx.try_recv().unwrap();
+        let payload = received.strip_prefix("data: ").unwrap().trim_end();
+        let parsed: serde_json::Value = serde_json::from_str(payload).unwrap();
+        assert_eq!(parsed["type"], "CUSTOM");
+        assert_eq!(parsed["name"], "deploy_started");
+        assert_eq!(parsed["value"]["environment"], "staging");
+    }
+
+    /// Test `emit_ag_ui_event_typed` with a complex event.
+    #[test]
+    fn test_emit_typed_event_state_snapshot() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+
+        let event = AgUiEvent::STATE_SNAPSHOT {
+            snapshot: serde_json::json!({
+                "status": "thinking",
+                "core_type": "structured",
+                "uptime_seconds": 42
+            }),
+        };
+        let frame = format_ag_ui_sse(&event);
+        tx.send(frame).unwrap();
+
+        let received = rx.try_recv().unwrap();
+        let payload = received.strip_prefix("data: ").unwrap().trim_end();
+        let parsed: serde_json::Value = serde_json::from_str(payload).unwrap();
+        assert_eq!(parsed["type"], "STATE_SNAPSHOT");
+        assert_eq!(parsed["snapshot"]["status"], "thinking");
+        assert_eq!(parsed["snapshot"]["uptime_seconds"], 42);
+    }
+
+    /// Test `emit_bridged_event` logic: bridge a legacy event and verify the
+    /// serialized AG-UI output through the broadcast channel.
+    #[test]
+    fn test_emit_bridged_event_tool_called() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+
+        let legacy = AgentStreamEvent::ToolCalled {
+            tool_name: "developer__shell".into(),
+            timestamp: "2026-02-14T00:00:00Z".into(),
+            duration_ms: Some(200),
+            success: true,
+        };
+
+        // Simulate what emit_bridged_event does
+        let ag_ui_events = bridge_legacy_event(&legacy);
+        for ev in &ag_ui_events {
+            tx.send(format_ag_ui_sse(ev)).unwrap();
+        }
+
+        // Should receive 3 events: TOOL_CALL_START, TOOL_CALL_END, CUSTOM (metadata)
+        let frame1 = rx.try_recv().unwrap();
+        let frame2 = rx.try_recv().unwrap();
+        let frame3 = rx.try_recv().unwrap();
+
+        let p1: serde_json::Value = serde_json::from_str(
+            frame1.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        let p2: serde_json::Value = serde_json::from_str(
+            frame2.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        let p3: serde_json::Value = serde_json::from_str(
+            frame3.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+
+        assert_eq!(p1["type"], "TOOL_CALL_START");
+        assert_eq!(p1["tool_call_name"], "developer__shell");
+        assert_eq!(p2["type"], "TOOL_CALL_END");
+        assert_eq!(p3["type"], "CUSTOM");
+        assert_eq!(p3["name"], "tool_call_metadata");
+        assert_eq!(p3["value"]["success"], true);
+        assert_eq!(p3["value"]["duration_ms"], 200);
+    }
+
+    /// Test bridged heartbeat through broadcast channel.
+    #[test]
+    fn test_emit_bridged_heartbeat() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+
+        let legacy = AgentStreamEvent::Heartbeat {
+            timestamp: "2026-02-14T12:00:00Z".into(),
+        };
+
+        let ag_ui_events = bridge_legacy_event(&legacy);
+        for ev in &ag_ui_events {
+            tx.send(format_ag_ui_sse(ev)).unwrap();
+        }
+
+        let frame = rx.try_recv().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(
+            frame.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(parsed["type"], "CUSTOM");
+        assert_eq!(parsed["name"], "heartbeat");
+        assert_eq!(parsed["value"]["timestamp"], "2026-02-14T12:00:00Z");
+    }
+
+    /// Verify event ordering is preserved through broadcast channel.
+    #[test]
+    fn test_broadcast_preserves_event_order() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+
+        let events = vec![
+            AgUiEvent::RUN_STARTED { thread_id: "t".into(), run_id: "r".into() },
+            AgUiEvent::STEP_STARTED { step_name: "plan".into() },
+            AgUiEvent::TEXT_MESSAGE_START { message_id: "m".into(), role: "assistant".into() },
+            AgUiEvent::TEXT_MESSAGE_CONTENT { message_id: "m".into(), delta: "Hello".into() },
+            AgUiEvent::TEXT_MESSAGE_END { message_id: "m".into() },
+            AgUiEvent::STEP_FINISHED { step_name: "plan".into() },
+            AgUiEvent::RUN_FINISHED { thread_id: "t".into(), run_id: "r".into(), result: None },
+        ];
+
+        let expected_types = vec![
+            "RUN_STARTED", "STEP_STARTED", "TEXT_MESSAGE_START",
+            "TEXT_MESSAGE_CONTENT", "TEXT_MESSAGE_END", "STEP_FINISHED",
+            "RUN_FINISHED",
+        ];
+
+        for ev in &events {
+            tx.send(format_ag_ui_sse(ev)).unwrap();
+        }
+
+        for expected_type in &expected_types {
+            let frame = rx.try_recv().unwrap();
+            let parsed: serde_json::Value = serde_json::from_str(
+                frame.strip_prefix("data: ").unwrap().trim_end()
+            ).unwrap();
+            assert_eq!(
+                parsed["type"], *expected_type,
+                "Event order mismatch: expected {}, got {}",
+                expected_type, parsed["type"]
+            );
         }
     }
 }

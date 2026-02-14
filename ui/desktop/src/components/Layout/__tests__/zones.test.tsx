@@ -27,6 +27,11 @@ vi.mock('../PanelSystem/PanelToolbar', () => ({
   PanelToolbar: () => <div data-testid="panel-toolbar">PanelToolbar</div>,
 }));
 
+// Mock BottomMenuModeSelection (migrated into StatusBar)
+vi.mock('../../bottom_menu/BottomMenuModeSelection', () => ({
+  BottomMenuModeSelection: () => <span data-testid="mode-selector">auto</span>,
+}));
+
 // Mock PANEL_REGISTRY with minimal entries for RightZone and BottomZone tab rendering
 vi.mock('../PanelSystem/PanelRegistry', () => ({
   PANEL_REGISTRY: {
@@ -105,6 +110,7 @@ const defaultPanelSystemValue = {
   resetLayout: vi.fn(),
   saveCustomLayout: vi.fn(),
   handlePanelResize: vi.fn(),
+  handleVerticalResize: vi.fn(),
 };
 
 const mockUsePanelSystem = vi.fn(() => defaultPanelSystemValue);
@@ -268,6 +274,29 @@ describe('StatusBar', () => {
 
   it('renders PanelToolbar', () => {
     render(<StatusBar />);
+    expect(screen.getByTestId('panel-toolbar')).toBeInTheDocument();
+  });
+
+  it('renders BottomMenuModeSelection by default', () => {
+    render(<StatusBar />);
+    expect(screen.getByTestId('mode-selector')).toBeInTheDocument();
+  });
+
+  it('hides mode selector when hideModeSelector is true', () => {
+    render(<StatusBar hideModeSelector />);
+    expect(screen.queryByTestId('mode-selector')).not.toBeInTheDocument();
+    // PanelToolbar should still render
+    expect(screen.getByTestId('panel-toolbar')).toBeInTheDocument();
+  });
+
+  it('renders both mode selector and children together', () => {
+    render(
+      <StatusBar>
+        <span data-testid="extra-control">Cost: $0.12</span>
+      </StatusBar>
+    );
+    expect(screen.getByTestId('mode-selector')).toBeInTheDocument();
+    expect(screen.getByTestId('extra-control')).toHaveTextContent('Cost: $0.12');
     expect(screen.getByTestId('panel-toolbar')).toBeInTheDocument();
   });
 });

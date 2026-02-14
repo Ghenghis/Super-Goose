@@ -24,7 +24,7 @@ const PRESET_BY_KEY: Record<string, string> = {
 };
 
 export function useLayoutShortcuts(): void {
-  const { toggleLocked, applyPreset, toggleZoneVisible } = usePanelSystem();
+  const { toggleLocked, applyPreset, toggleZoneVisible, toggleZoneCollapsed } = usePanelSystem();
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -46,10 +46,10 @@ export function useLayoutShortcuts(): void {
         return;
       }
 
-      // Ctrl/Cmd + B  =>  toggle left zone (sidebar)
+      // Ctrl/Cmd + B  =>  toggle left zone collapsed (sidebar icon-only)
       if (e.key.toLowerCase() === 'b' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
-        toggleZoneVisible('left');
+        toggleZoneCollapsed('left');
         return;
       }
 
@@ -65,5 +65,5 @@ export function useLayoutShortcuts(): void {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [toggleLocked, applyPreset, toggleZoneVisible]);
+  }, [toggleLocked, applyPreset, toggleZoneVisible, toggleZoneCollapsed]);
 }

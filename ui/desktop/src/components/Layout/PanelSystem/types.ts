@@ -132,8 +132,10 @@ export interface PanelSystemActions {
   resetLayout: () => void;
   /** Save current layout as the custom preset */
   saveCustomLayout: () => void;
-  /** Update zone sizes from react-resizable-panels onLayout callback */
+  /** Update horizontal zone sizes from react-resizable-panels onLayoutChanged */
   handlePanelResize: (sizes: number[]) => void;
+  /** Update bottom zone size from vertical onLayoutChanged */
+  handleVerticalResize: (bottomSizePercent: number) => void;
 }
 
 /** Full PanelSystem context value */
@@ -150,6 +152,8 @@ export interface PanelSystemContextValue extends PanelSystemActions {
   isPanelVisible: (panelId: PanelId) => boolean;
   /** Get the zone a panel is currently in */
   getPanelZone: (panelId: PanelId) => LayoutZone | null;
+  /** Generation counter — increments on layout resets to force Group remount */
+  layoutGeneration: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -170,8 +174,8 @@ export interface ResizeHandleProps {
 // Constants
 // ---------------------------------------------------------------------------
 
-/** localStorage key for persisting layout */
-export const LAYOUT_STORAGE_KEY = 'sg-layout-v1';
+/** localStorage key for persisting layout — bump version to discard stale state */
+export const LAYOUT_STORAGE_KEY = 'sg-layout-v9';
 
 /** Default preset ID applied on first load */
 export const DEFAULT_PRESET_ID = 'standard';

@@ -46,13 +46,17 @@ export const PRESET_FOCUS: LayoutPreset = {
 export const PRESET_STANDARD: LayoutPreset = {
   id: 'standard',
   name: 'Standard',
-  description: 'Sidebar + Chat + Pipeline',
+  description: 'Sidebar + Chat + Agent Panel',
   icon: Layout,
   zones: {
-    left: zone({ panels: ['sidebar'], sizePercent: 15 }),
-    center: zone({ panels: ['chat'], sizePercent: 85 }),
-    right: zone({ panels: [], sizePercent: 0, collapsed: true, visible: false }),
-    bottom: zone({ panels: ['pipeline'], sizePercent: 25, activePanel: 'pipeline' }),
+    left: zone({ panels: ['sidebar'], sizePercent: 18 }),
+    center: zone({ panels: ['chat'], sizePercent: 52 }),
+    right: zone({
+      panels: ['agentPanel', 'superGoose'],
+      sizePercent: 30,
+      activePanel: 'agentPanel',
+    }),
+    bottom: zone({ panels: ['pipeline', 'terminal', 'logs'], sizePercent: 25, activePanel: 'pipeline', collapsed: true }),
   },
 };
 
@@ -62,15 +66,15 @@ export const PRESET_FULL: LayoutPreset = {
   description: 'All panels visible',
   icon: LayoutDashboard,
   zones: {
-    left: zone({ panels: ['sidebar'], sizePercent: 15 }),
+    left: zone({ panels: ['sidebar'], sizePercent: 18 }),
     center: zone({ panels: ['chat'], sizePercent: 50 }),
     right: zone({
       panels: ['agentPanel'],
-      sizePercent: 35,
+      sizePercent: 32,  // 18+50+32=100
       activePanel: 'agentPanel',
     }),
     bottom: zone({
-      panels: ['pipeline', 'terminal'],
+      panels: ['pipeline', 'terminal', 'logs'],
       sizePercent: 30,
       activePanel: 'pipeline',
     }),
@@ -83,14 +87,14 @@ export const PRESET_AGENT: LayoutPreset = {
   description: 'Multi-agent workflows',
   icon: Bot,
   zones: {
-    left: zone({ panels: ['sidebar'], sizePercent: 12 }),
-    center: zone({ panels: ['chat'], sizePercent: 53 }),
+    left: zone({ panels: ['sidebar'], sizePercent: 15 }),
+    center: zone({ panels: ['chat'], sizePercent: 50 }),
     right: zone({
       panels: ['agentPanel', 'superGoose'],
       sizePercent: 35,
       activePanel: 'agentPanel',
     }),
-    bottom: zone({ panels: ['pipeline'], sizePercent: 25, activePanel: 'pipeline' }),
+    bottom: zone({ panels: ['pipeline', 'terminal', 'logs'], sizePercent: 25, activePanel: 'pipeline' }),
   },
 };
 

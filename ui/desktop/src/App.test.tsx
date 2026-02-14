@@ -28,6 +28,24 @@ Object.defineProperty(window, 'history', {
   writable: true,
 });
 
+// Mock AG-UI hook (creates EventSource which doesn't exist in jsdom)
+vi.mock('./ag-ui/useAgUi', () => ({
+  useAgUi: () => ({
+    connected: false,
+    isRunning: false,
+    currentStep: '',
+    agentState: { core_type: 'default', status: 'idle' },
+    activeToolCalls: [],
+    activities: [],
+    customEvents: [],
+    messages: [],
+    error: null,
+    sendToolResult: vi.fn(),
+    sendAbort: vi.fn(),
+    sendMessage: vi.fn(),
+  }),
+}));
+
 // Mock dependencies
 vi.mock('./utils/providerUtils', () => ({
   initializeSystem: vi.fn().mockResolvedValue(undefined),
@@ -182,6 +200,7 @@ vi.mock('./components/Layout/PanelSystem', () => ({
     resetLayout: vi.fn(),
     saveCustomLayout: vi.fn(),
     handlePanelResize: vi.fn(),
+    handleVerticalResize: vi.fn(),
   }),
 }));
 

@@ -159,6 +159,9 @@ function chatStateToMode(cs: ChatState): PipelineMode {
   }
 }
 
+/** Hard cap on particle count to prevent unbounded memory growth */
+const MAX_PARTICLES = 120;
+
 let particleIdCounter = 0;
 let activityIdCounter = 0;
 
@@ -204,16 +207,32 @@ export function PipelineProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Animation loop for particles and elapsed time
+  // Animation loop for particles — ONLY runs when pipeline is visible AND has particles or is active.
+  // This prevents the 60fps setState loop from running at startup when nothing is animated.
+  const modeRef = useRef<PipelineMode>('waiting');
+  const visibleRef = useRef(isVisible);
+  modeRef.current = state.mode;
+  visibleRef.current = isVisible;
+
   useEffect(() => {
+    // Don't start animation loop if pipeline isn't visible
+    if (!isVisible) return;
+
     let raf: number;
     const tick = () => {
       setState((prev) => {
+        // Skip update entirely if waiting with no particles — nothing to animate
+        if (prev.mode === 'waiting' && prev.particles.length === 0) {
+          return prev; // No-op — no new object, no re-render
+        }
+
         if (prev.mode === 'waiting') {
-          // In waiting mode, we still animate but slowly (ambient particles)
+          // Drain remaining particles slowly, don't spawn new ones
           const updatedParticles = prev.particles
             .map((p) => ({ ...p, progress: p.progress + p.speed * 0.3 }))
             .filter((p) => p.progress < 1);
+          // If nothing changed (all filtered out already), skip
+          if (updatedParticles.length === 0 && prev.particles.length === 0) return prev;
           return { ...prev, particles: updatedParticles };
         }
 
@@ -225,34 +244,41 @@ export function PipelineProvider({ children }: { children: React.ReactNode }) {
           .map((p) => ({ ...p, progress: p.progress + p.speed }))
           .filter((p) => p.progress < 1);
 
-        // Spawn quantum particles from active stage — higher rate for busier visualization
+        // Only spawn new particles if under the cap
         let newParticles = updatedParticles;
-        if (prev.activeStage && Math.random() < 0.15) {
-          const idx = STAGES.indexOf(prev.activeStage);
-          if (idx < STAGES.length - 1) {
-            const burstSize = Math.random() < 0.3 ? 2 : 1; // Occasional double burst
+        if (updatedParticles.length < MAX_PARTICLES) {
+          // Spawn from active stage (reduced rate: 8% instead of 15%)
+          if (prev.activeStage && Math.random() < 0.08) {
+            const idx = STAGES.indexOf(prev.activeStage);
+            if (idx < STAGES.length - 1) {
+              newParticles = [
+                ...updatedParticles,
+                ...spawnParticles(prev.activeStage, STAGES[idx + 1], 1),
+              ];
+            }
+          }
+
+          // Previous-to-active energy (reduced: 3% instead of 6%)
+          if (prev.activeStage && prev.previousStage && Math.random() < 0.03) {
             newParticles = [
-              ...updatedParticles,
-              ...spawnParticles(prev.activeStage, STAGES[idx + 1], burstSize),
+              ...newParticles,
+              ...spawnParticles(prev.previousStage, prev.activeStage, 1),
+            ];
+          }
+
+          // Ambient particles (reduced: 2% instead of 4%)
+          if (Math.random() < 0.02) {
+            const randIdx = Math.floor(Math.random() * (STAGES.length - 1));
+            newParticles = [
+              ...newParticles,
+              ...spawnParticles(STAGES[randIdx], STAGES[randIdx + 1], 1),
             ];
           }
         }
 
-        // Also spawn from previous stage to active (reverse direction energy)
-        if (prev.activeStage && prev.previousStage && Math.random() < 0.06) {
-          newParticles = [
-            ...newParticles,
-            ...spawnParticles(prev.previousStage, prev.activeStage, 1),
-          ];
-        }
-
-        // Ambient particles between all connected stages (higher rate)
-        if (Math.random() < 0.04) {
-          const randIdx = Math.floor(Math.random() * (STAGES.length - 1));
-          newParticles = [
-            ...newParticles,
-            ...spawnParticles(STAGES[randIdx], STAGES[randIdx + 1], 1),
-          ];
+        // Hard cap — truncate if somehow over limit
+        if (newParticles.length > MAX_PARTICLES) {
+          newParticles = newParticles.slice(-MAX_PARTICLES);
         }
 
         // Update active stage duration
@@ -275,7 +301,7 @@ export function PipelineProvider({ children }: { children: React.ReactNode }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [isVisible]);
 
   const syncChatState = useCallback((cs: ChatState) => {
     setState((prev) => {
@@ -289,13 +315,16 @@ export function PipelineProvider({ children }: { children: React.ReactNode }) {
         startTimeRef.current = Date.now();
       }
 
-      // Stage transition — spawn quantum burst of particles
+      // Stage transition — spawn quantum burst of particles (capped)
       let particles = prev.particles;
       if (newStage && newStage !== prev.activeStage && prev.activeStage) {
-        particles = [
-          ...particles,
-          ...spawnParticles(prev.activeStage, newStage, 8),
-        ];
+        const burstCount = Math.min(4, MAX_PARTICLES - particles.length);
+        if (burstCount > 0) {
+          particles = [
+            ...particles,
+            ...spawnParticles(prev.activeStage, newStage, burstCount),
+          ];
+        }
       }
 
       // Update metrics status

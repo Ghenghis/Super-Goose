@@ -31,20 +31,20 @@ describe('PanelSystemProvider', () => {
     const { result } = renderHook(() => usePanelSystem(), { wrapper });
     expect(result.current.layout).toBeDefined();
     expect(result.current.layout.presetId).toBe('standard');
-    expect(result.current.layout.locked).toBe(true);
+    expect(result.current.layout.locked).toBe(false);
   });
 
-  it('starts in locked mode by default', () => {
+  it('starts in unlocked mode by default', () => {
     const { result } = renderHook(() => usePanelSystem(), { wrapper });
-    expect(result.current.isLocked).toBe(true);
+    expect(result.current.isLocked).toBe(false);
   });
 
   it('toggles locked state', () => {
     const { result } = renderHook(() => usePanelSystem(), { wrapper });
     act(() => result.current.toggleLocked());
-    expect(result.current.isLocked).toBe(false);
-    act(() => result.current.toggleLocked());
     expect(result.current.isLocked).toBe(true);
+    act(() => result.current.toggleLocked());
+    expect(result.current.isLocked).toBe(false);
   });
 
   it('sets locked state directly', () => {
@@ -137,17 +137,17 @@ describe('PanelSystemProvider', () => {
     expect(result.current.layout.presetId).toBe('focus');
     act(() => result.current.resetLayout());
     expect(result.current.layout.presetId).toBe('standard');
-    expect(result.current.layout.locked).toBe(true);
+    expect(result.current.layout.locked).toBe(false);
   });
 
   it('toggles a panel on/off', () => {
     const { result } = renderHook(() => usePanelSystem(), { wrapper });
-    // Pipeline should be in bottom zone by default (standard preset)
-    expect(result.current.isPanelVisible('pipeline')).toBe(true);
-    act(() => result.current.togglePanel('pipeline'));
-    expect(result.current.isPanelVisible('pipeline')).toBe(false);
-    act(() => result.current.togglePanel('pipeline'));
-    expect(result.current.isPanelVisible('pipeline')).toBe(true);
+    // agentPanel should be in right zone by default (standard preset)
+    expect(result.current.isPanelVisible('agentPanel')).toBe(true);
+    act(() => result.current.togglePanel('agentPanel'));
+    expect(result.current.isPanelVisible('agentPanel')).toBe(false);
+    act(() => result.current.togglePanel('agentPanel'));
+    expect(result.current.isPanelVisible('agentPanel')).toBe(true);
   });
 
   it('sets active panel in a zone', () => {
@@ -166,8 +166,8 @@ describe('PanelSystemProvider', () => {
 
   it('returns null for panel not in any zone', () => {
     const { result } = renderHook(() => usePanelSystem(), { wrapper });
-    // In standard preset, agentPanel is not in any zone
-    expect(result.current.getPanelZone('agentPanel')).toBeNull();
+    // In standard preset, search panel is not in any zone
+    expect(result.current.getPanelZone('search')).toBeNull();
   });
 
   it('provides panel registry', () => {

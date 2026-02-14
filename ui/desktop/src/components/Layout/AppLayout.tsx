@@ -1,19 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import AppSidebar from '../GooseSidebar/AppSidebar';
 import { View, ViewOptions } from '../../utils/navigationUtils';
-import { AppWindowMac, AppWindow } from 'lucide-react';
+import { AppWindowMac, AppWindow, PanelRightIcon } from 'lucide-react';
 import { Button } from '../ui/button';
-import { SidebarProvider, SidebarTrigger, useSidebar } from '../ui/sidebar';
+import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from '../ui/sidebar';
 import ChatSessionsContainer from '../ChatSessionsContainer';
 import { useChatContext } from '../../contexts/ChatContext';
 import { UserInput } from '../../types/message';
 import { TimeWarpProvider, TimeWarpBar } from '../timewarp';
 import { AgentPanelProvider } from '../GooseSidebar/AgentPanelContext';
 import { CLIProvider } from '../cli/CLIContext';
-import { PanelSystemProvider } from './PanelSystem';
-import { ResizableLayout } from './ResizableLayout';
-import { AnimatedPipeline, usePipeline } from '../pipeline';
 import AgentStatusPanel from '../GooseSidebar/AgentStatusPanel';
 import TaskBoardPanel from '../GooseSidebar/TaskBoardPanel';
 import FileActivityPanel from '../GooseSidebar/FileActivityPanel';
@@ -29,6 +26,82 @@ interface AppLayoutContentProps {
   }>;
 }
 
+// ── Right Panel (Super-Goose addition) ────────────────────────────────────
+// Simple CSS-based right panel with toggle — no react-resizable-panels needed.
+const RIGHT_PANEL_WIDTH = '20rem'; // 320px
+
+function RightPanel({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+  const [activeTab, setActiveTab] = useState<'agent' | 'super'>('agent');
+
+  return (
+    <>
+      {/* Toggle button — always visible */}
+      <Button
+        variant="ghost"
+        size="xs"
+        className="fixed top-3 right-3 z-50 no-drag hover:!bg-background-medium hover:scale-105"
+        onClick={onToggle}
+        title={isOpen ? 'Close right panel' : 'Open right panel'}
+      >
+        <PanelRightIcon className="w-4 h-4" />
+      </Button>
+
+      {/* Panel — slides in/out */}
+      <div
+        className="border-l border-border bg-background flex flex-col h-full overflow-hidden transition-[width,min-width] duration-300 ease-out"
+        style={{
+          width: isOpen ? RIGHT_PANEL_WIDTH : '0px',
+          minWidth: isOpen ? RIGHT_PANEL_WIDTH : '0px',
+        }}
+      >
+        {isOpen && (
+          <>
+            {/* Tab strip */}
+            <div className="flex border-b border-border shrink-0">
+              <button
+                className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+                  activeTab === 'agent'
+                    ? 'text-text-default border-b-2 border-primary'
+                    : 'text-text-muted hover:text-text-default'
+                }`}
+                onClick={() => setActiveTab('agent')}
+              >
+                Agent
+              </button>
+              <button
+                className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+                  activeTab === 'super'
+                    ? 'text-text-default border-b-2 border-primary'
+                    : 'text-text-muted hover:text-text-default'
+                }`}
+                onClick={() => setActiveTab('super')}
+              >
+                Super Goose
+              </button>
+            </div>
+
+            {/* Panel content */}
+            <div className="flex-1 overflow-y-auto">
+              {activeTab === 'agent' ? (
+                <div className="flex flex-col gap-2 p-2">
+                  <AgentStatusPanel />
+                  <TaskBoardPanel />
+                  <FileActivityPanel />
+                  <SkillsPluginsPanel />
+                  <ConnectorStatusPanel />
+                  <AgentMessagesPanel />
+                </div>
+              ) : (
+                <SuperGoosePanel />
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,7 +109,9 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
   const { isMobile, openMobile } = useSidebar();
   const chatContext = useChatContext();
   const isOnPairRoute = location.pathname === '/pair';
-  const { isVisible: pipelineVisible } = usePipeline();
+
+  // Right panel state (Super-Goose addition)
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
 
   if (!chatContext) {
     throw new Error('AppLayoutContent must be used within ChatProvider');
@@ -101,11 +176,11 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
     );
   };
 
-  // ── Left zone content (sidebar) ──────────────────────────────────────
-  const leftContent = (
-    <>
+  return (
+    <div className="flex flex-1 w-full min-h-0 relative animate-fade-in">
+      {/* Header buttons */}
       {!shouldHideButtons && (
-        <div className={`${headerPadding} absolute top-3 z-50 flex items-center`}>
+        <div className={`${headerPadding} absolute top-3 z-100 flex items-center`}>
           <SidebarTrigger
             className="no-drag hover:border-border-strong hover:text-text-default hover:!bg-background-medium hover:scale-105"
           />
@@ -120,63 +195,37 @@ const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) =
           </Button>
         </div>
       )}
-      <AppSidebar
-        onSelectSession={handleSelectSession}
-        setView={setView}
-        currentPath={location.pathname}
-      />
-    </>
-  );
 
-  // ── Center zone content (outlet + sessions) ──────────────────────────
-  const centerContent = (
-    <div className="flex flex-col min-h-0 flex-1">
-      <div className="flex-1 min-h-0 overflow-auto">
-        <Outlet />
-        <div className={isOnPairRoute ? 'contents' : 'hidden'}>
-          <ChatSessionsContainer setChat={setChat} activeSessions={activeSessions} />
+      {/* Left sidebar — upstream shadcn pattern, proven working */}
+      <Sidebar variant="inset" collapsible="offcanvas">
+        <AppSidebar
+          onSelectSession={handleSelectSession}
+          setView={setView}
+          currentPath={location.pathname}
+        />
+      </Sidebar>
+
+      {/* Main content area */}
+      <SidebarInset>
+        <div className="flex flex-1 min-h-0 h-full">
+          {/* Center content */}
+          <div className="flex flex-col min-h-0 flex-1 min-w-0">
+            <div className="flex-1 min-h-0 overflow-auto">
+              <Outlet />
+              <div className={isOnPairRoute ? 'contents' : 'hidden'}>
+                <ChatSessionsContainer setChat={setChat} activeSessions={activeSessions} />
+              </div>
+            </div>
+            <TimeWarpBar />
+          </div>
+
+          {/* Right panel — Super-Goose addition */}
+          <RightPanel
+            isOpen={rightPanelOpen}
+            onToggle={() => setRightPanelOpen((v) => !v)}
+          />
         </div>
-      </div>
-      <TimeWarpBar />
-    </div>
-  );
-
-  // ── Right zone panel components ──────────────────────────────────────
-  const rightPanelComponents = {
-    agentPanel: (
-      <div className="flex flex-col gap-2 p-2 overflow-y-auto h-full">
-        <AgentStatusPanel />
-        <TaskBoardPanel />
-        <FileActivityPanel />
-        <SkillsPluginsPanel />
-        <ConnectorStatusPanel />
-        <AgentMessagesPanel />
-      </div>
-    ),
-    superGoose: <SuperGoosePanel />,
-  };
-
-  // ── Bottom zone panel components ─────────────────────────────────────
-  const bottomPanelComponents = {
-    pipeline: pipelineVisible ? (
-      <div className="px-2 py-1 h-full">
-        <AnimatedPipeline />
-      </div>
-    ) : (
-      <div className="flex items-center justify-center h-full text-xs text-text-muted">
-        Pipeline hidden — enable in Settings &gt; App
-      </div>
-    ),
-  };
-
-  return (
-    <div className="flex flex-1 w-full min-h-0 relative animate-fade-in">
-      <ResizableLayout
-        leftContent={leftContent}
-        centerContent={centerContent}
-        rightPanelComponents={rightPanelComponents}
-        bottomPanelComponents={bottomPanelComponents}
-      />
+      </SidebarInset>
     </div>
   );
 };
@@ -193,11 +242,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeSessions }) => {
     <TimeWarpProvider>
       <AgentPanelProvider>
         <CLIProvider>
-          <PanelSystemProvider>
-            <SidebarProvider>
-              <AppLayoutContent activeSessions={activeSessions} />
-            </SidebarProvider>
-          </PanelSystemProvider>
+          <SidebarProvider>
+            <AppLayoutContent activeSessions={activeSessions} />
+          </SidebarProvider>
         </CLIProvider>
       </AgentPanelProvider>
     </TimeWarpProvider>
