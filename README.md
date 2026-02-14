@@ -6,8 +6,8 @@
 
 **Fork of [Block's Goose](https://github.com/block/goose) with enterprise-grade enhancements.**
 
-[![Version](https://img.shields.io/badge/v1.25.0-stable-FF6600?style=for-the-badge)](https://github.com/Ghenghis/Super-Goose/releases)
-[![Tests](https://img.shields.io/badge/Tests-4,274_passing-00CC66?style=for-the-badge)](https://github.com/Ghenghis/Super-Goose/actions)
+[![Version](https://img.shields.io/badge/v1.24.06-stable-FF6600?style=for-the-badge)](https://github.com/Ghenghis/Super-Goose/releases/tag/v1.24.06)
+[![Tests](https://img.shields.io/badge/Tests-5,017_passing-00CC66?style=for-the-badge)](https://github.com/Ghenghis/Super-Goose/actions)
 [![CI](https://img.shields.io/github/actions/workflow/status/Ghenghis/Super-Goose/ci.yml?branch=main&style=for-the-badge&label=CI&color=00CC66)](https://github.com/Ghenghis/Super-Goose/actions)
 [![License](https://img.shields.io/badge/License-Apache_2.0-FF6600.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/Ghenghis/Super-Goose/pkgs/container/super-goose)
@@ -51,10 +51,12 @@ Super-Goose remembers what works across sessions. Four interlocking systems driv
 
 | Feature | Details |
 |:--|:--|
-| **Resizable Panels** | Dockable panel system via react-resizable-panels |
+| **AG-UI Protocol** | Real-time SSE streaming with broadcast event bus (capacity 4096) |
+| **Resizable Panels** | Dockable panel system with upstream shadcn Sidebar + CSS transitions |
 | **5 Layout Presets** | Focus, Standard, Full, Agent, Custom |
 | **Pipeline Visualization** | Real-time animated PLAN &rarr; TEAM &rarr; EXECUTE &rarr; EVOLVE &rarr; REVIEW &rarr; OBSERVE |
-| **8-Panel Sidebar** | Dashboard, Studios, Agents, Marketplace, GPU, Connections, Monitor, Settings |
+| **16 Super-Goose Panels** | Dashboard, Studios, Agents, Marketplace, GPU, Connections, Monitor, Settings + 8 more |
+| **GPU Detection** | nvidia-smi parsing backend with real-time memory/utilization monitoring |
 | **sg-* Design Tokens** | 255 CSS custom properties with dual color scoping -- stock Goose colors untouched |
 
 ### Enterprise Features
@@ -79,10 +81,11 @@ All counts verified. Zero failures across all suites.
 |:--|--:|:--|
 | **Rust Core (Agent + Learning)** | 139 | All passing |
 | **Rust Total** | 1,754 | All passing |
-| **Vitest (Frontend)** | 2,097 | All passing |
+| **Vitest (Frontend)** | 3,263 | All passing (234 files) |
 | **Playwright E2E** | 291 | All passing (68 skipped: backend/CDP) |
 | **TypeScript** | 0 errors | `tsc --noEmit` clean |
-| **Total** | **4,274+** | **Zero failures** |
+| **Cargo Check** | 0 warnings | Both `goose` and `goose-server` crates |
+| **Total** | **5,017+** | **Zero failures** |
 
 ---
 
@@ -92,7 +95,7 @@ See [BUILD_AND_DEPLOY.md](docs/BUILD_AND_DEPLOY.md) for full build instructions,
 
 | Platform | CLI | Desktop |
 |:--|:--|:--|
-| **Docker** | `ghcr.io/ghenghis/super-goose:v1.25.0` | -- |
+| **Docker** | `ghcr.io/ghenghis/super-goose:v1.24.06` | -- |
 | **Windows x64** | `goose-x86_64-pc-windows-msvc.zip` | `Super-Goose-win32-x64.zip` |
 | **macOS ARM** | `goose-aarch64-apple-darwin.tar.bz2` | `Super-Goose.dmg` |
 | **macOS Intel** | `goose-x86_64-apple-darwin.tar.bz2` | `Super-Goose-intel.dmg` |
@@ -119,7 +122,8 @@ See [BUILD_AND_DEPLOY.md](docs/BUILD_AND_DEPLOY.md) for full build instructions,
 | **Backend** | Rust (7 workspace crates), Tokio async, SQLite, MCP protocol |
 | **Frontend** | React 19, TypeScript, Tailwind CSS v4 |
 | **Desktop** | Electron + electron-forge |
-| **Layout** | react-resizable-panels (5 presets) |
+| **Layout** | shadcn Sidebar + CSS transitions (5 presets) |
+| **Streaming** | AG-UI protocol (SSE + broadcast channel event bus) |
 | **Testing** | cargo test, Vitest, Playwright, tsc |
 | **CI/CD** | GitHub Actions (change detection, matrix builds, comprehensive + release workflows) |
 | **Container** | Docker (`ghcr.io/ghenghis/super-goose`, linux/amd64) |
