@@ -10,6 +10,7 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::task::JoinHandle;
 
+use crate::routes::gpu_jobs::GpuJob;
 use crate::tunnel::TunnelManager;
 use goose::agents::ExtensionLoadResult;
 
@@ -52,6 +53,8 @@ pub struct AppState {
     /// serialized JSON event strings; the SSE handler subscribes to receive and forward them.
     /// Uses `String` to avoid complex `Send`/`Sync` type constraints on the broadcast channel.
     pub event_bus: broadcast::Sender<String>,
+    /// In-memory store for GPU jobs (keyed by job id).
+    pub gpu_jobs: Arc<RwLock<HashMap<String, GpuJob>>>,
 }
 
 impl AppState {
@@ -72,6 +75,7 @@ impl AppState {
             extension_loading_tasks: Arc::new(Mutex::new(HashMap::new())),
             ota_build_progress: Arc::new(RwLock::new(None)),
             event_bus,
+            gpu_jobs: Arc::new(RwLock::new(HashMap::new())),
         }))
     }
 

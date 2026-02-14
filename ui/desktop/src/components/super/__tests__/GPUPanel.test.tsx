@@ -285,19 +285,35 @@ describe('GPUPanel', () => {
   });
 
   it('switches to Jobs tab', async () => {
-    mockFetch.mockReturnValue(new Promise(() => {}));
+    // First call: GPU info (never resolves). Subsequent: jobs fetch (returns empty list)
+    mockFetch
+      .mockReturnValueOnce(new Promise(() => {}))
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve({ jobs: [], total: 0 }) });
     render(<GPUPanel />);
 
-    fireEvent.click(screen.getByText('Jobs'));
-    expect(screen.getByText('No running jobs')).toBeDefined();
+    await act(async () => {
+      fireEvent.click(screen.getByText('Jobs'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('jobs-tab')).toBeDefined();
+    });
   });
 
   it('switches to Launch tab', async () => {
-    mockFetch.mockReturnValue(new Promise(() => {}));
+    // First call: GPU info (never resolves). Subsequent: models fetch (returns empty)
+    mockFetch
+      .mockReturnValueOnce(new Promise(() => {}))
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve({ models: [], ollama_running: false }) });
     render(<GPUPanel />);
 
-    fireEvent.click(screen.getByText('Launch'));
-    expect(screen.getByText(/GPU launch/)).toBeDefined();
+    await act(async () => {
+      fireEvent.click(screen.getByText('Launch'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('launch-tab')).toBeDefined();
+    });
   });
 
   // -- Cloud GPU card always visible ----------------------------------------

@@ -41,8 +41,8 @@ describe('SuperGoosePanel', () => {
   it('switches to Studios panel on click', () => {
     render(<SuperGoosePanel />);
     fireEvent.click(screen.getByTitle('Studios'));
-    expect(screen.getByText('All Studios')).toBeDefined();
     expect(screen.getByText('Core Studio')).toBeDefined();
+    expect(screen.getByText('Agent Studio')).toBeDefined();
   });
 
   it('switches to Agents panel on click', () => {

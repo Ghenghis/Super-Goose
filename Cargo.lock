@@ -4312,6 +4312,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "goose-conductor"
+version = "1.25.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dirs 5.0.1",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "goose-mcp"
 version = "1.25.0"
 dependencies = [

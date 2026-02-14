@@ -1,0 +1,34 @@
+[package]
+name = "goose-conductor"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Lightweight process supervisor for goosed and Electron"
+
+[lints]
+workspace = true
+
+[features]
+default = []
+
+[dependencies]
+tokio = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { workspace = true }
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+uuid = { version = "1.19", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json", "time"] }
+tracing-appender = "0.2"
+anyhow = { workspace = true }
+thiserror = "1.0"
+reqwest = { workspace = true, features = ["json", "rustls-tls"], default-features = false }
+dirs = "5.0"
+tokio-util = "0.7"
+
+[[bin]]
+name = "goose-conductor"
+path = "src/main.rs"

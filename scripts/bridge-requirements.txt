@@ -1,0 +1,82 @@
+# Python package requirements for Super-Goose bridge servers.
+# Auto-generated from crates/goose-mcp/src/bridges/__init__.py REQUIREMENTS dict.
+#
+# Install all:  pip install -r scripts/bridge-requirements.txt
+# Install one:  pip install <package>
+#
+# Base requirement (MCP SDK) -- needed by every bridge
+mcp>=0.1.0
+
+# --- Original 16 bridges ---
+# aider
+aider-chat
+# autogen
+pyautogen
+# browser_use
+browser-use
+langchain-openai
+# camel
+camel-ai
+# composio
+composio-core
+# crewai
+crewai
+# dspy
+dspy-ai
+# evoagentx
+evoagentx
+# goat
+goat-sdk
+# instructor
+instructor
+openai
+# langchain
+langchain
+# langgraph
+langgraph
+# llamaindex
+llama-index
+# mem0
+mem0ai
+# swarm (installed from git)
+swarm @ git+https://github.com/openai/swarm.git
+# taskweaver
+taskweaver
+
+# --- New 19 bridges ---
+# inspect_bridge
+inspect-ai
+# langfuse_bridge
+langfuse
+# openhands_bridge
+openhands-ai
+# semgrep_bridge
+semgrep
+# scip_bridge
+scip-python
+# swe_agent_bridge
+sweagent
+# playwright_bridge
+playwright
+# voice_bridge
+pyttsx3
+SpeechRecognition
+# emotion_bridge
+transformers
+torch
+# microsandbox_bridge
+microsandbox
+# arrakis_bridge
+arrakis-compute
+# astgrep_bridge
+ast-grep-py
+# crosshair_bridge
+crosshair-tool
+# pydantic_ai_bridge
+pydantic-ai
+# praisonai_bridge
+praisonai
+# pr_agent_bridge
+pr-agent
+# overnight_gym_bridge
+pytest

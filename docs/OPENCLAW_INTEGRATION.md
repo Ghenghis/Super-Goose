@@ -22,7 +22,7 @@ This document maps 25 OpenClaw ecosystem repositories to Super-Goose's agentic p
 
 ## T1 Critical Repos (Phase 1–2)
 
-### 1. nearai/ironclaw ⭐623 — Rust — DEEP MERGE
+### 1. nearai/ironclaw ⭐1,100 — Rust — DEEP MERGE (Apache-2.0/MIT)
 
 **What**: Rust rewrite of OpenClaw by Illia Polosukhin (NEAR co-founder, "Attention Is All You Need" co-author). WASM sandboxed tools, hybrid FTS+vector search, identity files, MCP protocol.
 
@@ -39,7 +39,7 @@ This document maps 25 OpenClaw ecosystem repositories to Super-Goose's agentic p
 
 ---
 
-### 2. snarktank/antfarm ⭐904 — TypeScript — ABSORB PATTERN
+### 2. snarktank/antfarm ⭐967 — TypeScript — ABSORB PATTERN (MIT)
 
 **What**: One-command multi-agent teams. YAML-defined workflows with 5-agent pipeline: planner → developer → verifier → tester → reviewer.
 
@@ -64,7 +64,7 @@ This document maps 25 OpenClaw ecosystem repositories to Super-Goose's agentic p
 
 ---
 
-### 3. archestra-ai/archestra ⭐1.2K+ — Go/TypeScript — INTEGRATE
+### 3. archestra-ai/archestra ⭐3,600 — TypeScript — INTEGRATE (⚠️ AGPL-3.0 — NO CODE MERGE)
 
 **What**: Enterprise MCP registry, gateway & orchestrator. $3.3M funded. Per-team cost monitoring, prompt injection defense, RBAC, OpenTelemetry.
 
@@ -90,7 +90,7 @@ archestra:
 
 ---
 
-### 4. NevaMind-AI/memU ⭐~200 — TypeScript — ABSORB PATTERN
+### 4. NevaMind-AI/memU ⭐9,200 — Python — ABSORB PATTERN (Apache-2.0)
 
 **What**: 24/7 proactive memory for agents. Episodic + persistent storage, cross-session recall, proactive memory surfacing.
 
@@ -106,7 +106,7 @@ archestra:
 
 ---
 
-### 5. RyanLisse/engram ⭐~150 — TypeScript — ABSORB PATTERN
+### 5. RyanLisse/engram ⭐0 — TypeScript — ABSORB PATTERN (MIT, solo project)
 
 **What**: Unified multi-agent shared memory. Local-first, conflict resolution for concurrent writes.
 
@@ -132,7 +132,7 @@ CREATE TABLE team_memories (
 
 ---
 
-### 6. lunarpulse/openclaw-mcp-plugin ⭐~50 — TypeScript — INTEGRATE
+### 6. lunarpulse/openclaw-mcp-plugin ⭐7 — TypeScript — INTEGRATE (⚠️ No license specified)
 
 **What**: MCP bridge plugin enabling OpenClaw↔Goose bidirectional communication.
 
@@ -154,18 +154,34 @@ CREATE TABLE team_memories (
 
 ## T2 High Value Repos (Phase 2–3)
 
-| # | Repo | Stars | Strategy | Integration |
-|---|------|-------|----------|-------------|
-| 7 | VoltAgent/awesome-openclaw-skills | 3K+ | HARVEST | Cherry-pick coding/security skills as MCP tools |
-| 8 | cliffhall/GooseTeam | 36 | INTEGRATE | Multi-agent MCP server for team coordination |
-| 9 | rinadelph/Agent-MCP | ~300 | ABSORB PATTERN | Scoped context + task dependency DAG |
-| 10 | BlockRunAI/ClawRouter | ~100 | INTEGRATE | LLM cost optimizer as Docker sidecar |
-| 11 | zilliztech/memsearch | ~200 | INTEGRATE | Vector search memory via MCP |
-| 12 | grp06/openclaw-studio | ~80 | ABSORB UI | Dashboard patterns for Agent Panel |
-| 13 | abhi1693/openclaw-mission-control | ~60 | ABSORB UI | RBAC + audit trail patterns |
-| 14 | centminmod/explain-openclaw | ~100 | HARVEST | Security audit methodology |
-| 15 | prompt-security/clawsec | ~80 | HARVEST | Security scanning MCP tools |
-| 16 | freema/openclaw-mcp | ~40 | INTEGRATE | OAuth LLM authentication bridge |
+> ⚠️ **CRITICAL RESEARCH FINDING (2026-02-14)**: Agent research verified that **9 of 10 `openclawai/*` repos DO NOT EXIST** (HTTP 404). The `openclawai` GitHub org was created 2026-01-29 (16 days ago) with zero public repos. The repos listed in the JSX reference file under `openclawai/` are either planned but not yet created, or private. Only `cliffhall/GooseTeam` exists.
+>
+> **Actual equivalents found under different organizations:**
+> - `openclaw/openclaw` (193.6K ⭐) — Massive TypeScript platform, different architecture
+> - `prompt-security/clawsec` (376 ⭐) — Security skills, MIT license, relevant
+> - `BlockRunAI/ClawRouter` (2.4K ⭐) — LLM router, **dropped Windows support 2026-02-14**
+> - `openclaw/clawhub` (1.9K ⭐) — Skill directory
+> - `openclaw/lobster` (459 ⭐) — Workflow shell
+
+### Verified Repos
+
+| # | Repo | Stars | Status | Strategy | Integration |
+|---|------|-------|--------|----------|-------------|
+| 7 | cliffhall/GooseTeam | 70 | ✅ EXISTS | INTEGRATE | Multi-agent MCP server — **highest priority** |
+| 8 | prompt-security/clawsec | 376 | ✅ EXISTS (diff org) | HARVEST | Skill integrity verification, drift detection |
+| 9 | BlockRunAI/ClawRouter | 2,416 | ✅ EXISTS (diff org) | STUDY ONLY | ⚠️ Dropped Windows support — concept-port routing algorithms only |
+
+### Non-Existent Repos (404)
+
+| Listed Name | Status | Super-Goose Already Has |
+|-------------|--------|------------------------|
+| openclawai/openclaw | ❌ 404 | — (openclaw/openclaw exists but diff architecture) |
+| openclawai/clawback | ❌ 404 | OTA rollback (198 tests) |
+| openclawai/memsearch | ❌ 404 | Learning Engine + ExperienceStore |
+| openclawai/openclaw-mcp | ❌ 404 | Native MCP extension system |
+| openclawai/openclaw-cli | ❌ 404 | Rust CLI (goose crate) |
+| openclawai/openclaw-dashboard | ❌ 404 | 16 Super-Goose panels + AG-UI |
+| openclawai/openclaw-docs | ❌ 404 | Docusaurus on GitHub Pages |
 
 ---
 
@@ -295,10 +311,13 @@ OBSERVE  ─── ClawRouter (#10), openclaw-studio (#12), mission-control (#13
 
 | Risk | Severity | Mitigation |
 |------|----------|------------|
+| **AGPL-3.0 license (Archestra)** | **CRITICAL** | **ZERO source code merge**. Network-boundary integration only. AGPL requires derivative works to be AGPL. |
+| **9/10 T2 repos don't exist** | **HIGH** | Rely on T1 repos + GooseTeam only. Monitor `openclawai` org for future releases. |
+| **ClawRouter dropped Windows** | **HIGH** | Concept-port routing algorithms to Rust. Do not depend on external TS process. |
+| **No license (openclaw-mcp-plugin)** | **MEDIUM** | Contact author before any code use. Default copyright = all rights reserved. |
 | Malicious OpenClaw skills | HIGH | Security audit all skills before adoption; route through Archestra gateway |
 | PostgreSQL dependency (ironclaw) | MEDIUM | Abstract storage layer; keep SQLite as default, PG optional |
 | Kubernetes dependency (Archestra) | MEDIUM | Docker Compose adaptation; local dev mode |
-| Bridge latency (ClawRouter) | MEDIUM | Benchmark against direct calls; optional bypass |
 | TypeScript runtime dependencies | LOW | Reimplement patterns in Rust; no JS runtime in core |
 | Concurrent memory writes | LOW | Rust Mutex/RwLock; SQLite WAL mode |
 

@@ -114,7 +114,8 @@ jobs:
             intel-npm-cache-v1-${{ runner.os }}-
             
       - name: Install dependencies
-        run: source ../../bin/activate-hermit && npm ci
+        # --force: skip platform checks for Windows-only rollup binaries in lockfile
+        run: source ../../bin/activate-hermit && npm ci --force
         working-directory: ui/desktop
 
       # Configure Electron builder for Intel architecture

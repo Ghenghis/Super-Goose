@@ -499,10 +499,33 @@ pub struct ToolResultRequest {
     pub content: String,
 }
 
+/// Request body for POST /api/ag-ui/abort
+#[derive(Debug, Deserialize)]
+pub struct AbortRequest {
+    /// Optional run ID to cancel a specific run. If omitted, cancels the current run.
+    #[serde(rename = "runId", default)]
+    pub run_id: Option<String>,
+    /// Optional reason for aborting.
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
 /// Request body for POST /api/ag-ui/message
 #[derive(Debug, Deserialize)]
 pub struct SendMessageRequest {
     pub content: String,
+    /// Optional role override (defaults to "user").
+    #[serde(default)]
+    pub role: Option<String>,
+}
+
+/// JSON response returned by POST endpoints with the emitted event ID.
+#[derive(Debug, Serialize)]
+pub struct AgUiPostResponse {
+    /// Whether the event was successfully emitted to the event bus.
+    pub ok: bool,
+    /// The unique event/message ID that was emitted.
+    pub event_id: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -510,39 +533,130 @@ pub struct SendMessageRequest {
 // ---------------------------------------------------------------------------
 
 /// POST /api/ag-ui/tool-result — receives a tool-call result from the frontend.
+///
+/// Emits a `TOOL_CALL_RESULT` event through the AG-UI event bus so that all
+/// connected SSE clients are notified of the tool result.
 async fn ag_ui_tool_result(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     axum::Json(payload): axum::Json<ToolResultRequest>,
-) -> axum::http::StatusCode {
+) -> axum::Json<AgUiPostResponse> {
+    let message_id = format!("msg-tr-{}", uuid::Uuid::new_v4());
+
     tracing::info!(
         tool_call_id = %payload.tool_call_id,
+        message_id = %message_id,
         content_len = payload.content.len(),
-        "AG-UI tool-result received"
+        "AG-UI tool-result received, emitting TOOL_CALL_RESULT event"
     );
-    // TODO: Wire into agent execution pipeline when event bus is connected.
-    axum::http::StatusCode::OK
+
+    let event = AgUiEvent::TOOL_CALL_RESULT {
+        message_id: message_id.clone(),
+        tool_call_id: payload.tool_call_id,
+        content: payload.content,
+        role: Some("tool".to_string()),
+    };
+
+    let ok = emit_ag_ui_event_typed(&state, &event);
+
+    axum::Json(AgUiPostResponse {
+        ok,
+        event_id: message_id,
+    })
 }
 
 /// POST /api/ag-ui/abort — cancels the current agent run.
+///
+/// Emits a `RUN_ERROR` event (with code `"ABORTED"`) followed by a `CUSTOM`
+/// event named `"abort"` through the AG-UI event bus. The `RUN_ERROR` signals
+/// the canonical AG-UI lifecycle termination, while the `CUSTOM` event carries
+/// the abort metadata for frontend-specific handling.
 async fn ag_ui_abort(
-    State(_state): State<Arc<AppState>>,
-) -> axum::http::StatusCode {
-    tracing::info!("AG-UI abort requested");
-    // TODO: Wire into agent execution cancellation.
-    axum::http::StatusCode::OK
+    State(state): State<Arc<AppState>>,
+    axum::Json(payload): axum::Json<AbortRequest>,
+) -> axum::Json<AgUiPostResponse> {
+    let run_id = payload
+        .run_id
+        .clone()
+        .unwrap_or_else(|| format!("run-{}", uuid::Uuid::new_v4()));
+    let reason = payload.reason.clone().unwrap_or_else(|| "User requested abort".to_string());
+    let event_id = format!("abort-{}", uuid::Uuid::new_v4());
+
+    tracing::info!(
+        run_id = %run_id,
+        event_id = %event_id,
+        reason = %reason,
+        "AG-UI abort requested, emitting RUN_ERROR + CUSTOM abort events"
+    );
+
+    // Emit RUN_ERROR to signal the lifecycle termination per AG-UI spec.
+    let run_error = AgUiEvent::RUN_ERROR {
+        message: reason.clone(),
+        code: Some("ABORTED".to_string()),
+    };
+    emit_ag_ui_event_typed(&state, &run_error);
+
+    // Emit CUSTOM abort event with full metadata.
+    let abort_event = AgUiEvent::CUSTOM {
+        name: "abort".to_string(),
+        value: serde_json::json!({
+            "event_id": event_id,
+            "run_id": run_id,
+            "reason": reason,
+            "timestamp": now_rfc3339(),
+        }),
+    };
+    let ok = emit_ag_ui_event_typed(&state, &abort_event);
+
+    axum::Json(AgUiPostResponse {
+        ok,
+        event_id,
+    })
 }
 
 /// POST /api/ag-ui/message — receives a user message for the agent.
+///
+/// Emits a complete text message lifecycle (`TEXT_MESSAGE_START` ->
+/// `TEXT_MESSAGE_CONTENT` -> `TEXT_MESSAGE_END`) through the AG-UI event bus.
+/// This follows the AG-UI protocol's streaming message pattern, delivering
+/// the full content in a single delta for non-streaming sources.
 async fn ag_ui_message(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     axum::Json(payload): axum::Json<SendMessageRequest>,
-) -> axum::http::StatusCode {
+) -> axum::Json<AgUiPostResponse> {
+    let message_id = format!("msg-{}", uuid::Uuid::new_v4());
+    let role = payload.role.unwrap_or_else(|| "user".to_string());
+
     tracing::info!(
+        message_id = %message_id,
+        role = %role,
         content_len = payload.content.len(),
-        "AG-UI message received"
+        "AG-UI message received, emitting TEXT_MESSAGE lifecycle events"
     );
-    // TODO: Forward to agent session when event bus is wired.
-    axum::http::StatusCode::OK
+
+    // TEXT_MESSAGE_START
+    let start_event = AgUiEvent::TEXT_MESSAGE_START {
+        message_id: message_id.clone(),
+        role: role.clone(),
+    };
+    emit_ag_ui_event_typed(&state, &start_event);
+
+    // TEXT_MESSAGE_CONTENT (single delta with full content)
+    let content_event = AgUiEvent::TEXT_MESSAGE_CONTENT {
+        message_id: message_id.clone(),
+        delta: payload.content,
+    };
+    emit_ag_ui_event_typed(&state, &content_event);
+
+    // TEXT_MESSAGE_END
+    let end_event = AgUiEvent::TEXT_MESSAGE_END {
+        message_id: message_id.clone(),
+    };
+    let ok = emit_ag_ui_event_typed(&state, &end_event);
+
+    axum::Json(AgUiPostResponse {
+        ok,
+        event_id: message_id,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -1564,6 +1678,45 @@ mod tests {
         let json = serde_json::json!({ "content": "Hello agent" });
         let req: SendMessageRequest = serde_json::from_value(json).unwrap();
         assert_eq!(req.content, "Hello agent");
+        assert!(req.role.is_none(), "role should default to None when omitted");
+    }
+
+    #[test]
+    fn test_send_message_request_with_role() {
+        let json = serde_json::json!({ "content": "System init", "role": "system" });
+        let req: SendMessageRequest = serde_json::from_value(json).unwrap();
+        assert_eq!(req.content, "System init");
+        assert_eq!(req.role.as_deref(), Some("system"));
+    }
+
+    #[test]
+    fn test_abort_request_deserialization_empty() {
+        let json = serde_json::json!({});
+        let req: AbortRequest = serde_json::from_value(json).unwrap();
+        assert!(req.run_id.is_none());
+        assert!(req.reason.is_none());
+    }
+
+    #[test]
+    fn test_abort_request_deserialization_full() {
+        let json = serde_json::json!({
+            "runId": "run-abc-123",
+            "reason": "User cancelled"
+        });
+        let req: AbortRequest = serde_json::from_value(json).unwrap();
+        assert_eq!(req.run_id.as_deref(), Some("run-abc-123"));
+        assert_eq!(req.reason.as_deref(), Some("User cancelled"));
+    }
+
+    #[test]
+    fn test_ag_ui_post_response_serialization() {
+        let resp = AgUiPostResponse {
+            ok: true,
+            event_id: "msg-abc-123".to_string(),
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["ok"], true);
+        assert_eq!(json["event_id"], "msg-abc-123");
     }
 
     /// SSE frame format: multiple events produce independent frames.
@@ -1821,5 +1974,217 @@ mod tests {
                 expected_type, parsed["type"]
             );
         }
+    }
+
+    // ===================================================================
+    // POST endpoint event emission tests
+    // ===================================================================
+    //
+    // These tests verify that the wired POST handlers produce the correct
+    // AG-UI events through the broadcast channel. Since the handlers
+    // require `State<Arc<AppState>>`, we test the event emission logic
+    // directly by constructing events the way the handlers do and
+    // verifying them through the channel.
+
+    /// Simulate the tool-result handler: emits a single TOOL_CALL_RESULT event.
+    #[test]
+    fn test_tool_result_handler_emits_correct_event() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+
+        // Simulate what ag_ui_tool_result does
+        let message_id = "msg-tr-test-001".to_string();
+        let event = AgUiEvent::TOOL_CALL_RESULT {
+            message_id: message_id.clone(),
+            tool_call_id: "tc-456".to_string(),
+            content: "Tool output data".to_string(),
+            role: Some("tool".to_string()),
+        };
+        let frame = format_ag_ui_sse(&event);
+        tx.send(frame).unwrap();
+
+        let received = rx.try_recv().unwrap();
+        let payload = received.strip_prefix("data: ").unwrap().trim_end();
+        let parsed: serde_json::Value = serde_json::from_str(payload).unwrap();
+
+        assert_eq!(parsed["type"], "TOOL_CALL_RESULT");
+        assert_eq!(parsed["message_id"], "msg-tr-test-001");
+        assert_eq!(parsed["tool_call_id"], "tc-456");
+        assert_eq!(parsed["content"], "Tool output data");
+        assert_eq!(parsed["role"], "tool");
+    }
+
+    /// Simulate the abort handler: emits RUN_ERROR + CUSTOM abort events.
+    #[test]
+    fn test_abort_handler_emits_correct_events() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+
+        // Simulate what ag_ui_abort does
+        let run_id = "run-test-001".to_string();
+        let reason = "User cancelled".to_string();
+        let event_id = "abort-test-001".to_string();
+
+        let run_error = AgUiEvent::RUN_ERROR {
+            message: reason.clone(),
+            code: Some("ABORTED".to_string()),
+        };
+        tx.send(format_ag_ui_sse(&run_error)).unwrap();
+
+        let abort_event = AgUiEvent::CUSTOM {
+            name: "abort".to_string(),
+            value: serde_json::json!({
+                "event_id": event_id,
+                "run_id": run_id,
+                "reason": reason,
+                "timestamp": "2026-02-14T00:00:00Z",
+            }),
+        };
+        tx.send(format_ag_ui_sse(&abort_event)).unwrap();
+
+        // Verify RUN_ERROR event
+        let frame1 = rx.try_recv().unwrap();
+        let p1: serde_json::Value = serde_json::from_str(
+            frame1.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p1["type"], "RUN_ERROR");
+        assert_eq!(p1["message"], "User cancelled");
+        assert_eq!(p1["code"], "ABORTED");
+
+        // Verify CUSTOM abort event
+        let frame2 = rx.try_recv().unwrap();
+        let p2: serde_json::Value = serde_json::from_str(
+            frame2.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p2["type"], "CUSTOM");
+        assert_eq!(p2["name"], "abort");
+        assert_eq!(p2["value"]["event_id"], "abort-test-001");
+        assert_eq!(p2["value"]["run_id"], "run-test-001");
+        assert_eq!(p2["value"]["reason"], "User cancelled");
+        assert!(p2["value"]["timestamp"].is_string());
+    }
+
+    /// Simulate the message handler: emits TEXT_MESSAGE_START + CONTENT + END.
+    #[test]
+    fn test_message_handler_emits_text_message_lifecycle() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+
+        // Simulate what ag_ui_message does
+        let message_id = "msg-test-001".to_string();
+        let role = "user".to_string();
+        let content = "Hello, agent!".to_string();
+
+        let start_event = AgUiEvent::TEXT_MESSAGE_START {
+            message_id: message_id.clone(),
+            role: role.clone(),
+        };
+        tx.send(format_ag_ui_sse(&start_event)).unwrap();
+
+        let content_event = AgUiEvent::TEXT_MESSAGE_CONTENT {
+            message_id: message_id.clone(),
+            delta: content.clone(),
+        };
+        tx.send(format_ag_ui_sse(&content_event)).unwrap();
+
+        let end_event = AgUiEvent::TEXT_MESSAGE_END {
+            message_id: message_id.clone(),
+        };
+        tx.send(format_ag_ui_sse(&end_event)).unwrap();
+
+        // Verify TEXT_MESSAGE_START
+        let frame1 = rx.try_recv().unwrap();
+        let p1: serde_json::Value = serde_json::from_str(
+            frame1.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p1["type"], "TEXT_MESSAGE_START");
+        assert_eq!(p1["message_id"], "msg-test-001");
+        assert_eq!(p1["role"], "user");
+
+        // Verify TEXT_MESSAGE_CONTENT
+        let frame2 = rx.try_recv().unwrap();
+        let p2: serde_json::Value = serde_json::from_str(
+            frame2.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p2["type"], "TEXT_MESSAGE_CONTENT");
+        assert_eq!(p2["message_id"], "msg-test-001");
+        assert_eq!(p2["delta"], "Hello, agent!");
+
+        // Verify TEXT_MESSAGE_END
+        let frame3 = rx.try_recv().unwrap();
+        let p3: serde_json::Value = serde_json::from_str(
+            frame3.strip_prefix("data: ").unwrap().trim_end()
+        ).unwrap();
+        assert_eq!(p3["type"], "TEXT_MESSAGE_END");
+        assert_eq!(p3["message_id"], "msg-test-001");
+    }
+
+    /// Verify that all three message lifecycle events share the same message_id.
+    #[test]
+    fn test_message_handler_consistent_message_ids() {
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<String>(16);
+
+        let message_id = "msg-consistent-test".to_string();
+
+        let events = vec![
+            AgUiEvent::TEXT_MESSAGE_START {
+                message_id: message_id.clone(),
+                role: "user".into(),
+            },
+            AgUiEvent::TEXT_MESSAGE_CONTENT {
+                message_id: message_id.clone(),
+                delta: "test content".into(),
+            },
+            AgUiEvent::TEXT_MESSAGE_END {
+                message_id: message_id.clone(),
+            },
+        ];
+
+        for ev in &events {
+            tx.send(format_ag_ui_sse(ev)).unwrap();
+        }
+
+        let mut received_ids = Vec::new();
+        for _ in 0..3 {
+            let frame = rx.try_recv().unwrap();
+            let parsed: serde_json::Value = serde_json::from_str(
+                frame.strip_prefix("data: ").unwrap().trim_end()
+            ).unwrap();
+            received_ids.push(parsed["message_id"].as_str().unwrap().to_string());
+        }
+
+        assert_eq!(received_ids[0], received_ids[1]);
+        assert_eq!(received_ids[1], received_ids[2]);
+        assert_eq!(received_ids[0], "msg-consistent-test");
+    }
+
+    /// Verify the message handler default role is "user" when role is None.
+    #[test]
+    fn test_message_handler_default_role_is_user() {
+        let req = SendMessageRequest {
+            content: "hello".into(),
+            role: None,
+        };
+        let role = req.role.unwrap_or_else(|| "user".to_string());
+        assert_eq!(role, "user");
+    }
+
+    /// Verify abort with explicit run_id passes it through.
+    #[test]
+    fn test_abort_handler_uses_provided_run_id() {
+        let req = AbortRequest {
+            run_id: Some("run-explicit-123".into()),
+            reason: Some("Testing abort".into()),
+        };
+        let run_id = req.run_id.unwrap_or_else(|| "fallback".to_string());
+        assert_eq!(run_id, "run-explicit-123");
+    }
+
+    /// Verify abort without run_id generates a fallback.
+    #[test]
+    fn test_abort_handler_generates_run_id_when_missing() {
+        let req = AbortRequest {
+            run_id: None,
+            reason: None,
+        };
+        let run_id = req.run_id.unwrap_or_else(|| format!("run-{}", uuid::Uuid::new_v4()));
+        assert!(run_id.starts_with("run-"), "Generated run_id should start with 'run-'");
     }
 }

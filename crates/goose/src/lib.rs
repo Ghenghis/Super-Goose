@@ -1,4 +1,5 @@
 pub mod action_required_manager;
+pub mod agent_bus;
 pub mod agents;
 pub mod approval;
 pub mod autonomous;

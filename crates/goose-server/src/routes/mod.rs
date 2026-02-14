@@ -1,12 +1,17 @@
 pub mod action_required;
 pub mod agent;
 pub mod agent_stream;
+pub mod agents_api;
 pub mod ag_ui_stream;
 pub mod config_management;
+pub mod conscious;
 pub mod cost;
 pub mod enterprise;
 pub mod extensions;
 pub mod features;
+pub mod gpu_jobs;
+pub mod lifecycle;
+pub mod memory_api;
 pub mod orchestrator;
 pub mod dictation;
 pub mod errors;
@@ -27,6 +32,7 @@ pub mod system;
 pub mod telemetry;
 pub mod tunnel;
 pub mod utils;
+pub mod vault;
 
 use std::sync::Arc;
 
@@ -60,5 +66,11 @@ pub fn configure(state: Arc<crate::state::AppState>, secret_key: String) -> Rout
         .merge(agent_stream::routes(state.clone()))
         .merge(ag_ui_stream::routes(state.clone()))
         .merge(system::routes(state.clone()))
+        .merge(gpu_jobs::routes(state.clone()))
+        .merge(conscious::routes(state.clone()))
+        .merge(agents_api::routes(state.clone()))
+        .merge(vault::routes(state.clone()))
+        .merge(memory_api::routes(state.clone()))
+        .merge(lifecycle::routes(state.clone()))
         .merge(mcp_app_proxy::routes(secret_key))
 }

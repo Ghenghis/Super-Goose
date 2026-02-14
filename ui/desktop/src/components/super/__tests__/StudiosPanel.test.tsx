@@ -37,59 +37,60 @@ describe('StudiosPanel', () => {
     expect(screen.getByText('Core Studio')).toBeDefined();
     expect(screen.getByText('Agent Studio')).toBeDefined();
     expect(screen.getByText('Data Studio')).toBeDefined();
+    expect(screen.getByText('Eval Studio')).toBeDefined();
+    expect(screen.getByText('Deploy Studio')).toBeDefined();
+    expect(screen.getByText('Vision Studio')).toBeDefined();
     expect(screen.getByText('Build and test agent cores')).toBeDefined();
     expect(screen.getByText('Design multi-agent workflows')).toBeDefined();
+    expect(screen.getByText('Curate, transform, and validate training datasets')).toBeDefined();
+    expect(screen.getByText('Run benchmarks, A/B tests, and quality evaluations')).toBeDefined();
+    expect(screen.getByText('Package agents and deploy to staging or production')).toBeDefined();
+    expect(screen.getByText('Build agents with image, video, and audio capabilities')).toBeDefined();
   });
 
-  it('shows "Coming Soon" badges on coming-soon studios', () => {
+  it('does not show any "Coming Soon" badges', () => {
     render(<StudiosPanel />);
 
-    // 4 coming-soon studios should have badges
-    const badges = screen.getAllByText('Coming Soon');
-    expect(badges.length).toBe(4);
+    expect(screen.queryByText('Coming Soon')).toBeNull();
   });
 
-  // -- Filter tabs ----------------------------------------------------------
+  // -- All cards are interactive ----------------------------------------------
 
-  it('filters to only available studios when "Available" tab is clicked', () => {
+  it('applies interactive styling to all cards', () => {
     render(<StudiosPanel />);
 
-    fireEvent.click(screen.getByText('Available'));
-
-    expect(screen.getByTestId('studio-card-core')).toBeDefined();
-    expect(screen.getByTestId('studio-card-agent')).toBeDefined();
-    expect(screen.queryByTestId('studio-card-data')).toBeNull();
-    expect(screen.queryByTestId('studio-card-eval')).toBeNull();
-    expect(screen.queryByTestId('studio-card-deploy')).toBeNull();
-    expect(screen.queryByTestId('studio-card-vision')).toBeNull();
+    const ids = ['core', 'agent', 'data', 'eval', 'deploy', 'vision'];
+    for (const id of ids) {
+      const card = screen.getByTestId(`studio-card-${id}`);
+      expect(card.className).toContain('cursor-pointer');
+      expect(card.className).not.toContain('opacity-50');
+      expect(card.getAttribute('aria-disabled')).toBe('false');
+      expect(card.getAttribute('tabindex')).toBe('0');
+    }
   });
 
-  it('shows all studios again when "All Studios" tab is clicked after filtering', () => {
+  it('shows "Open <name>" tooltip on all cards', () => {
     render(<StudiosPanel />);
 
-    fireEvent.click(screen.getByText('Available'));
-    expect(screen.queryByTestId('studio-card-data')).toBeNull();
-
-    fireEvent.click(screen.getByText('All Studios'));
-    expect(screen.getByTestId('studio-card-data')).toBeDefined();
+    expect(screen.getByTestId('studio-card-core').getAttribute('title')).toBe('Open Core Studio');
+    expect(screen.getByTestId('studio-card-agent').getAttribute('title')).toBe('Open Agent Studio');
+    expect(screen.getByTestId('studio-card-data').getAttribute('title')).toBe('Open Data Studio');
+    expect(screen.getByTestId('studio-card-eval').getAttribute('title')).toBe('Open Eval Studio');
+    expect(screen.getByTestId('studio-card-deploy').getAttribute('title')).toBe('Open Deploy Studio');
+    expect(screen.getByTestId('studio-card-vision').getAttribute('title')).toBe('Open Vision Studio');
   });
 
-  // -- Click available studio opens pipeline --------------------------------
+  // -- Click any studio opens pipeline ----------------------------------------
 
-  it('opens StudioPipeline when clicking an available studio (Core)', () => {
+  it('opens StudioPipeline when clicking Core Studio', () => {
     render(<StudiosPanel />);
 
     fireEvent.click(screen.getByTestId('studio-card-core'));
 
-    // Pipeline should be rendered
     const pipeline = screen.getByTestId('studio-pipeline');
     expect(pipeline).toBeDefined();
     expect(pipeline.getAttribute('data-default-tab')).toBe('plan');
-
-    // Studio name should appear in header
     expect(screen.getByText('Core Studio')).toBeDefined();
-
-    // Grid should be gone
     expect(screen.queryByTestId('studio-card-agent')).toBeNull();
   });
 
@@ -104,68 +105,48 @@ describe('StudiosPanel', () => {
     expect(screen.getByText('Agent Studio')).toBeDefined();
   });
 
-  // -- Click coming-soon studio does NOT open pipeline ----------------------
-
-  it('does NOT open StudioPipeline when clicking a coming-soon studio', () => {
+  it('opens StudioPipeline when clicking Data Studio with plan tab', () => {
     render(<StudiosPanel />);
 
     fireEvent.click(screen.getByTestId('studio-card-data'));
 
-    // Pipeline should NOT appear
-    expect(screen.queryByTestId('studio-pipeline')).toBeNull();
-
-    // Grid should still be visible
-    expect(screen.getByTestId('studio-card-core')).toBeDefined();
-    expect(screen.getByTestId('studio-card-data')).toBeDefined();
+    const pipeline = screen.getByTestId('studio-pipeline');
+    expect(pipeline).toBeDefined();
+    expect(pipeline.getAttribute('data-default-tab')).toBe('plan');
+    expect(screen.getByText('Data Studio')).toBeDefined();
   });
 
-  it('does NOT open pipeline for any coming-soon studio', () => {
+  it('opens StudioPipeline when clicking Eval Studio with test tab', () => {
     render(<StudiosPanel />);
 
-    const comingSoonIds = ['data', 'eval', 'deploy', 'vision'];
-    for (const id of comingSoonIds) {
-      fireEvent.click(screen.getByTestId(`studio-card-${id}`));
-      expect(screen.queryByTestId('studio-pipeline')).toBeNull();
-    }
+    fireEvent.click(screen.getByTestId('studio-card-eval'));
+
+    const pipeline = screen.getByTestId('studio-pipeline');
+    expect(pipeline).toBeDefined();
+    expect(pipeline.getAttribute('data-default-tab')).toBe('test');
+    expect(screen.getByText('Eval Studio')).toBeDefined();
   });
 
-  // -- Coming-soon styling --------------------------------------------------
-
-  it('applies disabled styling to coming-soon cards', () => {
+  it('opens StudioPipeline when clicking Deploy Studio with deploy tab', () => {
     render(<StudiosPanel />);
 
-    const dataCard = screen.getByTestId('studio-card-data');
-    expect(dataCard.className).toContain('opacity-50');
-    expect(dataCard.className).toContain('cursor-not-allowed');
-    expect(dataCard.getAttribute('aria-disabled')).toBe('true');
-    expect(dataCard.getAttribute('tabindex')).toBe('-1');
+    fireEvent.click(screen.getByTestId('studio-card-deploy'));
+
+    const pipeline = screen.getByTestId('studio-pipeline');
+    expect(pipeline).toBeDefined();
+    expect(pipeline.getAttribute('data-default-tab')).toBe('deploy');
+    expect(screen.getByText('Deploy Studio')).toBeDefined();
   });
 
-  it('applies interactive styling to available cards', () => {
+  it('opens StudioPipeline when clicking Vision Studio with code tab', () => {
     render(<StudiosPanel />);
 
-    const coreCard = screen.getByTestId('studio-card-core');
-    expect(coreCard.className).toContain('cursor-pointer');
-    expect(coreCard.className).not.toContain('opacity-50');
-    expect(coreCard.getAttribute('aria-disabled')).toBe('false');
-    expect(coreCard.getAttribute('tabindex')).toBe('0');
-  });
+    fireEvent.click(screen.getByTestId('studio-card-vision'));
 
-  // -- Coming-soon tooltip --------------------------------------------------
-
-  it('shows tooltip text on coming-soon cards', () => {
-    render(<StudiosPanel />);
-
-    const dataCard = screen.getByTestId('studio-card-data');
-    expect(dataCard.getAttribute('title')).toContain('Coming soon');
-    expect(dataCard.getAttribute('title')).toContain('under development');
-  });
-
-  it('shows "Open <name>" tooltip on available cards', () => {
-    render(<StudiosPanel />);
-
-    const coreCard = screen.getByTestId('studio-card-core');
-    expect(coreCard.getAttribute('title')).toBe('Open Core Studio');
+    const pipeline = screen.getByTestId('studio-pipeline');
+    expect(pipeline).toBeDefined();
+    expect(pipeline.getAttribute('data-default-tab')).toBe('code');
+    expect(screen.getByText('Vision Studio')).toBeDefined();
   });
 
   // -- Back button returns to grid ------------------------------------------
@@ -213,9 +194,26 @@ describe('StudiosPanel', () => {
     expect(screen.getByTestId('studio-pipeline')).toBeDefined();
   });
 
+  it('can navigate from grid to Data Studio and back to Deploy Studio', () => {
+    render(<StudiosPanel />);
+
+    // Open Data Studio
+    fireEvent.click(screen.getByTestId('studio-card-data'));
+    expect(screen.getByText('Data Studio')).toBeDefined();
+    expect(screen.getByTestId('studio-pipeline').getAttribute('data-default-tab')).toBe('plan');
+
+    // Go back
+    fireEvent.click(screen.getByTestId('back-to-studios'));
+
+    // Open Deploy Studio
+    fireEvent.click(screen.getByTestId('studio-card-deploy'));
+    expect(screen.getByText('Deploy Studio')).toBeDefined();
+    expect(screen.getByTestId('studio-pipeline').getAttribute('data-default-tab')).toBe('deploy');
+  });
+
   // -- Keyboard accessibility -----------------------------------------------
 
-  it('opens studio on Enter key press for available cards', () => {
+  it('opens studio on Enter key press', () => {
     render(<StudiosPanel />);
 
     const coreCard = screen.getByTestId('studio-card-core');
@@ -225,7 +223,7 @@ describe('StudiosPanel', () => {
     expect(screen.getByText('Core Studio')).toBeDefined();
   });
 
-  it('opens studio on Space key press for available cards', () => {
+  it('opens studio on Space key press', () => {
     render(<StudiosPanel />);
 
     const agentCard = screen.getByTestId('studio-card-agent');
@@ -233,5 +231,25 @@ describe('StudiosPanel', () => {
 
     expect(screen.getByTestId('studio-pipeline')).toBeDefined();
     expect(screen.getByText('Agent Studio')).toBeDefined();
+  });
+
+  it('opens Data Studio on Enter key press', () => {
+    render(<StudiosPanel />);
+
+    const dataCard = screen.getByTestId('studio-card-data');
+    fireEvent.keyDown(dataCard, { key: 'Enter' });
+
+    expect(screen.getByTestId('studio-pipeline')).toBeDefined();
+    expect(screen.getByText('Data Studio')).toBeDefined();
+  });
+
+  it('opens Vision Studio on Space key press', () => {
+    render(<StudiosPanel />);
+
+    const visionCard = screen.getByTestId('studio-card-vision');
+    fireEvent.keyDown(visionCard, { key: ' ' });
+
+    expect(screen.getByTestId('studio-pipeline')).toBeDefined();
+    expect(screen.getByText('Vision Studio')).toBeDefined();
   });
 });
