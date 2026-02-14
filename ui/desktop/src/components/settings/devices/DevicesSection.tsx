@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Wifi, Plus, Trash2, RefreshCw, Cpu, Printer, Smartphone, Server, Terminal, Thermometer, Home, AlertTriangle } from 'lucide-react';
 
-const CONSCIOUS_API = 'http://localhost:8999';
+import { CONSCIOUS_API } from '../../conscious/consciousConfig';
 
 interface DeviceInfo {
   ip: string;

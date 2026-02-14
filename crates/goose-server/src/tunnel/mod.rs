@@ -251,7 +251,10 @@ impl TunnelManager {
         }
 
         let lock = try_acquire_tunnel_lock()?;
-        *self.lock_file.lock().unwrap() = Some(lock);
+        match self.lock_file.lock() {
+            Ok(mut guard) => *guard = Some(lock),
+            Err(poisoned) => *poisoned.into_inner() = Some(lock),
+        }
 
         *state = TunnelState::Starting;
         drop(state);

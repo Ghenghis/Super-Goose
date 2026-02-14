@@ -1,3 +1,11 @@
+/**
+ * SkillsPanel — view and manage agent skills/capabilities.
+ *
+ * NOTE: Skill data is currently populated from a static INITIAL_SKILLS array.
+ * TODO: Replace INITIAL_SKILLS with a fetch to /api/learning/skills or
+ *       /api/agent/capabilities once the backend skill registry is wired.
+ */
+
 import { useState, useCallback } from 'react';
 import { SGMetricCard, SGBadge, SGEmptyState } from './shared';
 
@@ -20,6 +28,7 @@ const CATEGORY_BADGE_VARIANT: Record<Skill['category'], 'indigo' | 'emerald' | '
   community: 'gold',
 };
 
+// TODO: Fetch from /api/learning/skills when backend endpoint is available
 const INITIAL_SKILLS: Skill[] = [
   { id: 'file-ops', name: 'File Operations', description: 'Read, write, move, and manage files across the filesystem', category: 'builtin', enabled: true, usageCount: 47, lastUsed: '2026-02-13T10:30:00Z', source: 'core' },
   { id: 'code-analysis', name: 'Code Analysis', description: 'Static analysis, linting, and structural code inspection', category: 'builtin', enabled: true, usageCount: 23, lastUsed: '2026-02-13T09:15:00Z', source: 'core' },

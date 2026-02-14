@@ -193,7 +193,7 @@ describe('backendApi', () => {
       });
       await backendApi.searchSessions('hello world');
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/sessions/search?q=hello%20world'
+        'http://localhost:3284/sessions/search?q=hello%20world'
       );
     });
 

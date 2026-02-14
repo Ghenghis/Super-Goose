@@ -3,6 +3,7 @@ pub mod agent;
 pub mod agent_stream;
 pub mod agents_api;
 pub mod ag_ui_stream;
+pub mod bookmarks;
 pub mod config_management;
 pub mod conscious;
 pub mod cost;
@@ -30,6 +31,7 @@ pub mod setup;
 pub mod status;
 pub mod system;
 pub mod telemetry;
+pub mod timewarp;
 pub mod tunnel;
 pub mod utils;
 pub mod vault;
@@ -72,5 +74,7 @@ pub fn configure(state: Arc<crate::state::AppState>, secret_key: String) -> Rout
         .merge(vault::routes(state.clone()))
         .merge(memory_api::routes(state.clone()))
         .merge(lifecycle::routes(state.clone()))
+        .merge(bookmarks::routes(state.clone()))
+        .merge(timewarp::routes(state.clone()))
         .merge(mcp_app_proxy::routes(secret_key))
 }

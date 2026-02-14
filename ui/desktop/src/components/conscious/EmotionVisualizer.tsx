@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
 import { Heart, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
-const CONSCIOUS_API = 'http://localhost:8999';
+import { CONSCIOUS_API } from './consciousConfig';
 
 interface MoodData {
   dominant_emotion: string;

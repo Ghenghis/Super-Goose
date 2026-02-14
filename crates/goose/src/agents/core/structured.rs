@@ -510,11 +510,6 @@ impl AgentCore for StructuredCore {
     }
 }
 
-#[allow(dead_code)]
-fn truncate(s: &str, max: usize) -> &str {
-    if s.len() <= max { s } else { &s[..max] }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

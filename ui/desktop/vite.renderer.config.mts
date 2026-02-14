@@ -28,5 +28,9 @@ export default defineConfig({
   // logs. Setting noDiscovery=true skips the scanner entirely.
   optimizeDeps: {
     noDiscovery: true,
+    // CJS packages that need explicit pre-bundling since noDiscovery skips auto-detection.
+    // Without this, named ESM imports (e.g. `import { parse } from 'shell-quote'`) fail
+    // because Vite serves the raw CJS without interop transformation.
+    include: ['shell-quote', 'lodash'],
   },
 });

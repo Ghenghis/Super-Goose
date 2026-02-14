@@ -66,7 +66,6 @@ pub struct ExperienceQueryParams {
 }
 
 #[derive(Debug, Clone, Deserialize, ToSchema)]
-#[allow(dead_code)]
 pub struct SkillQueryParams {
     pub verified_only: Option<bool>,
 }

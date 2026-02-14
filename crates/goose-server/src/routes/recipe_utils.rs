@@ -47,9 +47,10 @@ pub fn get_all_recipes_manifests() -> Result<Vec<RecipeManifest>> {
     let recipes_with_path = list_local_recipes()?;
     let mut recipe_manifests_with_path = Vec::new();
     for (file_path, recipe) in recipes_with_path {
-        let Ok(last_modified) = fs::metadata(file_path.clone())
-            .map(|m| chrono::DateTime::<chrono::Utc>::from(m.modified().unwrap()).to_rfc3339())
-        else {
+        let Ok(last_modified) = fs::metadata(file_path.clone()).and_then(|m| {
+            m.modified()
+                .map(|t| chrono::DateTime::<chrono::Utc>::from(t).to_rfc3339())
+        }) else {
             continue;
         };
 

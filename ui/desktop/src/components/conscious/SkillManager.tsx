@@ -1,7 +1,7 @@
 ﻿import { useState } from 'react';
 import { BookOpen, Play, Save } from 'lucide-react';
 
-const CONSCIOUS_API = 'http://localhost:8999';
+import { CONSCIOUS_API } from './consciousConfig';
 
 export default function SkillManager() {
   const [skillName, setSkillName] = useState('');

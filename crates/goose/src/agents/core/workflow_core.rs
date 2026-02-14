@@ -296,11 +296,6 @@ impl AgentCore for WorkflowCore {
     }
 }
 
-#[allow(dead_code)]
-fn truncate(s: &str, max: usize) -> &str {
-    if s.len() <= max { s } else { &s[..max] }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

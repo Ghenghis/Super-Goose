@@ -215,7 +215,7 @@ impl IntoResponse for SseResponse {
             .header("Cache-Control", "no-cache")
             .header("Connection", "keep-alive")
             .body(body)
-            .unwrap()
+            .expect("SSE response with static headers should never fail to build")
     }
 }
 
@@ -499,12 +499,15 @@ pub async fn reply(
                         }
                         Ok(Some(Ok(AgentEvent::HistoryReplaced(new_messages)))) => {
                             // --- AG-UI: MESSAGES_SNAPSHOT ---
-                            emit_ag_ui_event_typed(&state, &AgUiEvent::CUSTOM {
-                                name: "history_replaced".to_string(),
-                                value: serde_json::json!({
-                                    "thread_id": thread_id,
-                                    "message_count": new_messages.len(),
-                                }),
+                            // Use the proper MESSAGES_SNAPSHOT event type instead of
+                            // CUSTOM so the frontend AG-UI layer can handle it natively.
+                            emit_ag_ui_event_typed(&state, &AgUiEvent::MESSAGES_SNAPSHOT {
+                                messages: new_messages.iter().map(|m| {
+                                    serde_json::json!({
+                                        "role": format!("{:?}", m.role),
+                                        "thread_id": thread_id,
+                                    })
+                                }).collect(),
                             });
 
                             all_messages = new_messages.clone();
@@ -523,6 +526,14 @@ pub async fn reply(
                             stream_event(MessageEvent::ModelChange { model, mode }, &tx, &cancel_token).await;
                         }
                         Ok(Some(Ok(AgentEvent::McpNotification((request_id, n))))) => {
+                            // --- AG-UI: CUSTOM event for MCP notifications ---
+                            emit_ag_ui_event_typed(&state, &AgUiEvent::CUSTOM {
+                                name: "mcp_notification".to_string(),
+                                value: serde_json::json!({
+                                    "request_id": request_id,
+                                }),
+                            });
+
                             stream_event(MessageEvent::Notification{
                                 request_id: request_id.clone(),
                                 message: n,

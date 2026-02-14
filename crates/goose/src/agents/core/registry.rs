@@ -76,7 +76,10 @@ impl AgentCoreRegistry {
         };
 
         info!("Core switched: {} → {}", old_type, core_type);
-        Ok(self.cores.get(&core_type).cloned().unwrap())
+        self.cores
+            .get(&core_type)
+            .cloned()
+            .ok_or_else(|| anyhow!("Core type '{}' disappeared after registration check", core_type))
     }
 
     /// Get a specific core by type (without switching)

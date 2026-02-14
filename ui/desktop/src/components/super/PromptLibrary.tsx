@@ -1,3 +1,11 @@
+/**
+ * PromptLibrary — curated catalog of reusable prompt templates.
+ *
+ * NOTE: Template data is currently populated from a static PROMPTS array.
+ * TODO: Replace PROMPTS with a fetch to /api/prompts or user-stored templates
+ *       once the backend prompt registry is available.
+ */
+
 import { useState } from 'react';
 import { SGEmptyState } from './shared';
 
@@ -19,6 +27,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   creative: 'var(--sg-violet)',
 };
 
+// TODO: Fetch from /api/prompts when backend endpoint is available
 const PROMPTS: PromptTemplate[] = [
   {
     id: 'debug-test',

@@ -595,5 +595,5 @@ pub struct ApiDoc;
 #[allow(dead_code)] // Used by generate_schema binary
 pub fn generate_schema() -> String {
     let api_doc = ApiDoc::openapi();
-    serde_json::to_string_pretty(&api_doc).unwrap()
+    serde_json::to_string_pretty(&api_doc).expect("OpenAPI schema serialization should never fail")
 }

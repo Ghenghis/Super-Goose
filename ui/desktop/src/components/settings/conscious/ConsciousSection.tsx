@@ -12,7 +12,7 @@ import CreatorPanel from '../../conscious/CreatorPanel';
 import TestingDashboard from '../../conscious/TestingDashboard';
 import SkillManager from '../../conscious/SkillManager';
 
-const CONSCIOUS_API = 'http://localhost:8999';
+import { CONSCIOUS_API } from '../../conscious/consciousConfig';
 
 interface ConsciousStatus {
   enabled: boolean;

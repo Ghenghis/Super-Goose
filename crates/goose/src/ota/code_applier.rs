@@ -508,8 +508,10 @@ impl CodeApplier {
 
         let new_content = match change.change_type {
             ChangeType::Insert => {
-                let line_num = change.line_number.unwrap() as usize;
-                let insert_content = change.new_content.as_ref().unwrap();
+                let line_num = change.line_number
+                    .context("Insert change requires line_number")? as usize;
+                let insert_content = change.new_content.as_ref()
+                    .context("Insert change requires new_content")?;
                 let mut lines: Vec<&str> = content.lines().collect();
 
                 let insert_at = line_num.min(lines.len());
@@ -517,16 +519,20 @@ impl CodeApplier {
                 lines.join("\n")
             }
             ChangeType::Replace => {
-                let pattern = change.search_pattern.as_ref().unwrap();
-                let replacement = change.new_content.as_ref().unwrap();
+                let pattern = change.search_pattern.as_ref()
+                    .context("Replace change requires search_pattern")?;
+                let replacement = change.new_content.as_ref()
+                    .context("Replace change requires new_content")?;
                 content.replacen(pattern, replacement, 1)
             }
             ChangeType::Delete => {
-                let pattern = change.search_pattern.as_ref().unwrap();
+                let pattern = change.search_pattern.as_ref()
+                    .context("Delete change requires search_pattern")?;
                 content.replacen(pattern, "", 1)
             }
             ChangeType::Append => {
-                let append_content = change.new_content.as_ref().unwrap();
+                let append_content = change.new_content.as_ref()
+                    .context("Append change requires new_content")?;
                 if content.ends_with('\n') {
                     format!("{}{}\n", content, append_content)
                 } else {

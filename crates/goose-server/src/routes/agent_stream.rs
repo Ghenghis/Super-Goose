@@ -29,7 +29,7 @@ use utoipa::ToSchema;
 /// can dispatch on `event.type`.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(tag = "type")]
-#[allow(dead_code)]
+#[allow(dead_code)] // Variants constructed in tests and by future agent execution code
 pub enum AgentStreamEvent {
     /// Periodic snapshot of the agent's current status.
     AgentStatus {

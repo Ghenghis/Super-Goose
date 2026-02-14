@@ -374,7 +374,6 @@ fn format_ag_ui_sse(event: &AgUiEvent) -> String {
 ///     value: serde_json::json!({"key": "value"}),
 /// });
 /// ```
-#[allow(dead_code)] // Public API — will be called by POST endpoint handlers and agent execution code.
 pub fn emit_ag_ui_event_typed(state: &AppState, event: &AgUiEvent) -> bool {
     let frame = format_ag_ui_sse(event);
     // send() returns Err only when there are no active receivers — that's fine.

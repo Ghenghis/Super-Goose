@@ -463,7 +463,7 @@ export const backendApi = {
   searchSessions: async (query: string): Promise<SessionSearchResult[] | null> => {
     try {
       const res = await fetch(
-        getApiUrl(`/api/sessions/search?q=${encodeURIComponent(query)}`)
+        getApiUrl(`/sessions/search?q=${encodeURIComponent(query)}`)
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as SessionSearchResult[];

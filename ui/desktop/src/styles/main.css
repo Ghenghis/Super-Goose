@@ -467,6 +467,25 @@
   border-bottom-color: var(--sg-indigo);
 }
 
+.super-goose-panel .sg-input {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--sg-border);
+  background: var(--sg-input);
+  color: var(--sg-text-1);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.super-goose-panel .sg-input:focus {
+  border-color: var(--sg-indigo);
+}
+
+.super-goose-panel .sg-input::placeholder {
+  color: var(--sg-text-4);
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
    Panel System — Resize Handles, Transitions, Zone Animations
    ──────────────────────────────────────────────────────────────────────────── */

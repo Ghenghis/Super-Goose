@@ -14,7 +14,10 @@
     "outDir": "dist"
   },
   "include": [
-    "vite.config.ts",
+    "vite.config.mts",
+    "vite.main.config.mts",
+    "vite.renderer.config.mts",
+    "vite.preload.config.mts",
     "forge.config.ts"
   ]
 }

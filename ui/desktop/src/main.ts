@@ -833,6 +833,7 @@ const createLauncher = () => {
     backgroundColor: process.platform === 'darwin' ? '#00000000' : '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      webSecurity: true,
       nodeIntegration: false,
       contextIsolation: true,
       additionalArguments: [JSON.stringify(appConfig)],

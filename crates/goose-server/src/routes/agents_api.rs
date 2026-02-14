@@ -485,6 +485,128 @@ fn format_sse(event_name: &str, data: &str) -> String {
     format!("event: {}\ndata: {}\n\n", event_name, data)
 }
 
+/// Request body for `POST /api/agents/chat/send`.
+#[derive(Debug, Deserialize)]
+struct ChatSendRequest {
+    to: String,
+    content: String,
+    #[serde(default = "default_channel")]
+    channel: String,
+}
+
+/// `POST /api/agents/chat/send` — Send a chat message from the user.
+///
+/// This is used by the frontend's `useAgentChat` hook when the user types
+/// a message in the inter-agent chat panel.
+async fn chat_send(
+    State(bus): State<Arc<AgentBusState>>,
+    Json(req): Json<ChatSendRequest>,
+) -> (StatusCode, Json<MessageRecord>) {
+    let now = Utc::now().to_rfc3339();
+    let record = MessageRecord {
+        id: Uuid::new_v4().to_string(),
+        from_agent: "user".to_string(),
+        to_target: req.to.clone(),
+        target_type: "agent".to_string(),
+        channel: req.channel,
+        priority: 2,
+        payload: serde_json::json!({ "text": req.content }),
+        reply_to: None,
+        created_at: now,
+        expires_at: None,
+        delivered: false,
+        delivered_at: None,
+        acknowledged: false,
+        acknowledged_at: None,
+    };
+
+    // Broadcast to SSE subscribers
+    let _ = bus.chat_tx.send(serde_json::to_string(&record).unwrap_or_default());
+
+    let mut messages = bus.messages.lock().await;
+    messages.push(record.clone());
+
+    (StatusCode::CREATED, Json(record))
+}
+
+/// Request body for `POST /api/agents/wake` (no path param variant).
+#[derive(Debug, Deserialize)]
+struct WakeByBodyRequest {
+    #[serde(alias = "agentId")]
+    agent_id: String,
+    #[serde(default)]
+    reason: Option<String>,
+}
+
+/// `POST /api/agents/wake` — Wake an agent by ID supplied in the JSON body.
+///
+/// The frontend's `useAgentChat` hook calls this variant (without a path
+/// param).  It delegates to the same wake logic as `POST /api/agents/{id}/wake`.
+async fn wake_agent_by_body(
+    State(bus): State<Arc<AgentBusState>>,
+    Json(req): Json<WakeByBodyRequest>,
+) -> Result<Json<AgentRecord>, (StatusCode, Json<OperationResponse>)> {
+    let mut agents = bus.agents.write().await;
+    match agents.get_mut(&req.agent_id) {
+        Some(agent) => {
+            if agent.status == "online" {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(OperationResponse {
+                        success: false,
+                        message: format!("Agent '{}' is already online", req.agent_id),
+                    }),
+                ));
+            }
+            let now = Utc::now().to_rfc3339();
+            agent.status = "waking".to_string();
+            agent.last_heartbeat = Some(now);
+            tracing::info!(
+                agent_id = %req.agent_id,
+                reason = ?req.reason,
+                "Agent woken via body-based wake endpoint"
+            );
+            Ok(Json(agent.clone()))
+        }
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(OperationResponse {
+                success: false,
+                message: format!("Agent '{}' not found", req.agent_id),
+            }),
+        )),
+    }
+}
+
+/// `GET /api/agents/conductor/status` — Get conductor process status.
+///
+/// Returns the status of the conductor process (process orchestrator).
+/// The frontend's `useConductorStatus` hook polls this endpoint every 5s.
+async fn conductor_status(
+    State(bus): State<Arc<AgentBusState>>,
+) -> Json<serde_json::Value> {
+    let agents = bus.agents.read().await;
+    let children: Vec<serde_json::Value> = agents
+        .values()
+        .map(|a| {
+            serde_json::json!({
+                "name": a.display_name,
+                "pid": 0,
+                "status": a.status,
+                "uptime": 0,
+            })
+        })
+        .collect();
+
+    Json(serde_json::json!({
+        "running": !agents.is_empty(),
+        "children": children,
+        "last_health_check": Utc::now().to_rfc3339(),
+        "message_queue_size": 0,
+        "task_queue_size": 0,
+    }))
+}
+
 /// `GET /api/agents/chat/stream` — SSE stream of all agent messages.
 async fn chat_stream(
     State(bus): State<Arc<AgentBusState>>,
@@ -697,6 +819,9 @@ pub fn routes(_app_state: Arc<AppState>) -> Router {
         .route("/api/agents/{id}/message", post(send_message))
         .route("/api/agents/{id}/messages", get(get_inbox))
         .route("/api/agents/chat/stream", get(chat_stream))
+        .route("/api/agents/chat/send", post(chat_send))
+        .route("/api/agents/wake", post(wake_agent_by_body))
+        .route("/api/agents/conductor/status", get(conductor_status))
         // Task queue
         .route("/api/tasks", get(list_tasks).post(create_task))
         .route(

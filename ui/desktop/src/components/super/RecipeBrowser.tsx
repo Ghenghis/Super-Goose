@@ -1,3 +1,11 @@
+/**
+ * RecipeBrowser — browsable catalog of agent workflow recipes.
+ *
+ * NOTE: Recipe data is currently populated from SAMPLE_RECIPES (static seed data).
+ * TODO: Replace SAMPLE_RECIPES with a fetch to /api/recipes or a Marketplace API
+ *       once the backend recipe registry is available.
+ */
+
 import { useState, useMemo } from 'react';
 import { SGEmptyState } from './shared';
 
@@ -24,6 +32,7 @@ const CATEGORY_BADGE: Record<Recipe['category'], { variant: string; label: strin
   creative: { variant: 'sg-badge-red', label: 'Creative' },
 };
 
+// TODO: Fetch from /api/recipes when backend endpoint is available
 const SAMPLE_RECIPES: Recipe[] = [
   {
     id: 'docker-env',
@@ -154,23 +163,14 @@ export default function RecipeBrowser() {
       </div>
 
       {/* Search bar */}
-      <div style={{ position: 'relative' }}>
+      <div className="relative">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search recipes..."
           aria-label="Search recipes"
-          style={{
-            width: '100%',
-            padding: '0.5rem 0.75rem',
-            borderRadius: '0.5rem',
-            border: '1px solid var(--sg-border)',
-            background: 'var(--sg-input)',
-            color: 'var(--sg-text-1)',
-            fontSize: '0.875rem',
-            outline: 'none',
-          }}
+          className="sg-input w-full"
         />
       </div>
 

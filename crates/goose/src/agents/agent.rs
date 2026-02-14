@@ -2659,9 +2659,9 @@ impl Agent {
                 }
 
                 if let Some(final_output_tool) = self.final_output_tool.lock().await.as_ref() {
-                    if final_output_tool.final_output.is_some() {
+                    if let Some(ref output) = final_output_tool.final_output {
                         let final_event = AgentEvent::Message(
-                            Message::assistant().with_text(final_output_tool.final_output.clone().unwrap())
+                            Message::assistant().with_text(output.clone())
                         );
                         yield final_event;
                         break;
@@ -3389,16 +3389,16 @@ impl Agent {
                 let mut exit_chat = false;
                 if no_tools_called {
                     if let Some(final_output_tool) = self.final_output_tool.lock().await.as_ref() {
-                        if final_output_tool.final_output.is_none() {
+                        if let Some(ref output) = final_output_tool.final_output {
+                            let message = Message::assistant().with_text(output.clone());
+                            messages_to_add.push(message.clone());
+                            yield AgentEvent::Message(message);
+                            exit_chat = true;
+                        } else {
                             warn!("Final output tool has not been called yet. Continuing agent loop.");
                             let message = Message::user().with_text(FINAL_OUTPUT_CONTINUATION_MESSAGE);
                             messages_to_add.push(message.clone());
                             yield AgentEvent::Message(message);
-                        } else {
-                            let message = Message::assistant().with_text(final_output_tool.final_output.clone().unwrap());
-                            messages_to_add.push(message.clone());
-                            yield AgentEvent::Message(message);
-                            exit_chat = true;
                         }
                     } else if did_recovery_compact_this_iteration {
                         // Avoid setting exit_chat; continue from last user message in the conversation
@@ -3440,11 +3440,12 @@ impl Agent {
 
                     if matching.len() == 2 {
                         for msg in matching {
-                            let id = msg.id.as_ref().unwrap();
-                            msg.metadata = msg.metadata.with_agent_invisible();
-                            SessionManager::update_message_metadata(&session_config.id, id, |metadata| {
-                                metadata.with_agent_invisible()
-                            }).await?;
+                            if let Some(id) = msg.id.as_ref() {
+                                msg.metadata = msg.metadata.with_agent_invisible();
+                                SessionManager::update_message_metadata(&session_config.id, id, |metadata| {
+                                    metadata.with_agent_invisible()
+                                }).await?;
+                            }
                         }
                         conversation = Conversation::new_unvalidated(updated_messages);
                         messages_to_add.push(summary_msg);
@@ -3773,7 +3774,8 @@ impl Agent {
         );
 
         // the response may be contained in ```json ```, strip that before parsing json
-        let re = Regex::new(r"(?s)```[^\n]*\n(.*?)\n```").unwrap();
+        let re = Regex::new(r"(?s)```[^\n]*\n(.*?)\n```")
+            .expect("static regex pattern is always valid");
         let clean_content = re
             .captures(&content)
             .and_then(|caps| caps.get(1).map(|m| m.as_str()))

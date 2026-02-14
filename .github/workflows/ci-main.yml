@@ -328,7 +328,7 @@ jobs:
     if: github.repository == 'Ghenghis/Super-Goose'
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
       - name: Install Semgrep
         run: pip install semgrep
       - name: Run Stage 6 policy

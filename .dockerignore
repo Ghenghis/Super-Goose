@@ -65,6 +65,14 @@ Dockerfile
 .dockerignore
 docker-compose.yml
 
+# External reference implementations (not part of goose build)
+external/
+
+# Services, docs, and tools not needed for the Rust build
+documentation/
+recipe-scanner/
+services/
+
 # Development scripts that aren't needed in build
 scripts/bench-postprocess-scripts/
 

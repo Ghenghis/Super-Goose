@@ -19,6 +19,8 @@
  * This is the Electron-side counterpart to conscious/agentic/ui_bridge.py.
  */
 
+import { CONSCIOUS_WS } from './consciousConfig';
+
 export type UICommand = {
   command: string;
   params: Record<string, unknown>;
@@ -33,7 +35,7 @@ class ConsciousBridge {
   private url: string;
   private connected = false;
 
-  constructor(url = 'ws://localhost:8997') {
+  constructor(url = CONSCIOUS_WS) {
     this.url = url;
   }
 

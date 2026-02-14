@@ -120,7 +120,6 @@ pub struct TranscriptionSegment {
 /// An SSE voice event emitted on the voice stream.
 #[derive(Serialize, Clone, Debug, ToSchema)]
 #[serde(rename_all = "camelCase", tag = "type")]
-#[allow(dead_code)]
 pub enum VoiceEvent {
     /// Voice activity detected — user started speaking.
     #[serde(rename_all = "camelCase")]
@@ -140,6 +139,7 @@ pub enum VoiceEvent {
     },
     /// Error in the voice pipeline.
     #[serde(rename_all = "camelCase")]
+    #[allow(dead_code)] // Variant reserved for voice error reporting — not yet wired
     VoiceError { message: String, code: Option<String> },
 }
 
