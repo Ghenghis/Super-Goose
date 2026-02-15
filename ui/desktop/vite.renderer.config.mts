@@ -29,8 +29,18 @@ export default defineConfig({
   optimizeDeps: {
     noDiscovery: true,
     // CJS packages that need explicit pre-bundling since noDiscovery skips auto-detection.
-    // Without this, named ESM imports (e.g. `import { parse } from 'shell-quote'`) fail
+    // Without this, named ESM imports (e.g. `import { isValidElement } from 'react'`) fail
     // because Vite serves the raw CJS without interop transformation.
-    include: ['shell-quote', 'lodash'],
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'react-toastify',
+      'lucide-react',
+      'use-sync-external-store',
+      'cronstrue',
+      'shell-quote',
+      'lodash',
+    ],
   },
 });

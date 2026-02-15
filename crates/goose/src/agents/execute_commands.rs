@@ -599,7 +599,7 @@ impl Agent {
         if params.is_empty() {
             // No argument: show current core
             let active = self.core_registry.active_core_type().await;
-            let core = self.core_registry.active_core().await;
+            let core = self.core_registry.active_core().await?;
             return Ok(Some(Message::assistant().with_text(format!(
                 "Active core: **{}** — {}\n\nSwitch with: `/core <name>`\nAvailable: freeform, structured, orchestrator, swarm, workflow, adversarial",
                 active, core.description()

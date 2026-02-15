@@ -53,3 +53,29 @@ describe('useNavigation', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/chat', { state: undefined });
   });
 });
+
+describe('useNavigationSafe', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns a function when inside Router context', async () => {
+    const { useNavigationSafe } = await import('../useNavigation');
+    const { result } = renderHook(() => useNavigationSafe());
+
+    expect(typeof result.current).toBe('function');
+  });
+
+  it('returns null when useNavigate throws (outside Router context)', async () => {
+    const { useNavigate } = await import('react-router-dom');
+    const mockUseNavigate = useNavigate as ReturnType<typeof vi.fn>;
+    mockUseNavigate.mockImplementationOnce(() => {
+      throw new Error('useNavigate() may be used only in the context of a <Router> component.');
+    });
+
+    const { useNavigationSafe } = await import('../useNavigation');
+    const { result } = renderHook(() => useNavigationSafe());
+
+    expect(result.current).toBeNull();
+  });
+});

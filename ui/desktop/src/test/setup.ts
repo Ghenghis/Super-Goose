@@ -36,14 +36,10 @@ afterEach(() => {
   cleanup();
 });
 
-// Mock console methods to avoid noise in tests
-// eslint-disable-next-line no-undef
-global.console = {
-  ...console,
-  log: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-};
+// Suppress console.log and console.warn in tests to reduce noise,
+// but keep console.error visible for debugging test failures.
+vi.spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'warn').mockImplementation(() => {});
 
 // Mock window.navigator.clipboard for copy functionality tests
 Object.assign(navigator, {

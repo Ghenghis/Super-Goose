@@ -109,12 +109,18 @@ const ReflexionPanel = () => {
   const fetchExperiences = useCallback(async () => {
     try {
       const experiences = await backendApi.getLearningExperiences(20, 0);
-      if (experiences && experiences.length > 0) {
-        setEntries(experiences.map(mapExperienceToEntry));
+      if (experiences === null) {
+        // API returned null (error/unreachable) — keep fallback data
+        return;
       }
-      // If empty or null, keep mock data
+      if (experiences.length > 0) {
+        setEntries(experiences.map(mapExperienceToEntry));
+      } else {
+        // API reachable but returned empty array — show empty state, not mock data
+        setEntries([]);
+      }
     } catch {
-      // Fallback to mock data
+      // Backend unavailable — keep fallback data so UI isn't empty
     }
   }, []);
 

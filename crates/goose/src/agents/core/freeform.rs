@@ -113,9 +113,9 @@ impl AgentCore for FreeformCore {
             metrics: CoreMetricsSnapshot::default(),
         };
 
-        // Record execution count but pass 0 for elapsed — actual timing happens
-        // in Agent::reply_internal() which runs outside this method.
-        self.metrics.record_execution(true, 0, 0, 0);
+        // NOTE: Do NOT record metrics here. FreeformCore::execute() is a pass-through;
+        // actual execution happens in Agent::reply_internal(). Recording here would
+        // produce misleading "100% success, 0 turns, 0ms" metrics.
         Ok(output)
     }
 

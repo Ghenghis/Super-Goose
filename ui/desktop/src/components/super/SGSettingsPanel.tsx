@@ -26,15 +26,20 @@ export default function SGSettingsPanel() {
   const [version, setVersion] = useState<string>('v1.24.05');
 
   useEffect(() => {
-    fetch(getApiUrl('/api/learning/stats'))
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    fetch(getApiUrl('/api/learning/stats'), { signal })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setLearningStats(data); })
+      .then(data => { if (data && !signal.aborted) setLearningStats(data); })
       .catch(() => {});
 
-    fetch(getApiUrl('/api/version'))
+    fetch(getApiUrl('/api/version'), { signal })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.version) setVersion(`v${data.version}`); })
+      .then(data => { if (data?.version && !signal.aborted) setVersion(`v${data.version}`); })
       .catch(() => {});
+
+    return () => controller.abort();
   }, []);
 
   const fetchFeatures = useCallback(async () => {

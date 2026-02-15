@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import AppSidebar from '../GooseSidebar/AppSidebar';
 import { View, ViewOptions } from '../../utils/navigationUtils';
@@ -102,7 +102,7 @@ function RightPanel({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => voi
   );
 }
 
-const AppLayoutContent: React.FC<AppLayoutContentProps> = ({ activeSessions }) => {
+const AppLayoutContent = ({ activeSessions }: AppLayoutContentProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const safeIsMacOS = (window?.electron?.platform || 'darwin') === 'darwin';
@@ -237,7 +237,7 @@ interface AppLayoutProps {
   }>;
 }
 
-export const AppLayout: React.FC<AppLayoutProps> = ({ activeSessions }) => {
+export const AppLayout = ({ activeSessions }: AppLayoutProps) => {
   return (
     <TimeWarpProvider>
       <AgentPanelProvider>

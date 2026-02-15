@@ -3,7 +3,7 @@ import { Button } from './components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './components/ui/Tooltip';
 import Copy from './components/icons/Copy';
 import { startNewSession } from './sessions';
-import { useNavigation } from './hooks/useNavigation';
+import { useNavigationSafe } from './hooks/useNavigation';
 import {
   GroupedExtensionLoadingToast,
   ExtensionLoadingStatus,
@@ -174,7 +174,7 @@ function ToastErrorContent({
   traceback,
   recoverHints,
 }: Omit<ToastErrorProps, 'setView'>) {
-  const setView = useNavigation();
+  const setView = useNavigationSafe();
   const showRecovery = recoverHints && setView;
   const hasBoth = traceback && showRecovery;
 

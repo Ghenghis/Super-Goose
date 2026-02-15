@@ -37,41 +37,52 @@ export default function AgentsPanel() {
           priorities: config.priorities.length > 0 ? config.priorities : CORE_TYPES.map(c => c.id),
         });
       }
-    });
+    }).catch(() => { /* backend unavailable — use defaults */ });
   }, []);
 
   const handleSaveConfig = useCallback(async () => {
     setConfigSaving(true);
     setConfigMessage(null);
-    const result = await backendApi.setCoreConfig({
-      auto_select: builderConfig.autoSelect,
-      threshold: builderConfig.threshold,
-      preferred_core: builderConfig.preferredCore,
-      priorities: builderConfig.priorities,
-    });
-    if (result?.success) {
-      setConfigMessage('Configuration saved');
-    } else {
-      setConfigMessage(result?.message ?? 'Failed to save configuration');
+    try {
+      const result = await backendApi.setCoreConfig({
+        auto_select: builderConfig.autoSelect,
+        threshold: builderConfig.threshold,
+        preferred_core: builderConfig.preferredCore,
+        priorities: builderConfig.priorities,
+      });
+      if (result?.success) {
+        setConfigMessage('Configuration saved');
+      } else {
+        setConfigMessage(result?.message ?? 'Failed to save configuration');
+      }
+    } catch {
+      setConfigMessage('Failed to save — backend unavailable');
+    } finally {
+      setConfigSaving(false);
+      // Clear message after 3s
+      setTimeout(() => setConfigMessage(null), 3000);
     }
-    setConfigSaving(false);
-    // Clear message after 3s
-    setTimeout(() => setConfigMessage(null), 3000);
   }, [builderConfig]);
 
   const handleSelectCore = useCallback(async (coreId: string) => {
     setSwitching(true);
-    const result = await backendApi.switchCore(coreId);
-    if (result?.success) {
-      setActiveCore(result.active_core);
+    try {
+      const result = await backendApi.switchCore(coreId);
+      if (result?.success) {
+        setActiveCore(result.active_core);
+      }
+    } catch {
+      /* backend unavailable — keep current core */
+    } finally {
+      setSwitching(false);
     }
-    setSwitching(false);
   }, []);
 
   // Derive active core from SSE stream or local state
   const currentCore = activeCore ?? (agentState?.core_type != null ? String(agentState.core_type) : null);
 
-  const recentEvents = (activities ?? []).slice(-10).reverse().map((a: { id?: string; message?: string; metadata?: Record<string, unknown> }) => ({
+  const recentEvents = (activities ?? []).slice(-10).reverse().map((a: { id?: string; message?: string; metadata?: Record<string, unknown> }, idx: number) => ({
+    id: a.id ?? `evt-${idx}`,
     type: (a.metadata?.event_type as string) ?? 'AgentStatus',
     tool_name: a.metadata?.tool_name as string | undefined,
   }));
@@ -119,8 +130,8 @@ export default function AgentsPanel() {
 
           {recentEvents.length > 0 ? (
             <div className="space-y-2" role="log" aria-label="Agent events" aria-live="polite">
-              {recentEvents.map((evt, i) => (
-                <div key={i} className="sg-card flex items-center justify-between py-2">
+              {recentEvents.map((evt) => (
+                <div key={evt.id} className="sg-card flex items-center justify-between py-2">
                   <div>
                     <div style={{ color: 'var(--sg-text-1)', fontSize: '0.875rem' }}>
                       {evt.type.replace(/([A-Z])/g, ' $1').trim().toLowerCase()}

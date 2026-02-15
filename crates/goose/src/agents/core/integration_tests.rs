@@ -117,7 +117,7 @@ mod tests {
     #[tokio::test]
     async fn test_registry_dispatch_freeform() {
         let registry = AgentCoreRegistry::new();
-        let core = registry.active_core().await;
+        let core = registry.active_core().await.unwrap();
 
         assert_eq!(core.name(), "freeform");
 
@@ -136,7 +136,7 @@ mod tests {
 
         // Switch to orchestrator
         let _switched = registry.switch_core(CoreType::Orchestrator).await.unwrap();
-        let core = registry.active_core().await;
+        let core = registry.active_core().await.unwrap();
 
         assert_eq!(core.name(), "orchestrator");
         assert_eq!(core.core_type(), CoreType::Orchestrator);
@@ -540,7 +540,7 @@ mod tests {
             let active = registry.active_core_type().await;
             assert_eq!(active, *core_type);
 
-            let core = registry.active_core().await;
+            let core = registry.active_core().await.unwrap();
             assert_eq!(core.core_type(), *core_type);
         }
     }

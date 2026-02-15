@@ -13,3 +13,5 @@ src/bin/temporal.db
 .env
 .env.local
 .env.signing
+coverage/
+eslint-report.json

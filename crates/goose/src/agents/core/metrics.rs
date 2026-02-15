@@ -46,7 +46,13 @@ impl CoreMetrics {
         self.total_time_ms.fetch_add(time_ms, Ordering::Relaxed);
     }
 
-    /// Take a snapshot of current metrics
+    /// Take a snapshot of current metrics.
+    ///
+    /// Note: Snapshot reads are not atomic across fields. Under concurrent
+    /// updates, field values may be slightly inconsistent (e.g., `successful +
+    /// failed` might briefly differ from `total_executions`). This is
+    /// acceptable for dashboard display but should not be used for
+    /// correctness-critical decisions.
     pub fn snapshot(&self) -> CoreMetricsSnapshot {
         let total = self.total_executions.load(Ordering::Relaxed);
         let successful = self.successful.load(Ordering::Relaxed);

@@ -11,7 +11,7 @@
  * - task_done: Agent completed (success/error)
  * - file_patch: File was modified (triggers DiffCard)
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 export type TaskStatus = 'pending' | 'running' | 'success' | 'error' | 'cancelled';
 
@@ -233,16 +233,25 @@ export function useTaskStream({
     return () => window.removeEventListener(TASK_STREAM_EVENT, handleEvent);
   }, [enabled, sessionId, processEvent]);
 
-  // Derived state
-  const activeTasks = Array.from(tasks.values()).filter(
-    (t) => t.status === 'running' || t.status === 'pending'
+  // Derived state (memoized to avoid re-computing on every render)
+  const activeTasks = useMemo(
+    () => Array.from(tasks.values()).filter(
+      (t) => t.status === 'running' || t.status === 'pending'
+    ),
+    [tasks]
   );
 
-  const completedTasks = Array.from(tasks.values()).filter(
-    (t) => t.status === 'success' || t.status === 'error' || t.status === 'cancelled'
+  const completedTasks = useMemo(
+    () => Array.from(tasks.values()).filter(
+      (t) => t.status === 'success' || t.status === 'error' || t.status === 'cancelled'
+    ),
+    [tasks]
   );
 
-  const allFileChanges = Array.from(tasks.values()).flatMap((t) => t.fileChanges);
+  const allFileChanges = useMemo(
+    () => Array.from(tasks.values()).flatMap((t) => t.fileChanges),
+    [tasks]
+  );
 
   const isAnyRunning = activeTasks.length > 0;
 

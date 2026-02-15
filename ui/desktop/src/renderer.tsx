@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import { StrictMode, Suspense, lazy } from 'react';
 import ReactDOM from 'react-dom/client';
 import { ConfigProvider } from './components/ConfigContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -60,15 +60,15 @@ const TELEMETRY_CONFIG_KEY = 'GOOSE_TELEMETRY_ENABLED';
     }
 
     ReactDOM.createRoot(document.getElementById('root')!).render(
-      <React.StrictMode>
-        <Suspense fallback={SuspenseLoader()}>
+      <StrictMode>
+        <Suspense fallback={<SuspenseLoader />}>
           <ConfigProvider>
             <ErrorBoundary>
               <App />
             </ErrorBoundary>
           </ConfigProvider>
         </Suspense>
-      </React.StrictMode>
+      </StrictMode>
     );
   } catch (error) {
     console.error('[Renderer] Fatal error during initialization:', error);

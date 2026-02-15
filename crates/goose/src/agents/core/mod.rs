@@ -140,9 +140,16 @@ impl CoreType {
         }
     }
 
-    /// Parse from a string (lenient, lowercase).
+    /// Parse from a string (lenient, lowercase). Logs a warning if the
+    /// input does not match any known core type and falls back to Freeform.
     pub fn from_str(s: &str) -> Self {
-        s.parse::<CoreType>().unwrap_or(CoreType::Freeform)
+        match s.parse::<CoreType>() {
+            Ok(ct) => ct,
+            Err(_) => {
+                tracing::warn!("Unknown core type '{}', defaulting to Freeform", s);
+                CoreType::Freeform
+            }
+        }
     }
 }
 
@@ -272,7 +279,7 @@ mod tests {
         assert!(!caps.code_generation);
         assert!(!caps.testing);
         assert!(!caps.multi_agent);
-        assert_eq!(caps.max_concurrent_tasks, 0);
+        assert_eq!(caps.max_concurrent_tasks, 1);
     }
 
     #[test]

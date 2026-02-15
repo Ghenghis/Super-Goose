@@ -180,8 +180,11 @@ const GuardrailsPanel = () => {
       const data = await backendApi.getGuardrailsScans();
       if (data && data.length > 0) {
         setScans(data);
+      } else if (data) {
+        // API reachable but returned empty — show empty state, not fallback data
+        setScans([]);
       }
-      // If data is null or empty, keep the fallback scans already in state
+      // If data is null/undefined, keep the fallback scans already in state
     } catch {
       // Keep fallback data on error
     } finally {

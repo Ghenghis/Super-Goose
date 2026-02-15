@@ -1,5 +1,9 @@
 import { backendApi } from '../backendApi';
 
+vi.mock('../../config', () => ({
+  getApiUrl: (path: string) => `http://localhost:3000${path}`,
+}));
+
 // Mock global fetch
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
@@ -18,7 +22,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.getFeatureStatus();
       expect(result).toEqual(features);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/features');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/features');
     });
 
     it('returns null on HTTP error', async () => {
@@ -40,7 +44,7 @@ describe('backendApi', () => {
       const result = await backendApi.toggleFeature('memory', true);
       expect(result).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/features/memory',
+        'http://localhost:3000/api/features/memory',
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify({ enabled: true }),
@@ -64,7 +68,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.getCostSummary();
       expect(result).toEqual(summary);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/cost/summary');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/cost/summary');
     });
 
     it('returns null on error', async () => {
@@ -83,7 +87,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.getCostBreakdown();
       expect(result).toEqual(breakdown);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/cost/breakdown');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/cost/breakdown');
     });
 
     it('returns null on error', async () => {
@@ -102,7 +106,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.getLearningStats();
       expect(result).toEqual(stats);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/learning/stats');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/learning/stats');
     });
 
     it('returns null on error', async () => {
@@ -119,7 +123,7 @@ describe('backendApi', () => {
         json: () => Promise.resolve([]),
       });
       await backendApi.getLearningExperiences(10, 5);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/learning/experiences?limit=10&offset=5');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/learning/experiences?limit=10&offset=5');
     });
 
     it('omits query params when not provided', async () => {
@@ -128,7 +132,7 @@ describe('backendApi', () => {
         json: () => Promise.resolve([]),
       });
       await backendApi.getLearningExperiences();
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/learning/experiences');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/learning/experiences');
     });
   });
 
@@ -156,7 +160,7 @@ describe('backendApi', () => {
       const result = await backendApi.updateGuardrailsConfig({ enabled: true, mode: 'block' });
       expect(result).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/guardrails/config',
+        'http://localhost:3000/api/guardrails/config',
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify({ enabled: true, mode: 'block' }),
@@ -193,7 +197,7 @@ describe('backendApi', () => {
       });
       await backendApi.searchSessions('hello world');
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/sessions/search?q=hello%20world'
+        'http://localhost:3000/sessions/search?q=hello%20world'
       );
     });
 
@@ -222,7 +226,7 @@ describe('backendApi', () => {
       const result = await backendApi.createBookmark('sess-1', 'My Bookmark');
       expect(result).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/bookmarks',
+        'http://localhost:3000/api/bookmarks',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ sessionId: 'sess-1', label: 'My Bookmark' }),
@@ -237,7 +241,7 @@ describe('backendApi', () => {
       const result = await backendApi.deleteBookmark('bk-1');
       expect(result).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/bookmarks/bk-1',
+        'http://localhost:3000/api/bookmarks/bk-1',
         expect.objectContaining({ method: 'DELETE' })
       );
     });
@@ -258,7 +262,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.fetchGatewayStatus();
       expect(result).toEqual(status);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/enterprise/gateway/status');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/enterprise/gateway/status');
     });
 
     it('returns null on error', async () => {
@@ -274,7 +278,7 @@ describe('backendApi', () => {
       const result = await backendApi.updateGatewayAuditLogging(true);
       expect(result).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/enterprise/gateway/audit',
+        'http://localhost:3000/api/enterprise/gateway/audit',
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify({ enabled: true }),
@@ -302,7 +306,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.fetchHooksConfig();
       expect(result).toEqual(config);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/enterprise/hooks/events');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/enterprise/hooks/events');
     });
 
     it('returns null on error', async () => {
@@ -318,7 +322,7 @@ describe('backendApi', () => {
       const result = await backendApi.toggleHook('session_start', true);
       expect(result).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/enterprise/hooks/events/session_start',
+        'http://localhost:3000/api/enterprise/hooks/events/session_start',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ enabled: true }),
@@ -346,7 +350,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.fetchMemorySummary();
       expect(result).toEqual(summary);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/enterprise/memory/summary');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/enterprise/memory/summary');
     });
 
     it('returns null on error', async () => {
@@ -370,7 +374,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.fetchPolicyRules();
       expect(result).toEqual(rules);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/enterprise/policies/rules');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/enterprise/policies/rules');
     });
 
     it('returns null on error', async () => {
@@ -386,7 +390,7 @@ describe('backendApi', () => {
       const result = await backendApi.togglePolicyRule('r1', false);
       expect(result).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/enterprise/policies/rules/r1',
+        'http://localhost:3000/api/enterprise/policies/rules/r1',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ enabled: false }),
@@ -407,7 +411,7 @@ describe('backendApi', () => {
       const result = await backendApi.updatePolicyDryRunMode(true);
       expect(result).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/enterprise/policies/dry-run',
+        'http://localhost:3000/api/enterprise/policies/dry-run',
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify({ enabled: true }),
@@ -431,7 +435,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.getEnterpriseGuardrails();
       expect(result).toEqual(config);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/enterprise/guardrails');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/enterprise/guardrails');
     });
 
     it('returns null on error', async () => {
@@ -451,7 +455,7 @@ describe('backendApi', () => {
       const result = await backendApi.updateEnterpriseGuardrails({ mode: 'warn' });
       expect(result).toEqual(updated);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/enterprise/guardrails',
+        'http://localhost:3000/api/enterprise/guardrails',
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify({ mode: 'warn' }),
@@ -476,7 +480,7 @@ describe('backendApi', () => {
       const result = await backendApi.consolidateMemory();
       expect(result).toEqual(response);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/enterprise/memory/consolidate',
+        'http://localhost:3000/api/enterprise/memory/consolidate',
         expect.objectContaining({ method: 'POST' })
       );
     });
@@ -506,7 +510,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.getObservabilityConfig();
       expect(result).toEqual(config);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/enterprise/observability');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/enterprise/observability');
     });
 
     it('returns null on error', async () => {
@@ -535,7 +539,7 @@ describe('backendApi', () => {
       const result = await backendApi.updateObservabilityConfig({ costTrackingEnabled: true });
       expect(result).toEqual(updated);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/enterprise/observability',
+        'http://localhost:3000/api/enterprise/observability',
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify({ costTrackingEnabled: true }),
@@ -569,7 +573,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.getGuardrailsScans();
       expect(result).toEqual(scans);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/enterprise/guardrails/scans');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/enterprise/guardrails/scans');
     });
 
     it('returns null on HTTP error', async () => {
@@ -593,7 +597,7 @@ describe('backendApi', () => {
       });
       const result = await backendApi.getSetting<string>('testKey');
       expect(result).toBe('test-value');
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/settings/testKey');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/settings/testKey');
     });
 
     it('returns null on HTTP error', async () => {
@@ -614,7 +618,7 @@ describe('backendApi', () => {
         json: () => Promise.resolve({ value: 42 }),
       });
       await backendApi.getSetting('my setting key');
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/settings/my%20setting%20key');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/settings/my%20setting%20key');
     });
   });
 
@@ -624,7 +628,7 @@ describe('backendApi', () => {
       const result = await backendApi.setSetting('testKey', { foo: 'bar' });
       expect(result).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/settings/testKey',
+        'http://localhost:3000/api/settings/testKey',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ value: { foo: 'bar' } }),
@@ -648,7 +652,7 @@ describe('backendApi', () => {
       mockFetch.mockResolvedValue({ ok: true });
       await backendApi.setSetting('my/setting/key', 123);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/settings/my%2Fsetting%2Fkey',
+        'http://localhost:3000/api/settings/my%2Fsetting%2Fkey',
         expect.anything()
       );
     });

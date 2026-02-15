@@ -3,7 +3,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collap
 import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { startNewSession } from '../sessions';
-import { useNavigation } from '../hooks/useNavigation';
+import { useNavigationSafe } from '../hooks/useNavigation';
 import { formatExtensionErrorMessage } from '../utils/extensionErrorUtils';
 import { getInitialWorkingDir } from '../utils/workingDir';
 import { formatExtensionName } from './settings/extensions/subcomponents/ExtensionList';
@@ -28,7 +28,7 @@ export function GroupedExtensionLoadingToast({
 }: ExtensionLoadingToastProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [copiedExtension, setCopiedExtension] = useState<string | null>(null);
-  const setView = useNavigation();
+  const setView = useNavigationSafe();
 
   const successCount = extensions.filter((ext) => ext.status === 'success').length;
   const errorCount = extensions.filter((ext) => ext.status === 'error').length;

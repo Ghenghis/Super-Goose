@@ -123,7 +123,9 @@ impl TaskAttempt {
         self.outcome = outcome;
         self.error = error;
         self.ended_at = Utc::now();
-        self.duration_ms = (self.ended_at - self.started_at).num_milliseconds() as u64;
+        self.duration_ms = (self.ended_at - self.started_at)
+            .num_milliseconds()
+            .max(0) as u64;
     }
 
     pub fn is_success(&self) -> bool {

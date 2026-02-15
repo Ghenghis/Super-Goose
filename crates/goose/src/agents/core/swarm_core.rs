@@ -342,15 +342,16 @@ impl AgentCore for SwarmCore {
         );
 
         let elapsed = start.elapsed();
+        let all_routed = failed_count == 0;
         self.metrics.record_execution(
-            true,
+            all_routed,
             decomposed.len() as u32,
             0,
             elapsed.as_millis() as u64,
         );
 
         Ok(CoreOutput {
-            completed: true,
+            completed: all_routed,
             summary,
             turns_used: decomposed.len() as u32,
             artifacts,

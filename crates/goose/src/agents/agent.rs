@@ -2116,7 +2116,7 @@ impl Agent {
 
             if active_core_type != super::core::CoreType::Freeform {
                 // Non-freeform core: dispatch through core.execute()
-                let core = self.core_registry.active_core().await;
+                let core = self.core_registry.active_core().await?;
                 tracing::info!("Dispatching through {} core", core.name());
 
                 // Build AgentContext from current Agent state

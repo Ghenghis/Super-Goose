@@ -32,7 +32,6 @@ describe('useCostTracking', () => {
     sessionOutputTokens: 50,
     localInputTokens: 0,
     localOutputTokens: 0,
-    session: null,
   };
 
   it('returns sessionCosts as an empty object initially', () => {
@@ -71,14 +70,6 @@ describe('useCostTracking', () => {
     expect(result.current.sessionCosts).toEqual({});
   });
 
-  it('handles undefined session gracefully', () => {
-    const { result } = renderHook(() =>
-      useCostTracking({ ...defaultProps, session: undefined })
-    );
-
-    expect(result.current.sessionCosts).toEqual({});
-  });
-
   it('handles zero token counts', () => {
     const { result } = renderHook(() =>
       useCostTracking({
@@ -86,7 +77,6 @@ describe('useCostTracking', () => {
         sessionOutputTokens: 0,
         localInputTokens: 0,
         localOutputTokens: 0,
-        session: null,
       })
     );
 

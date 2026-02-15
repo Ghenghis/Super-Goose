@@ -405,7 +405,6 @@ export default function BaseChat({
     sessionOutputTokens: session?.accumulated_output_tokens || 0,
     localInputTokens: 0,
     localOutputTokens: 0,
-    session,
   });
 
   const recipe = session?.recipe;

@@ -296,11 +296,13 @@ impl ExperienceStore {
         }
 
         let score_expr = score_parts.join(" + ");
+        // Use a bind parameter for LIMIT to avoid SQL injection via `limit`.
+        let limit_param_idx = params.len() * 2 + 1;
         let query = format!(
             "SELECT * FROM experiences \
              WHERE ({score_expr}) > 0 \
              ORDER BY ({score_expr}) DESC, created_at DESC \
-             LIMIT {limit}"
+             LIMIT ?{limit_param_idx}"
         );
 
         let mut q = sqlx::query(&query);
@@ -311,6 +313,8 @@ impl ExperienceStore {
         for param in &params {
             q = q.bind(param);
         }
+        // Bind the LIMIT parameter
+        q = q.bind(limit as i64);
 
         let rows = q.fetch_all(&self.pool).await?;
         let mut experiences = Vec::with_capacity(rows.len());
@@ -477,11 +481,9 @@ impl ExperienceStore {
     /// Load recent experiences (most recent first).
     pub async fn recent(&self, limit: usize) -> Result<Vec<Experience>> {
         let rows = sqlx::query(
-            &format!(
-                "SELECT * FROM experiences ORDER BY created_at DESC, rowid DESC LIMIT {}",
-                limit
-            ),
+            "SELECT * FROM experiences ORDER BY created_at DESC, rowid DESC LIMIT ?1",
         )
+        .bind(limit as i64)
         .fetch_all(&self.pool)
         .await?;
 

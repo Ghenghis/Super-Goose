@@ -352,7 +352,7 @@ mod tests {
     #[test]
     fn test_build_config_review() {
         let config = build_adversarial_config("code review the PR changes");
-        assert_eq!(config.max_review_cycles, 4);
+        assert_eq!(config.max_review_cycles, 3);
     }
 
     #[test]

@@ -48,13 +48,16 @@ impl AgentCoreRegistry {
         }
     }
 
-    /// Get the currently active core
-    pub async fn active_core(&self) -> Arc<dyn AgentCore> {
+    /// Get the currently active core.
+    ///
+    /// Returns `Err` if the active core type is not in the registry
+    /// (should never happen in practice, but avoids a panic).
+    pub async fn active_core(&self) -> Result<Arc<dyn AgentCore>> {
         let active_type = *self.active_core.read().await;
         self.cores
             .get(&active_type)
             .cloned()
-            .expect("Active core type must exist in registry")
+            .ok_or_else(|| anyhow!("Active core type '{}' not found in registry", active_type))
     }
 
     /// Get the currently active core type
@@ -136,7 +139,11 @@ impl AgentCoreRegistry {
 
         for (core_type, core) in &self.cores {
             let score = core.suitability_score(hint);
-            if score > best_score {
+            // Use deterministic tie-breaking: prefer lower CoreType ordinal
+            // when scores are equal (HashMap iteration order is random).
+            if score > best_score
+                || (score == best_score && (*core_type as u8) < (best_type as u8))
+            {
                 best_score = score;
                 best_type = *core_type;
             }

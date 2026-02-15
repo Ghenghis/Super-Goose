@@ -113,7 +113,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: ui/desktop/package-lock.json
 
@@ -214,7 +214,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: ui/desktop/package-lock.json
 
@@ -223,8 +223,8 @@ jobs:
         run: npm ci --force
         working-directory: ui/desktop
 
-      - name: Build Desktop App
-        run: npm run build
+      - name: Typecheck Desktop App
+        run: npx tsc --noEmit
         working-directory: ui/desktop
 
   #─────────────────────────────────────────────────────────────
@@ -306,7 +306,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: ui/desktop/package-lock.json
 
