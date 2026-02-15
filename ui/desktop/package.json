@@ -106,7 +106,6 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
-    "@rollup/rollup-win32-x64-msvc": "^4.57.1",
     "@electron-forge/cli": "^7.10.2",
     "@electron-forge/maker-deb": "^7.11.1",
     "@electron-forge/maker-dmg": "^7.11.1",
@@ -123,6 +122,7 @@
     "@hey-api/openapi-ts": "^0.90.3",
     "@modelcontextprotocol/sdk": "^1.25.2",
     "@playwright/test": "^1.57.0",
+    "@rollup/rollup-win32-x64-msvc": "^4.57.1",
     "@tailwindcss/line-clamp": "^0.4.4",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.18",
@@ -169,7 +169,8 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tar": ">=7.4.3",
-    "tmp": ">=0.2.3"
+    "tmp": ">=0.2.3",
+    "lodash-es": ">=4.17.23"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
