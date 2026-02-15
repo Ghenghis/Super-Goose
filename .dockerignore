@@ -72,6 +72,13 @@ external/
 documentation/
 recipe-scanner/
 services/
+evals/
+audits/
+
+# Development tools and Claude config
+.trunk/
+.claude/
+.serena/
 
 # Development scripts that aren't needed in build
 scripts/bench-postprocess-scripts/

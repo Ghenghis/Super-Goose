@@ -75,7 +75,7 @@ export const useRecipeManager = (chat: ChatType, recipe?: Recipe | null) => {
         JSON.stringify(currentRecipe.activities) !== JSON.stringify(recipe.activities);
 
       if (isNewRecipe) {
-        console.log('Setting new recipe config:', recipe.title);
+        console.debug('Setting new recipe config:', recipe.title);
         // Reset recipe acceptance state when loading a new recipe
         setRecipeAccepted(false);
         setIsParameterModalOpen(false);
@@ -192,7 +192,7 @@ export const useRecipeManager = (chat: ChatType, recipe?: Recipe | null) => {
 
   const handleParameterSubmit = async (inputValues: Record<string, string>) => {
     try {
-      let response = await updateSessionUserRecipeValues({
+      const response = await updateSessionUserRecipeValues({
         path: {
           session_id: chat.sessionId,
         },
@@ -201,7 +201,7 @@ export const useRecipeManager = (chat: ChatType, recipe?: Recipe | null) => {
         },
         throwOnError: true,
       });
-      let resolvedRecipe = response.data?.recipe;
+      const resolvedRecipe = response.data?.recipe;
       if (chatContext) {
         chatContext.setChat({
           ...chatContext.chat,

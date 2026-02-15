@@ -169,8 +169,8 @@ describe('GuardrailsPanel', () => {
           await user.click(entryButton);
         }
       }
-      // If we get here, the test should fail - but let's assert something
-      expect(true).toBe(true); // We should have returned above
+      // If we get here, the block entry was never found — fail explicitly
+      throw new Error('Expected to find a "Secret Scanner" block entry with credentials message, but none was found');
     });
   });
 });

@@ -381,9 +381,11 @@ impl Agent {
             reasoning_manager: Mutex::new(ReasoningManager::default()),
             reflexion_agent: Mutex::new(ReflexionAgent::new(ReflexionConfig::default())),
             #[cfg(feature = "memory")]
+            // Safety: MemoryManager::new() is a pure in-memory construction that
+            // always returns Ok(). The expect is a startup assertion, not a runtime risk.
             memory_manager: Mutex::new(
                 crate::memory::MemoryManager::new(crate::memory::MemoryConfig::default())
-                    .expect("Failed to initialize MemoryManager")
+                    .expect("MemoryManager in-memory init cannot fail")
             ),
             #[cfg(feature = "memory")]
             memory_loaded: AtomicBool::new(false),
@@ -1855,7 +1857,10 @@ impl Agent {
         self.extension_manager
             .list_extensions()
             .await
-            .expect("Failed to list extensions")
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to list extensions: {}", e);
+                Vec::new()
+            })
     }
 
     pub async fn get_extension_configs(&self) -> Vec<ExtensionConfig> {
@@ -3626,7 +3631,10 @@ impl Agent {
         self.extension_manager
             .list_prompts(session_id, CancellationToken::default())
             .await
-            .expect("Failed to list prompts")
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to list prompts: {}", e);
+                HashMap::new()
+            })
     }
 
     pub async fn get_prompt(
@@ -3854,7 +3862,7 @@ impl Agent {
         let config = Config::global();
         let provider_name: String = config
             .get_goose_provider()
-            .expect("No provider configured. Run 'goose configure' first");
+            .context("No provider configured. Run 'goose configure' first")?;
 
         let settings = Settings {
             goose_provider: Some(provider_name.clone()),

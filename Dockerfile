@@ -3,7 +3,7 @@
 # Multi-stage build for minimal final image size
 # Builds both goose CLI and goosed server binaries
 
-# Build stage
+# Build stage — base image provides rustup; rust-toolchain.toml selects version
 FROM rust:1.84-bookworm AS builder
 
 # Install build dependencies
@@ -20,6 +20,11 @@ RUN apt-get update && \
 
 # Create app directory
 WORKDIR /build
+
+# Copy rust-toolchain.toml first so rustup installs the correct version
+# before downloading all crate dependencies
+COPY rust-toolchain.toml .
+RUN rustup show
 
 # Copy source code
 COPY . .
@@ -63,9 +68,9 @@ ENV HOME="/home/goose"
 # Expose goosed server port
 EXPOSE 3284
 
-# Health check for goosed server
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD curl -f http://localhost:3284/api/version || exit 1
+# Health check for goosed server (uses /status which is auth-exempt)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:3284/status || exit 1
 
 # Switch to non-root user
 USER goose

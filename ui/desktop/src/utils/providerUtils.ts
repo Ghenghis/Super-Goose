@@ -30,14 +30,6 @@ export const initializeSystem = async (
   }
 ) => {
   try {
-    console.log(
-      'initializing agent with provider',
-      provider,
-      'model',
-      model,
-      'sessionId',
-      sessionId
-    );
     await updateAgentProvider({
       body: {
         session_id: sessionId,
@@ -47,9 +39,6 @@ export const initializeSystem = async (
       throwOnError: true,
     });
 
-    if (!sessionId) {
-      console.log('This will not end well');
-    }
     await updateFromSession({
       body: {
         session_id: sessionId,
@@ -63,7 +52,7 @@ export const initializeSystem = async (
     }
 
     // Initialize or sync built-in extensions into config.yaml
-    let refreshedExtensions = await options.getExtensions(false);
+    const refreshedExtensions = await options.getExtensions(false);
 
     if (refreshedExtensions.length === 0) {
       await initializeBundledExtensions(options.addExtension);

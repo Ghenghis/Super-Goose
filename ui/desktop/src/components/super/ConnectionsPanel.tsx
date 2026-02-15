@@ -61,10 +61,10 @@ export default function ConnectionsPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="sg-tabs">
-        <button className={`sg-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}>Services</button>
-        <button className={`sg-tab ${tab === 'models' ? 'active' : ''}`} onClick={() => setTab('models')}>Models</button>
-        <button className={`sg-tab ${tab === 'keys' ? 'active' : ''}`} onClick={() => setTab('keys')}>API Keys</button>
+      <div className="sg-tabs" role="tablist" aria-label="Connection views">
+        <button className={`sg-tab ${tab === 'services' ? 'active' : ''}`} role="tab" aria-selected={tab === 'services'} onClick={() => setTab('services')}>Services</button>
+        <button className={`sg-tab ${tab === 'models' ? 'active' : ''}`} role="tab" aria-selected={tab === 'models'} onClick={() => setTab('models')}>Models</button>
+        <button className={`sg-tab ${tab === 'keys' ? 'active' : ''}`} role="tab" aria-selected={tab === 'keys'} onClick={() => setTab('keys')}>API Keys</button>
       </div>
 
       {tab === 'keys' ? (

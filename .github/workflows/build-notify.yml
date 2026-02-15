@@ -7,6 +7,8 @@ on:
       - Release
     types: [completed]
 
+# Least-privilege: this workflow only sends a curl to Discord, no code access needed
+permissions: {}
 
 jobs:
   notify:

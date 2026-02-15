@@ -422,7 +422,10 @@ async fn update_from_session(
         })?;
     let context: HashMap<&str, Value> = HashMap::new();
     let desktop_prompt =
-        render_template("desktop_prompt.md", &context).expect("Prompt should render");
+        render_template("desktop_prompt.md", &context).map_err(|e| ErrorResponse {
+            message: format!("Failed to render desktop prompt: {}", e),
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
     let mut update_prompt = desktop_prompt;
     if let Some(recipe) = session.recipe {
         match build_recipe_with_parameter_values(
@@ -716,7 +719,10 @@ async fn restart_agent_internal(
 
     let context: HashMap<&str, Value> = HashMap::new();
     let desktop_prompt =
-        render_template("desktop_prompt.md", &context).expect("Prompt should render");
+        render_template("desktop_prompt.md", &context).map_err(|e| ErrorResponse {
+            message: format!("Failed to render desktop prompt: {}", e),
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
     let mut update_prompt = desktop_prompt;
 
     if let Some(ref recipe) = session.recipe {

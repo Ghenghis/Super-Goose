@@ -55,12 +55,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           persist-credentials: false
 
       - name: PR-Agent Review
-        uses: CodiumAI/pr-agent@main
+        uses: CodiumAI/pr-agent@main  # unpinned: pr-agent does not publish SHA-pinned tags
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

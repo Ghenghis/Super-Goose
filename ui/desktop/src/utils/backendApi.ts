@@ -6,7 +6,7 @@
  * instead of unhandled promise rejections when the backend is unreachable
  * or returns an error status.
  *
- * Base URL defaults to the local goosed server on port 3284.
+ * Base URL is resolved dynamically via getApiUrl() from config.
  */
 
 import { getApiUrl } from '../config';

@@ -55,7 +55,7 @@ export default function MemoryPanel() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    console.log('Memory search:', searchQuery);
+    console.debug('Memory search:', searchQuery);
     // In production, this would query the memory search API
   };
 
@@ -98,7 +98,7 @@ export default function MemoryPanel() {
     if (!file) return;
     try {
       const text = await file.text();
-      console.log('Imported memory data:', text.substring(0, 100));
+      console.debug('Imported memory data:', text.substring(0, 100));
     } catch (err) {
       console.error('Failed to read memory file:', err);
     }

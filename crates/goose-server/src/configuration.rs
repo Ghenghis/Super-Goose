@@ -15,7 +15,13 @@ impl Settings {
     pub fn socket_addr(&self) -> SocketAddr {
         format!("{}:{}", self.host, self.port)
             .parse()
-            .expect("Failed to parse socket address")
+            .unwrap_or_else(|e| {
+                tracing::error!(
+                    "Invalid socket address '{}:{}': {} — falling back to 127.0.0.1:3000",
+                    self.host, self.port, e
+                );
+                "127.0.0.1:3000".parse().unwrap()
+            })
     }
 
     pub fn new() -> Result<Self, ConfigError> {

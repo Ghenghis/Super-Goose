@@ -115,7 +115,7 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
     }
 
     if (result.error && !result.data) {
-      console.log(result.error);
+      console.debug(result.error);
       return extensionsList;
     }
 

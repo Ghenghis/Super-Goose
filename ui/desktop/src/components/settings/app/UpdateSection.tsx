@@ -42,7 +42,7 @@ export default function UpdateSection() {
     // Check if there's already an update state from the auto-check
     window.electron.getUpdateState().then((state) => {
       if (state) {
-        console.log('Found existing update state:', state);
+        console.debug('Found existing update state:', state);
         setUpdateInfo((prev) => ({
           ...prev,
           isUpdateAvailable: state.updateAvailable,
@@ -58,7 +58,7 @@ export default function UpdateSection() {
 
     // Listen for updater events
     window.electron.onUpdaterEvent((event) => {
-      console.log('Updater event:', event);
+      console.debug('Updater event:', event);
 
       switch (event.event) {
         case 'checking-for-update':

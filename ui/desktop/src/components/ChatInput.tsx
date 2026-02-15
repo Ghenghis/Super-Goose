@@ -398,7 +398,7 @@ export default function ChatInput({
       // Get current model and provider first to avoid unnecessary provider fetches
       const { model, provider } = await getCurrentModelAndProvider();
       if (!model || !provider) {
-        console.log('No model or provider found');
+        console.debug('No model or provider found');
         setIsTokenLimitLoaded(true);
         return;
       }

@@ -44,12 +44,22 @@ impl PermissionManager {
         // lgtm[rust/path-injection] - config_dir is always from Paths::config_dir(), a trusted internal source
         let permission_path = config_dir.join(PERMISSION_FILE);
         let permission_map = if permission_path.exists() {
-            let file_contents =
-                fs::read_to_string(&permission_path).expect("Failed to read permission.yaml"); // lgtm[rust/path-injection]
-            serde_yaml::from_str(&file_contents).unwrap_or_else(|_| HashMap::new())
+            match fs::read_to_string(&permission_path) {
+                // lgtm[rust/path-injection]
+                Ok(file_contents) => {
+                    serde_yaml::from_str(&file_contents).unwrap_or_else(|_| HashMap::new())
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to read permission.yaml: {} — starting with empty permissions", e);
+                    HashMap::new()
+                }
+            }
         } else {
             // Consolidate directory creation for re-use in global singleton or ACP.
-            fs::create_dir_all(&config_dir).expect("Failed to create config directory"); // lgtm[rust/path-injection]
+            if let Err(e) = fs::create_dir_all(&config_dir) {
+                // lgtm[rust/path-injection]
+                tracing::warn!("Failed to create config directory {:?}: {}", config_dir, e);
+            }
             HashMap::new()
         };
         PermissionManager {
@@ -64,12 +74,13 @@ impl PermissionManager {
 
     /// Returns a list of all the names (keys) in the permission map.
     pub fn get_permission_names(&self) -> Vec<String> {
-        self.permission_map
-            .read()
-            .unwrap()
-            .keys()
-            .cloned()
-            .collect()
+        match self.permission_map.read() {
+            Ok(map) => map.keys().cloned().collect(),
+            Err(e) => {
+                tracing::error!("Permission map lock poisoned in get_permission_names: {}", e);
+                Vec::new()
+            }
+        }
     }
 
     /// Retrieves the user permission level for a specific tool.
@@ -89,21 +100,44 @@ impl PermissionManager {
 
     /// Retrieves the full permission config for a named category (e.g., "user", "smart_approve").
     pub fn get_permission_config(&self, name: &str) -> Option<PermissionConfig> {
-        self.permission_map.read().unwrap().get(name).cloned()
+        match self.permission_map.read() {
+            Ok(map) => map.get(name).cloned(),
+            Err(e) => {
+                tracing::error!("Permission map lock poisoned in get_permission_config: {}", e);
+                None
+            }
+        }
     }
 
     /// Clear all permissions (reset both in-memory map and config file).
     pub fn reset_all(&self) {
-        let mut map = self.permission_map.write().unwrap();
+        let mut map = match self.permission_map.write() {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Permission map lock poisoned in reset_all: {}", e);
+                return;
+            }
+        };
         map.clear();
-        let yaml_content =
-            serde_yaml::to_string(&*map).expect("Failed to serialize permission config");
-        let _ = std::fs::write(&self.config_path, yaml_content);
+        match serde_yaml::to_string(&*map) {
+            Ok(yaml_content) => {
+                let _ = std::fs::write(&self.config_path, yaml_content);
+            }
+            Err(e) => {
+                tracing::error!("Failed to serialize permission config in reset_all: {}", e);
+            }
+        }
     }
 
     /// Helper function to retrieve the permission level for a specific permission category and tool.
     fn get_permission(&self, name: &str, principal_name: &str) -> Option<PermissionLevel> {
-        let map = self.permission_map.read().unwrap();
+        let map = match self.permission_map.read() {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Permission map lock poisoned in get_permission: {}", e);
+                return None;
+            }
+        };
         // Check if the permission category exists in the map
         if let Some(permission_config) = map.get(name) {
             // Check the permission levels for the given tool
@@ -139,7 +173,13 @@ impl PermissionManager {
 
     /// Helper function to update a permission level for a specific tool in a given permission category.
     fn update_permission(&self, name: &str, principal_name: &str, level: PermissionLevel) {
-        let mut map = self.permission_map.write().unwrap();
+        let mut map = match self.permission_map.write() {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Permission map lock poisoned in update_permission: {}", e);
+                return;
+            }
+        };
         // Get or create a new PermissionConfig for the specified category
         let permission_config = map.entry(name.to_string()).or_default();
 
@@ -166,14 +206,27 @@ impl PermissionManager {
         }
 
         // Serialize the updated permission map and write it back to the config file
-        let yaml_content =
-            serde_yaml::to_string(&*map).expect("Failed to serialize permission config");
-        fs::write(&self.config_path, yaml_content).expect("Failed to write to permission.yaml");
+        match serde_yaml::to_string(&*map) {
+            Ok(yaml_content) => {
+                if let Err(e) = fs::write(&self.config_path, yaml_content) {
+                    tracing::error!("Failed to write to permission.yaml: {}", e);
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to serialize permission config: {}", e);
+            }
+        }
     }
 
     /// Removes all entries where the principal name starts with the given extension name.
     pub fn remove_extension(&self, extension_name: &str) {
-        let mut map = self.permission_map.write().unwrap();
+        let mut map = match self.permission_map.write() {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Permission map lock poisoned in remove_extension: {}", e);
+                return;
+            }
+        };
         for permission_config in map.values_mut() {
             permission_config
                 .always_allow
@@ -186,9 +239,16 @@ impl PermissionManager {
                 .retain(|p| !p.starts_with(extension_name));
         }
 
-        let yaml_content =
-            serde_yaml::to_string(&*map).expect("Failed to serialize permission config");
-        fs::write(&self.config_path, yaml_content).expect("Failed to write to permission.yaml");
+        match serde_yaml::to_string(&*map) {
+            Ok(yaml_content) => {
+                if let Err(e) = fs::write(&self.config_path, yaml_content) {
+                    tracing::error!("Failed to write to permission.yaml: {}", e);
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to serialize permission config in remove_extension: {}", e);
+            }
+        }
     }
 }
 

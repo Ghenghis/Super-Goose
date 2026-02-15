@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -94,6 +94,11 @@ describe('AgentPanelContext', () => {
     mockAgUi = buildDefaultMockAgUi();
     mockGetExtensions.mockReset().mockResolvedValue(null);
     mockGetLearningSkills.mockReset().mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('derives agent status from AG-UI stream', async () => {

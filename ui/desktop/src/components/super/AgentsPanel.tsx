@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAgUi } from '../../ag-ui/useAgUi';
 import { SGStatusDot, SGEmptyState } from './shared';
 import { backendApi } from '../../utils/backendApi';

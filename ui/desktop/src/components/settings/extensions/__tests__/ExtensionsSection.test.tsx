@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ExtensionsSection from '../ExtensionsSection';
@@ -115,6 +115,10 @@ describe('ExtensionsSection', () => {
     vi.clearAllMocks();
     // Mock window.history.replaceState
     vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('renders the extension list', () => {

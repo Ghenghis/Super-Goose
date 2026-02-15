@@ -2,8 +2,8 @@
  * RecipeBrowser — browsable catalog of agent workflow recipes.
  *
  * NOTE: Recipe data is currently populated from SAMPLE_RECIPES (static seed data).
- * TODO: Replace SAMPLE_RECIPES with a fetch to /api/recipes or a Marketplace API
- *       once the backend recipe registry is available.
+ * TODO(api): Replace SAMPLE_RECIPES with a fetch to /api/recipes or a Marketplace API
+ *            once the backend recipe registry is available. (Blocked on API endpoint.)
  */
 
 import { useState, useMemo } from 'react';
@@ -32,7 +32,7 @@ const CATEGORY_BADGE: Record<Recipe['category'], { variant: string; label: strin
   creative: { variant: 'sg-badge-red', label: 'Creative' },
 };
 
-// TODO: Fetch from /api/recipes when backend endpoint is available
+// TODO(api): Fetch from /api/recipes when backend endpoint is available
 const SAMPLE_RECIPES: Recipe[] = [
   {
     id: 'docker-env',

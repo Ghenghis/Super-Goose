@@ -125,7 +125,14 @@ impl IntoResponse for SettingsSseResponse {
             .header("Cache-Control", "no-cache")
             .header("Connection", "keep-alive")
             .body(body)
-            .expect("failed to build settings SSE response")
+            .unwrap_or_else(|e| {
+                tracing::error!("Failed to build settings SSE response: {}", e);
+                // Return a 500 plain-text response as fallback
+                http::Response::builder()
+                    .status(http::StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(axum::body::Body::from("Internal Server Error"))
+                    .unwrap()
+            })
     }
 }
 

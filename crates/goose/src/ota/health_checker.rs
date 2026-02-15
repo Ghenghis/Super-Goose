@@ -348,7 +348,11 @@ impl HealthChecker {
 
         let url = match &self.config.api_url {
             Some(url) => url.clone(),
-            None => "http://localhost:3284/health".to_string(),
+            None => {
+                // Respect GOOSE_SERVER__PORT if set; otherwise fall back to 3284.
+                let port = std::env::var("GOOSE_SERVER__PORT").unwrap_or_else(|_| "3284".into());
+                format!("http://localhost:{}/health", port)
+            }
         };
 
         match reqwest::Client::new()

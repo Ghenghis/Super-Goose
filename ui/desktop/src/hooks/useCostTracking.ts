@@ -59,13 +59,7 @@ export const useCostTracking = ({
           }));
         }
 
-        console.log(
-          'Model changed from',
-          `${prevProviderRef.current}/${prevModelRef.current}`,
-          'to',
-          `${currentProvider}/${currentModel}`,
-          '- saved costs and restored session token counters'
-        );
+        // Model changed — costs saved for previous model
       }
 
       prevModelRef.current = currentModel || undefined;

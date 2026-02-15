@@ -145,7 +145,7 @@ const BookmarkManager: React.FC = () => {
 
   const handleJumpTo = (bookmark: BookmarkEntry) => {
     // In a real implementation, this would navigate to the session and scroll to the message
-    console.log(`Jumping to session ${bookmark.sessionId}, message ${bookmark.messageIndex}`);
+    console.debug(`Jumping to session ${bookmark.sessionId}, message ${bookmark.messageIndex}`);
   };
 
   const handleCreateBookmark = () => {

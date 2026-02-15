@@ -2,6 +2,28 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getApiUrl } from '../../config';
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Polling interval for GPU cluster data (ms). */
+const GPU_POLL_INTERVAL_MS = 10_000;
+
+/** Polling interval for job list while on Jobs tab (ms). */
+const JOBS_POLL_INTERVAL_MS = 3_000;
+
+/** Reusable inline style for form selects, inputs, and textareas in this panel. */
+const formControlStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '0.5rem',
+  fontSize: '0.8125rem',
+  background: 'var(--sg-bg-2, #1e1e1e)',
+  border: '1px solid var(--sg-border, #333)',
+  borderRadius: '4px',
+  color: 'var(--sg-text-1)',
+  outline: 'none',
+};
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -143,8 +165,7 @@ export default function GPUPanel() {
     const controller = new AbortController();
     controllerRef.current = controller;
     fetchGpuInfo(controller.signal);
-    // Refresh every 10 seconds to keep utilization data current
-    const interval = setInterval(() => fetchGpuInfo(controller.signal), 10000);
+    const interval = setInterval(() => fetchGpuInfo(controller.signal), GPU_POLL_INTERVAL_MS);
     return () => {
       controller.abort();
       clearInterval(interval);
@@ -175,11 +196,11 @@ export default function GPUPanel() {
     }
   }, []);
 
-  // Fetch jobs when switching to the Jobs tab, and poll every 3s while on it
+  // Fetch jobs when switching to the Jobs tab, and poll while on it
   useEffect(() => {
     if (tab !== 'jobs') return;
     fetchJobs();
-    const interval = setInterval(fetchJobs, 3000);
+    const interval = setInterval(fetchJobs, JOBS_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [tab, fetchJobs]);
 
@@ -261,15 +282,15 @@ export default function GPUPanel() {
 
   return (
     <div className="space-y-4" role="region" aria-label="GPU Panel">
-      <div className="sg-tabs">
-        <button className={`sg-tab ${tab === 'cluster' ? 'active' : ''}`} onClick={() => setTab('cluster')}>Cluster</button>
-        <button className={`sg-tab ${tab === 'jobs' ? 'active' : ''}`} onClick={() => setTab('jobs')}>Jobs</button>
-        <button className={`sg-tab ${tab === 'launch' ? 'active' : ''}`} onClick={() => setTab('launch')}>Launch</button>
+      <div className="sg-tabs" role="tablist" aria-label="GPU views">
+        <button className={`sg-tab ${tab === 'cluster' ? 'active' : ''}`} role="tab" aria-selected={tab === 'cluster'} aria-controls="gpu-tabpanel-cluster" id="gpu-tab-cluster" onClick={() => setTab('cluster')}>Cluster</button>
+        <button className={`sg-tab ${tab === 'jobs' ? 'active' : ''}`} role="tab" aria-selected={tab === 'jobs'} aria-controls="gpu-tabpanel-jobs" id="gpu-tab-jobs" onClick={() => setTab('jobs')}>Jobs</button>
+        <button className={`sg-tab ${tab === 'launch' ? 'active' : ''}`} role="tab" aria-selected={tab === 'launch'} aria-controls="gpu-tabpanel-launch" id="gpu-tab-launch" onClick={() => setTab('launch')}>Launch</button>
       </div>
 
       {/* ===== Cluster Tab ===== */}
       {tab === 'cluster' && (
-        <div className="space-y-3">
+        <div className="space-y-3" role="tabpanel" id="gpu-tabpanel-cluster" aria-labelledby="gpu-tab-cluster">
           {/* Local GPU card */}
           {loading ? (
             <div className="sg-card" data-testid="gpu-loading">
@@ -400,7 +421,7 @@ export default function GPUPanel() {
 
       {/* ===== Jobs Tab ===== */}
       {tab === 'jobs' && (
-        <div className="space-y-3" data-testid="jobs-tab">
+        <div className="space-y-3" data-testid="jobs-tab" role="tabpanel" id="gpu-tabpanel-jobs" aria-labelledby="gpu-tab-jobs">
           {jobsLoading && jobs.length === 0 ? (
             <div className="sg-card" style={{ color: 'var(--sg-text-4)', fontSize: '0.875rem', textAlign: 'center', padding: '2rem' }}>
               Loading jobs...
@@ -490,7 +511,7 @@ export default function GPUPanel() {
 
       {/* ===== Launch Tab ===== */}
       {tab === 'launch' && (
-        <div className="space-y-3" data-testid="launch-tab">
+        <div className="space-y-3" data-testid="launch-tab" role="tabpanel" id="gpu-tabpanel-launch" aria-labelledby="gpu-tab-launch">
           {/* Model selector */}
           <div className="sg-card">
             <label
@@ -516,16 +537,7 @@ export default function GPUPanel() {
                   onChange={(e) => setSelectedModel(e.target.value)}
                   placeholder="Enter model name (e.g. llama3:8b)"
                   data-testid="model-input"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    fontSize: '0.8125rem',
-                    background: 'var(--sg-bg-2, #1e1e1e)',
-                    border: '1px solid var(--sg-border, #333)',
-                    borderRadius: '4px',
-                    color: 'var(--sg-text-1)',
-                    outline: 'none',
-                  }}
+                  style={formControlStyle}
                 />
               </div>
             ) : (
@@ -534,16 +546,7 @@ export default function GPUPanel() {
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
                 data-testid="model-select"
-                style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  fontSize: '0.8125rem',
-                  background: 'var(--sg-bg-2, #1e1e1e)',
-                  border: '1px solid var(--sg-border, #333)',
-                  borderRadius: '4px',
-                  color: 'var(--sg-text-1)',
-                  outline: 'none',
-                }}
+                style={formControlStyle}
               >
                 {models.map((m) => (
                   <option key={m.name} value={m.name}>
@@ -567,16 +570,7 @@ export default function GPUPanel() {
               value={selectedJobType}
               onChange={(e) => setSelectedJobType(e.target.value as JobType)}
               data-testid="job-type-select"
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                fontSize: '0.8125rem',
-                background: 'var(--sg-bg-2, #1e1e1e)',
-                border: '1px solid var(--sg-border, #333)',
-                borderRadius: '4px',
-                color: 'var(--sg-text-1)',
-                outline: 'none',
-              }}
+              style={formControlStyle}
             >
               <option value="inference">Inference</option>
               <option value="benchmark">Benchmark</option>
@@ -602,14 +596,7 @@ export default function GPUPanel() {
                 data-testid="prompt-input"
                 rows={3}
                 style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  fontSize: '0.8125rem',
-                  background: 'var(--sg-bg-2, #1e1e1e)',
-                  border: '1px solid var(--sg-border, #333)',
-                  borderRadius: '4px',
-                  color: 'var(--sg-text-1)',
-                  outline: 'none',
+                  ...formControlStyle,
                   resize: 'vertical',
                   fontFamily: 'inherit',
                 }}

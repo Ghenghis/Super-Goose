@@ -493,7 +493,9 @@ pub async fn summarize_tool_call(
         .await?;
 
     response.role = Role::User;
-    response.created = matching_messages.last().unwrap().created;
+    if let Some(last_msg) = matching_messages.last() {
+        response.created = last_msg.created;
+    }
     response.metadata = MessageMetadata::agent_only();
 
     Ok(response.with_generated_id())

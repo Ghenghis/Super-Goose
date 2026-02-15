@@ -428,7 +428,7 @@ export function AppInner() {
   const { addExtension } = useConfig();
 
   useEffect(() => {
-    console.log('Sending reactReady signal to Electron');
+    console.debug('Sending reactReady signal to Electron');
     try {
       window.electron.reactReady();
     } catch (error) {
@@ -473,7 +473,7 @@ export function AppInner() {
   }, [navigate]);
 
   useEffect(() => {
-    console.log('Setting up keyboard shortcuts');
+    console.debug('Setting up keyboard shortcuts');
     const handleKeyDown = (event: KeyboardEvent) => {
       const isMac = window.electron.platform === 'darwin';
       if ((isMac ? event.metaKey : event.ctrlKey) && event.key === 'n') {
@@ -552,7 +552,7 @@ export function AppInner() {
     const handleSetView = (_event: IpcRendererEvent, ...args: unknown[]) => {
       const newView = args[0] as View;
       const section = args[1] as string | undefined;
-      console.log(
+      console.debug(
         `Received view change request to: ${newView}${section ? `, section: ${section}` : ''}`
       );
 
@@ -569,7 +569,7 @@ export function AppInner() {
 
   useEffect(() => {
     const handleNewChat = (_event: IpcRendererEvent, ..._args: unknown[]) => {
-      console.log('Received new-chat event from keyboard shortcut');
+      console.debug('Received new-chat event from keyboard shortcut');
       window.dispatchEvent(new CustomEvent(AppEvents.TRIGGER_NEW_CHAT));
     };
 
@@ -596,7 +596,7 @@ export function AppInner() {
   useEffect(() => {
     const handleSetInitialMessage = async (_event: IpcRendererEvent, ...args: unknown[]) => {
       const initialMessage = args[0] as string;
-      console.log(
+      console.debug(
         '[App] Received set-initial-message event:',
         initialMessage,
         'isProcessing:',
@@ -605,7 +605,7 @@ export function AppInner() {
 
       if (initialMessage && !isProcessingRef.current) {
         isProcessingRef.current = true;
-        console.log('[App] Processing initial message from launcher:', initialMessage);
+        console.debug('[App] Processing initial message from launcher:', initialMessage);
         navigate('/pair', {
           state: {
             initialMessage: { msg: initialMessage, images: [] },
@@ -615,7 +615,7 @@ export function AppInner() {
           isProcessingRef.current = false;
         }, 1000);
       } else if (initialMessage) {
-        console.log('[App] Ignoring duplicate initial message (already processing)');
+        console.debug('[App] Ignoring duplicate initial message (already processing)');
       }
     };
     window.electron.on('set-initial-message', handleSetInitialMessage);

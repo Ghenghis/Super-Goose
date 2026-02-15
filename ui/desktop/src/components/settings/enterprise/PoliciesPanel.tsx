@@ -72,7 +72,7 @@ export default function PoliciesPanel() {
 
     try {
       const text = await file.text();
-      console.log('Imported YAML policy:', text);
+      console.debug('Imported YAML policy:', text);
       // In a real implementation, this would parse and send to the backend
     } catch (err) {
       console.error('Failed to read policy file:', err);

@@ -225,7 +225,7 @@ export default function McpAppRenderer({
 
         case 'notifications/message': {
           const { level, logger, data } = params as McpMethodParams['notifications/message'];
-          console.log(
+          console.debug(
             `[MCP App Notification]${logger ? ` [${logger}]` : ''} ${level || 'info'}:`,
             data
           );

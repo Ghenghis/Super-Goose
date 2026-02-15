@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 # Cancel in-progress runs for same PR/branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -377,30 +380,42 @@ jobs:
           echo ""
 
           # Determine overall status
-          # NOTE: cargo-tools uses continue-on-error so its failure does not block CI
-          if [[ "${{ needs.docs-check.result }}" == "success" ]] || \
-             [[ "${{ needs.test-rust-unit.result }}" == "success" && \
-                "${{ needs.test-rust-integration.result }}" == "success" && \
-                "${{ needs.test-typescript.result }}" == "success" ]]; then
-            echo "✅ ══════════════════════════════════════════════════"
-            echo "✅          CI PASSED - ALL CHECKS SUCCESSFUL        "
-            echo "✅ ══════════════════════════════════════════════════"
-            exit 0
-          elif [[ "${{ needs.docs-check.result }}" == "skipped" && \
-                  "${{ needs.test-rust-unit.result }}" == "skipped" && \
-                  "${{ needs.test-rust-integration.result }}" == "skipped" && \
-                  "${{ needs.test-typescript.result }}" == "skipped" ]]; then
-            echo "⚠️  ══════════════════════════════════════════════════"
-            echo "⚠️           NO TESTS RAN (likely docs-only)        "
-            echo "⚠️  ══════════════════════════════════════════════════"
-            # Docs-only changes that passed docs-check
-            if [[ "${{ needs.docs-check.result }}" == "success" ]]; then
-              exit 0
+          # NOTE: cargo-tools and semgrep-policy use continue-on-error so their
+          # failure does not block CI. Jobs that were skipped (because their
+          # language didn't change) are treated as passing.
+          FAILED=0
+
+          # Docs-only path
+          if [[ "${{ needs.docs-check.result }}" == "success" ]]; then
+            echo "Docs check passed."
+          fi
+
+          # Rust jobs: fail only if they ran and didn't succeed
+          for job in "test-rust-unit:${{ needs.test-rust-unit.result }}" \
+                     "test-rust-integration:${{ needs.test-rust-integration.result }}"; do
+            JOB_NAME="${job%%:*}"
+            RESULT="${job##*:}"
+            if [[ "$RESULT" != "success" && "$RESULT" != "skipped" ]]; then
+              echo "FAIL: ${JOB_NAME} = ${RESULT}"
+              FAILED=1
             fi
-            exit 1
-          else
+          done
+
+          # TypeScript jobs: fail only if they ran and didn't succeed
+          TS_RESULT="${{ needs.test-typescript.result }}"
+          if [[ "$TS_RESULT" != "success" && "$TS_RESULT" != "skipped" ]]; then
+            echo "FAIL: test-typescript = ${TS_RESULT}"
+            FAILED=1
+          fi
+
+          if [[ "$FAILED" == "1" ]]; then
             echo "❌ ══════════════════════════════════════════════════"
             echo "❌          CI FAILED - CHECK LOGS ABOVE            "
             echo "❌ ══════════════════════════════════════════════════"
             exit 1
+          else
+            echo "✅ ══════════════════════════════════════════════════"
+            echo "✅          CI PASSED - ALL CHECKS SUCCESSFUL        "
+            echo "✅ ══════════════════════════════════════════════════"
+            exit 0
           fi

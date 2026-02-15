@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import HooksPanel from '../HooksPanel';
@@ -37,6 +37,10 @@ describe('HooksPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Not available'));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('shows loading state initially', () => {

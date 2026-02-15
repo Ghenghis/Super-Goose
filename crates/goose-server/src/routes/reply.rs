@@ -215,7 +215,13 @@ impl IntoResponse for SseResponse {
             .header("Cache-Control", "no-cache")
             .header("Connection", "keep-alive")
             .body(body)
-            .expect("SSE response with static headers should never fail to build")
+            .unwrap_or_else(|e| {
+                tracing::error!("Failed to build reply SSE response: {}", e);
+                http::Response::builder()
+                    .status(http::StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(axum::body::Body::from("Internal Server Error"))
+                    .unwrap()
+            })
     }
 }
 

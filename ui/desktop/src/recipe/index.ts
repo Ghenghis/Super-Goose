@@ -37,7 +37,7 @@ export async function encodeRecipe(recipe: Recipe): Promise<string> {
 }
 
 export async function decodeRecipe(deeplink: string): Promise<Recipe> {
-  console.log('Decoding recipe from deeplink:', deeplink);
+  console.debug('Decoding recipe from deeplink:', deeplink);
 
   try {
     const response = await apiDecodeRecipe({

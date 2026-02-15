@@ -85,9 +85,9 @@ describe('BookmarkManager', () => {
       expect(jumpButtons.length).toBe(10); // 10 bookmarks
     });
 
-    it('calls console.log when Jump button is clicked', async () => {
+    it('calls console.debug when Jump button is clicked', async () => {
       const user = userEvent.setup();
-      const consoleSpy = vi.spyOn(console, 'log');
+      const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       render(<BookmarkManager />);
 
       const jumpButtons = screen.getAllByTitle('Jump to this bookmark');
@@ -96,6 +96,7 @@ describe('BookmarkManager', () => {
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Jumping to session')
       );
+      consoleSpy.mockRestore();
     });
   });
 

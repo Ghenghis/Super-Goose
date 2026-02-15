@@ -418,6 +418,10 @@ export function useSettingsStream(options: UseSettingsStreamOptions = {}): UseSe
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Stable ref for the callback so SSE connection is not torn down on every render
+  const onSettingUpdateRef = useRef(onSettingUpdate);
+  onSettingUpdateRef.current = onSettingUpdate;
+
   const reconnectDelayRef = useRef(1000); // Start at 1 second
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -448,8 +452,8 @@ export function useSettingsStream(options: UseSettingsStreamOptions = {}): UseSe
         if (!mountedRef.current) return;
         try {
           const data: SettingsUpdateEvent = JSON.parse(event.data);
-          if (data.event === 'settings_update' && onSettingUpdate) {
-            onSettingUpdate(data.key, data.value, data.source);
+          if (data.event === 'settings_update' && onSettingUpdateRef.current) {
+            onSettingUpdateRef.current(data.key, data.value, data.source);
           }
         } catch (err) {
           console.warn('[useSettingsStream] Failed to parse settings_update event:', err);
@@ -488,7 +492,7 @@ export function useSettingsStream(options: UseSettingsStreamOptions = {}): UseSe
       setError(err as Error);
       setIsConnected(false);
     }
-  }, [baseUrl, onSettingUpdate, autoReconnect, maxReconnectDelay]);
+  }, [baseUrl, autoReconnect, maxReconnectDelay]);
 
   // Initial connection
   useEffect(() => {

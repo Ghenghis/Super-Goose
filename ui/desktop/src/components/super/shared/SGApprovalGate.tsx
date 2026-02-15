@@ -7,6 +7,29 @@ interface SGApprovalGateProps {
   toolName?: string;
 }
 
+/** Shared hover handlers for opacity-based button hover effect. */
+const hoverHandlers = {
+  onMouseEnter: (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.opacity = '0.85';
+  },
+  onMouseLeave: (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.opacity = '1';
+  },
+};
+
+/** Base style for approve/reject action buttons. */
+const actionButtonBase: React.CSSProperties = {
+  flex: 1,
+  padding: '0.5rem 1rem',
+  fontSize: '0.8125rem',
+  fontWeight: 500,
+  color: 'white',
+  border: 'none',
+  borderRadius: '0.375rem',
+  cursor: 'pointer',
+  transition: 'opacity 0.2s',
+};
+
 const riskConfig = {
   low: {
     borderColor: 'var(--sg-emerald)',
@@ -88,48 +111,16 @@ export default function SGApprovalGate({
           <button
             onClick={onApprove}
             aria-label={`Approve: ${action}`}
-            style={{
-              flex: 1,
-              padding: '0.5rem 1rem',
-              fontSize: '0.8125rem',
-              fontWeight: 500,
-              backgroundColor: 'var(--sg-emerald)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer',
-              transition: 'opacity 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = '0.85';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = '1';
-            }}
+            style={{ ...actionButtonBase, backgroundColor: 'var(--sg-emerald)' }}
+            {...hoverHandlers}
           >
             ✓ Approve
           </button>
           <button
             onClick={onReject}
             aria-label={`Reject: ${action}`}
-            style={{
-              flex: 1,
-              padding: '0.5rem 1rem',
-              fontSize: '0.8125rem',
-              fontWeight: 500,
-              backgroundColor: 'var(--sg-red)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer',
-              transition: 'opacity 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = '0.85';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = '1';
-            }}
+            style={{ ...actionButtonBase, backgroundColor: 'var(--sg-red)' }}
+            {...hoverHandlers}
           >
             ✗ Reject
           </button>
@@ -138,5 +129,3 @@ export default function SGApprovalGate({
     </div>
   );
 }
-
-export { SGApprovalGate };

@@ -118,7 +118,13 @@ impl IntoResponse for AgentSseResponse {
             .header("Cache-Control", "no-cache")
             .header("Connection", "keep-alive")
             .body(body)
-            .expect("failed to build agent SSE response")
+            .unwrap_or_else(|e| {
+                tracing::error!("Failed to build agent SSE response: {}", e);
+                http::Response::builder()
+                    .status(http::StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(axum::body::Body::from("Internal Server Error"))
+                    .unwrap()
+            })
     }
 }
 

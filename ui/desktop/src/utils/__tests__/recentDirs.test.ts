@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'vitest';
 
 /**
  * recentDirs.ts is an Electron main-process module that uses Node.js builtins
@@ -10,17 +10,8 @@ import { describe, it, expect } from 'vitest';
  * during import before any mock can intercept it.
  *
  * This file is properly tested via integration/E2E tests in the Electron runtime.
- * Here we document the module's public API for coverage tracking purposes.
  */
 describe('recentDirs', () => {
-  it('module exports loadRecentDirs and addRecentDir (skipped: Electron main-process module)', () => {
-    // recentDirs.ts exports:
-    // - loadRecentDirs(): string[]
-    // - addRecentDir(dir: string): void
-    //
-    // Both functions depend on Node.js fs + path + electron.app which
-    // cannot be mocked in Vite's jsdom environment due to SSR externalization.
-    // Integration tests cover these functions in the Electron runtime.
-    expect(true).toBe(true);
-  });
+  it.todo('loadRecentDirs — tested in Electron runtime (main-process module)');
+  it.todo('addRecentDir — tested in Electron runtime (main-process module)');
 });

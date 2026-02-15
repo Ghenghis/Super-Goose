@@ -18,6 +18,7 @@
     "vite.main.config.mts",
     "vite.renderer.config.mts",
     "vite.preload.config.mts",
+    "vitest.config.ts",
     "forge.config.ts"
   ]
 }

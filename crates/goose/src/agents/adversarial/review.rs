@@ -94,7 +94,11 @@ impl ReviewStats {
         }
 
         let first_score = self.all_feedback[0].coach_review.quality_score;
-        let last_score = self.all_feedback.last().unwrap().coach_review.quality_score;
+        // Safety: len() >= 2 is guaranteed by the early return above
+        let last_score = match self.all_feedback.last() {
+            Some(fb) => fb.coach_review.quality_score,
+            None => return 0.0,
+        };
 
         last_score - first_score
     }
