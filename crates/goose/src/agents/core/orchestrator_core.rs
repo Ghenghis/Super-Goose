@@ -552,8 +552,8 @@ mod tests {
         let snap = core.metrics_ref().snapshot();
         assert_eq!(snap.total_executions, 1);
         assert_eq!(snap.successful, 1);
-        // avg_time_ms can be 0 when execution completes in under 1ms (especially in parallel test runs)
-        assert!(snap.avg_time_ms >= 0);
+        // avg_time_ms is u64, always >= 0 — just verify it's a reasonable value (under 60s)
+        assert!(snap.avg_time_ms < 60_000, "avg_time_ms should be under 60s, got {}", snap.avg_time_ms);
     }
 
     /// Create a minimal test AgentContext

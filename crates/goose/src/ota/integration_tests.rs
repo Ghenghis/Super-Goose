@@ -831,7 +831,7 @@ version = "0.0.1"
 
     #[test]
     fn test_ci_watcher_real_github_fetch() {
-        use crate::autonomous::ci_watcher::{CiWatcher, CiWatcherConfig, GithubCiFetcher, CiStatusFetcher};
+        use crate::autonomous::ci_watcher::{GithubCiFetcher, CiStatusFetcher};
 
         // Check if gh is available and authenticated
         let auth_check = std::process::Command::new("gh")
