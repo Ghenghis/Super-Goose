@@ -75,6 +75,13 @@ impl CoreSelector {
             || lower.contains("bug fix")
         {
             "code-test-fix".to_string()
+        } else if lower.contains("multiple files")
+            || lower.contains("multi-file")
+            || lower.contains("cross-file")
+            || (lower.contains("implement") && lower.contains("across"))
+            || (lower.contains("feature") && lower.contains("across"))
+        {
+            "multi-file-complex".to_string()
         } else if lower.contains("refactor")
             && (lower.contains("all")
                 || lower.contains("many")

@@ -8,6 +8,7 @@ use axum::{
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use utoipa::ToSchema;
 
@@ -307,7 +308,7 @@ fn default_gateway_status() -> GatewayStatus {
     GatewayStatus {
         healthy: true,
         uptime: "3d 14h 22m".to_string(),
-        version: "1.24.05".to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
         audit_logging: false,
         permissions: GatewayPermissions {
             total: 12,
@@ -598,6 +599,9 @@ fn default_policy_rules() -> Vec<PolicyRule> {
 // Global state instance
 static STATE: Lazy<EnterpriseState> = Lazy::new(EnterpriseState::default);
 
+/// Monotonic counter for scan IDs — never resets, guarantees uniqueness.
+static SCAN_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 // ===========================================================================
 // Gateway handlers
 // ===========================================================================
@@ -783,7 +787,7 @@ async fn record_guardrails_scan(
         .lock()
         .map_err(|e| ErrorResponse::internal(format!("Lock poisoned: {}", e)))?;
 
-    let id = format!("scan-{:03}", scans.len() + 1);
+    let id = format!("scan-{:03}", SCAN_COUNTER.fetch_add(1, Ordering::Relaxed) + 1);
 
     let entry = ScanEntry {
         id: id.clone(),
@@ -906,11 +910,12 @@ async fn get_memory_summary() -> Result<Json<MemorySummaryResponse>, ErrorRespon
     tag = "Enterprise"
 )]
 async fn consolidate_memory() -> Result<Json<MemoryConsolidateResponse>, ErrorResponse> {
-    // In a real implementation this would trigger actual consolidation.
-    // For now, return success.
+    // TODO: Wire to actual memory consolidation logic when available.
+    // Return an honest "not implemented" response so the frontend can
+    // display appropriate UI rather than claiming success.
     Ok(Json(MemoryConsolidateResponse {
-        success: true,
-        message: "Memory consolidation completed successfully".to_string(),
+        success: false,
+        message: "Memory consolidation is not yet implemented".to_string(),
     }))
 }
 

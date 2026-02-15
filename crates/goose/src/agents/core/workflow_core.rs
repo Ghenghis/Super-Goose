@@ -221,8 +221,10 @@ impl AgentCore for WorkflowCore {
                 | Some(WorkflowExecutionStatus::Failed)
                 | Some(WorkflowExecutionStatus::Cancelled) => break,
                 _ => {
-                    // Execute next step
+                    // Execute next step, then yield briefly to avoid busy-waiting
+                    // if run_execution_loop returns without making progress.
                     let _ = engine.run_execution_loop().await;
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                 }
             }
         }

@@ -17,9 +17,8 @@ use crate::agents::swarm::{
     BatchProcessor, RoutingStrategy, Swarm, SwarmAgent, SwarmConfig, SwarmRole, SwarmTask,
     TaskPriority as SwarmTaskPriority,
 };
-// TeamCoordinator available for future parallel coordination
-#[allow(unused_imports)]
-use crate::agents::team::{TeamConfig, TeamCoordinator};
+// Note: TeamCoordinator (crate::agents::team) can be imported when
+// parallel coordination is implemented.
 
 /// Parallel swarm execution core.
 ///
@@ -293,10 +292,14 @@ impl AgentCore for SwarmCore {
 
         // 5. Route tasks to agents
         let mut routed_count = 0;
+        let mut failed_count = 0;
         for task_item in &swarm_tasks {
             match swarm.route_task(task_item) {
                 Ok(_agent_id) => routed_count += 1,
-                Err(_) => {} // Skip unroutable tasks
+                Err(e) => {
+                    tracing::warn!("Failed to route task '{}': {}", task_item.description, e);
+                    failed_count += 1;
+                }
             }
         }
 
@@ -304,9 +307,10 @@ impl AgentCore for SwarmCore {
         let mut batch = BatchProcessor::new("swarm-batch", swarm_tasks.clone())
             .with_concurrency(4);
 
-        // Simulate execution: mark all tasks as completed
-        for _ in 0..swarm_tasks.len() {
-            batch.record_completion(true);
+        // Record completion based on routing results.
+        // Tasks that failed routing are marked as failures.
+        for i in 0..swarm_tasks.len() {
+            batch.record_completion(i < routed_count);
         }
 
         // 7. Collect results
@@ -322,12 +326,13 @@ impl AgentCore for SwarmCore {
         }
 
         let summary = format!(
-            "Swarm execution completed ({}/{} tasks routed, {:.0}% progress).\n\
+            "Swarm execution completed ({}/{} tasks routed, {} failed, {:.0}% progress).\n\
              Agents: {} total, {} idle, {} working\n\
              Performance: {:.1}% avg\n\
              Tasks:\n{}",
             routed_count,
             decomposed.len(),
+            failed_count,
             progress * 100.0,
             summary_obj.total_agents,
             summary_obj.idle,

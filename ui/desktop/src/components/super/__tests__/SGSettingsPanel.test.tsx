@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SGSettingsPanel from '../SGSettingsPanel';
 
+// Mock getApiUrl so tests don't depend on hardcoded localhost:3284
+vi.mock('../../../config', () => ({
+  getApiUrl: (path: string) => `http://localhost:3000${path}`,
+}));
+
 // --- Mocks ----------------------------------------------------------------
 
 let mockFetch: ReturnType<typeof vi.fn>;
@@ -130,7 +135,7 @@ describe('SGSettingsPanel', () => {
   // -- API integration (when available) ------------------------------------
   it('fetches features from /api/features on mount', () => {
     render(<SGSettingsPanel />);
-    expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/api/features');
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/features');
   });
 
   it('uses API features when fetch succeeds', async () => {
@@ -180,7 +185,7 @@ describe('SGSettingsPanel', () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3284/api/features/TestFeature',
+        'http://localhost:3000/api/features/TestFeature',
         expect.objectContaining({
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

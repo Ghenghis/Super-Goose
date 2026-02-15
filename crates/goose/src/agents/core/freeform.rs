@@ -100,9 +100,7 @@ impl AgentCore for FreeformCore {
         // memory, HITL, compaction, checkpointing, and streaming.
         // ──────────────────────────────────────────────────────────────────
 
-        let start = std::time::Instant::now();
         let task_preview = truncate(task, 100);
-        let elapsed = start.elapsed();
 
         let output = CoreOutput {
             completed: true,
@@ -115,7 +113,9 @@ impl AgentCore for FreeformCore {
             metrics: CoreMetricsSnapshot::default(),
         };
 
-        self.metrics.record_execution(true, 0, 0, elapsed.as_millis() as u64);
+        // Record execution count but pass 0 for elapsed — actual timing happens
+        // in Agent::reply_internal() which runs outside this method.
+        self.metrics.record_execution(true, 0, 0, 0);
         Ok(output)
     }
 

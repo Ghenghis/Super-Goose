@@ -7,6 +7,8 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
+use std::path::Path;
+#[cfg(test)]
 use std::path::PathBuf;
 
 use super::context::{AgentContext, TaskCategory, TaskHint};
@@ -47,7 +49,7 @@ impl Default for StructuredCore {
 }
 
 /// Detect project type from task description or working directory.
-fn detect_project_type(task: &str, working_dir: &PathBuf) -> Option<ProjectType> {
+fn detect_project_type(task: &str, working_dir: &Path) -> Option<ProjectType> {
     let lower = task.to_lowercase();
 
     // Check task keywords first

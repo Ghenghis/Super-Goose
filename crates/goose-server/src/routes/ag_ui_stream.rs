@@ -375,7 +375,7 @@ impl IntoResponse for AgUiSseResponse {
 // ---------------------------------------------------------------------------
 
 /// Format the current UTC timestamp as an RFC 3339 string.
-fn now_rfc3339() -> String {
+pub(crate) fn now_rfc3339() -> String {
     chrono::Utc::now().to_rfc3339()
 }
 

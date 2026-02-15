@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
+// Mock getApiUrl so tests don't depend on hardcoded localhost:3284
+vi.mock('../../../config', () => ({
+  getApiUrl: (path: string) => `http://localhost:3000${path}`,
+}));
+
 // ---------------------------------------------------------------------------
 // useAgentStream tests
 // ---------------------------------------------------------------------------
@@ -66,7 +71,7 @@ describe('useAgentStream', () => {
   it('connects to the agent-stream SSE endpoint', async () => {
     const { useAgentStream } = await import('../../../hooks/useAgentStream');
     renderHook(() => useAgentStream());
-    expect(constructorCalls).toContain('http://localhost:3284/api/agent-stream');
+    expect(constructorCalls).toContain('http://localhost:3000/api/agent-stream');
   });
 
   it('sets connected to true on open', async () => {
@@ -205,10 +210,10 @@ describe('useSuperGooseData', () => {
     renderHook(() => useSuperGooseData());
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:3284/api/learning/stats');
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:3284/api/cost/summary');
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:3284/api/autonomous/status');
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:3284/api/ota/status');
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/api/learning/stats');
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/api/cost/summary');
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/api/autonomous/status');
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/api/ota/status');
     });
   });
 

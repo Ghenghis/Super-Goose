@@ -73,18 +73,13 @@ enum QualityLevel {
 
 /// Build AdversarialConfig from task analysis.
 fn build_adversarial_config(task: &str) -> AdversarialConfig {
-    let lower = task.to_lowercase();
-    let _quality = determine_quality_level(task);
+    let quality = determine_quality_level(task);
 
-    // Determine max review cycles based on task complexity
-    let max_cycles = if lower.contains("security") || lower.contains("audit")
-        || lower.contains("critical")
-    {
-        5 // More cycles for security-critical tasks
-    } else if lower.contains("review") || lower.contains("quality") {
-        4
-    } else {
-        3 // Default
+    // Determine max review cycles based on quality level derived from task analysis
+    let max_cycles = match quality {
+        QualityLevel::Strict => 5,  // Security, audit, critical tasks
+        QualityLevel::Default => 3, // Normal tasks
+        QualityLevel::Relaxed => 2, // Simple or low-risk tasks
     };
 
     // Enable self-improvement for multi-cycle tasks

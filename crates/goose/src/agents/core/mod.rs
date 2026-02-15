@@ -48,7 +48,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Capabilities a core supports — used for suitability scoring and UI display
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoreCapabilities {
     /// Can execute code generation tasks
     pub code_generation: bool,
@@ -70,6 +70,23 @@ pub struct CoreCapabilities {
     pub persistent_learning: bool,
     /// Maximum recommended concurrent tasks
     pub max_concurrent_tasks: u32,
+}
+
+impl Default for CoreCapabilities {
+    fn default() -> Self {
+        Self {
+            code_generation: false,
+            testing: false,
+            multi_agent: false,
+            parallel_execution: false,
+            workflow_templates: false,
+            adversarial_review: false,
+            freeform_chat: false,
+            state_machine: false,
+            persistent_learning: false,
+            max_concurrent_tasks: 1, // Default to 1, not 0
+        }
+    }
 }
 
 /// Output from a core execution

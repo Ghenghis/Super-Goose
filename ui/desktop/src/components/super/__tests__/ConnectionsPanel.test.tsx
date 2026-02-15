@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ConnectionsPanel from '../ConnectionsPanel';
 
+// Mock getApiUrl so tests don't depend on hardcoded localhost:3284
+vi.mock('../../../config', () => ({
+  getApiUrl: (path: string) => `http://localhost:3000${path}`,
+}));
+
 // --- Helpers ---------------------------------------------------------------
 
 let mockFetch: ReturnType<typeof vi.fn>;
@@ -68,7 +73,7 @@ describe('ConnectionsPanel', () => {
   it('fetches extensions from /config/extensions on mount', () => {
     render(<ConnectionsPanel />);
 
-    expect(mockFetch).toHaveBeenCalledWith('http://localhost:3284/config/extensions');
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/config/extensions');
   });
 
   // -- Extension data renders on API Keys tab -------------------------------

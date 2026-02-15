@@ -1,4 +1,4 @@
-use crate::routes::ag_ui_stream::{emit_ag_ui_event_typed, AgUiEvent, JsonPatchOp};
+use crate::routes::ag_ui_stream::{emit_ag_ui_event_typed, now_rfc3339, AgUiEvent, JsonPatchOp};
 use crate::routes::errors::ErrorResponse;
 use crate::state::AppState;
 #[cfg(test)]
@@ -473,6 +473,13 @@ pub async fn reply(
             tokio::select! {
                 _ = task_cancel.cancelled() => {
                     tracing::info!("Agent task cancelled");
+                    // Emit RUN_CANCELLED so the frontend knows the run was
+                    // intentionally aborted (not just finished normally).
+                    emit_ag_ui_event_typed(&state, &AgUiEvent::RUN_CANCELLED {
+                        reason: Some("User cancelled".to_string()),
+                        timestamp: now_rfc3339(),
+                    });
+                    run_terminated = true;
                     break;
                 }
                 _ = heartbeat_interval.tick() => {
