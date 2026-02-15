@@ -1,0 +1,430 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 400" width="1100" height="400">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0e17"/>
+      <stop offset="50%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#0a0e17"/>
+    </linearGradient>
+    <linearGradient id="inputGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00BFFF" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#00BFFF" stop-opacity="0.06"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FF9900" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#FF9900" stop-opacity="0.06"/>
+    </linearGradient>
+    <linearGradient id="blueGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00BFFF" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#00BFFF" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00CC66" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#00CC66" stop-opacity="0.06"/>
+    </linearGradient>
+    <linearGradient id="greenGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00CC66" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#00CC66" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FF9900" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#FF9900" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="outputGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00FF66" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#00FF66" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="glowBlue" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feFlood flood-color="#00BFFF" flood-opacity="0.4"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowOrange" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feFlood flood-color="#FF9900" flood-opacity="0.4"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowGreen" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feFlood flood-color="#00FF66" flood-opacity="0.5"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrowPass" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#00CC66" fill-opacity="0.8"/>
+    </marker>
+    <marker id="arrowFail" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#FF3366" fill-opacity="0.8"/>
+    </marker>
+    <marker id="arrowWhite" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5" fill="#ffffff" fill-opacity="0.6"/>
+    </marker>
+    <pattern id="dotPattern" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="0.4" fill="#ffffff" opacity="0.12"/>
+    </pattern>
+  </defs>
+
+  <!-- BACKGROUND -->
+  <rect width="1100" height="400" fill="url(#bgGrad)"/>
+  <rect width="1100" height="400" fill="url(#dotPattern)" opacity="0.3"/>
+
+  <!-- TITLE -->
+  <text x="550" y="28" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#ffffff" opacity="0.9" letter-spacing="3">SUPER-GOOSE SECURITY &amp; GOVERNANCE PIPELINE</text>
+  <line x1="300" y1="36" x2="800" y2="36" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+
+  <!-- MAIN FLOW LINE (subtle) -->
+  <line x1="40" y1="175" x2="1060" y2="175" stroke="#ffffff" stroke-opacity="0.03" stroke-width="1"/>
+
+  <!-- ===== STEP 1: CODE GENERATED (INPUT) ===== -->
+  <g transform="translate(18, 110)">
+    <rect x="0" y="0" width="90" height="130" rx="10" fill="url(#inputGrad)" stroke="#888888" stroke-width="1.2" stroke-opacity="0.5"/>
+    <rect x="0" y="0" width="90" height="24" rx="10" fill="#ffffff" fill-opacity="0.08"/>
+    <rect x="0" y="12" width="90" height="12" fill="#ffffff" fill-opacity="0.08"/>
+    <text x="45" y="17" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8" fill="#ffffff" font-weight="700" letter-spacing="1.5" opacity="0.7">INPUT</text>
+    <!-- Code icon -->
+    <g transform="translate(22, 34)">
+      <rect x="0" y="0" width="46" height="34" rx="4" fill="#0d1117" stroke="#666666" stroke-width="1" opacity="0.8"/>
+      <text x="6" y="12" font-family="monospace" font-size="7" fill="#00BFFF" opacity="0.7">&lt;/&gt;</text>
+      <rect x="6" y="16" width="22" height="2" rx="1" fill="#00CC66" opacity="0.3"/>
+      <rect x="6" y="21" width="16" height="2" rx="1" fill="#FF9900" opacity="0.3"/>
+      <rect x="6" y="26" width="28" height="2" rx="1" fill="#00BFFF" opacity="0.3"/>
+    </g>
+    <text x="45" y="84" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#ffffff" font-weight="600" opacity="0.85">Code</text>
+    <text x="45" y="96" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#ffffff" font-weight="600" opacity="0.85">Generated</text>
+    <text x="45" y="118" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#888888" opacity="0.6" font-style="italic">AI output</text>
+  </g>
+
+  <!-- ARROW 1 -->
+  <path d="M112,175 L132,175" fill="none" stroke="#00BFFF" stroke-width="1.8" marker-end="url(#arrowWhite)" opacity="0.6"/>
+  <circle r="1.5" fill="#00BFFF" opacity="0.7">
+    <animateMotion dur="1.5s" repeatCount="indefinite" path="M112,175 L132,175"/>
+  </circle>
+
+  <!-- ===== STEP 2: AST ANALYSIS ===== -->
+  <g transform="translate(138, 100)">
+    <rect x="0" y="0" width="112" height="150" rx="10" fill="url(#blueGrad)" stroke="#00BFFF" stroke-width="1.2" stroke-opacity="0.5"/>
+    <rect x="0" y="0" width="112" height="24" rx="10" fill="#00BFFF" fill-opacity="0.15"/>
+    <rect x="0" y="12" width="112" height="12" fill="#00BFFF" fill-opacity="0.15"/>
+    <!-- Shield icon -->
+    <g transform="translate(8, 5)">
+      <path d="M7,2 L12,0 L17,2 L17,9 Q17,14 12,16 Q7,14 7,9Z" fill="#00BFFF" fill-opacity="0.2" stroke="#00BFFF" stroke-width="0.8" opacity="0.7"/>
+      <path d="M10,7 L12,9 L15,5" fill="none" stroke="#00BFFF" stroke-width="1" opacity="0.8"/>
+    </g>
+    <text x="56" y="17" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#00BFFF" font-weight="700" letter-spacing="1">AST ANALYSIS</text>
+    <!-- AST tree icon -->
+    <g transform="translate(28, 34)">
+      <circle cx="28" cy="5" r="4" fill="none" stroke="#00BFFF" stroke-width="1" opacity="0.6"/>
+      <circle cx="12" cy="25" r="4" fill="none" stroke="#00BFFF" stroke-width="1" opacity="0.6"/>
+      <circle cx="44" cy="25" r="4" fill="none" stroke="#00BFFF" stroke-width="1" opacity="0.6"/>
+      <circle cx="4" cy="45" r="3" fill="none" stroke="#00BFFF" stroke-width="0.8" opacity="0.4"/>
+      <circle cx="20" cy="45" r="3" fill="none" stroke="#00BFFF" stroke-width="0.8" opacity="0.4"/>
+      <circle cx="36" cy="45" r="3" fill="none" stroke="#00BFFF" stroke-width="0.8" opacity="0.4"/>
+      <circle cx="52" cy="45" r="3" fill="none" stroke="#00BFFF" stroke-width="0.8" opacity="0.4"/>
+      <line x1="28" y1="9" x2="12" y2="21" stroke="#00BFFF" stroke-width="0.8" opacity="0.4"/>
+      <line x1="28" y1="9" x2="44" y2="21" stroke="#00BFFF" stroke-width="0.8" opacity="0.4"/>
+      <line x1="12" y1="29" x2="4" y2="42" stroke="#00BFFF" stroke-width="0.6" opacity="0.3"/>
+      <line x1="12" y1="29" x2="20" y2="42" stroke="#00BFFF" stroke-width="0.6" opacity="0.3"/>
+      <line x1="44" y1="29" x2="36" y2="42" stroke="#00BFFF" stroke-width="0.6" opacity="0.3"/>
+      <line x1="44" y1="29" x2="52" y2="42" stroke="#00BFFF" stroke-width="0.6" opacity="0.3"/>
+    </g>
+    <text x="56" y="98" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#ffffff" font-weight="600" opacity="0.9">Structural</text>
+    <text x="56" y="110" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#ffffff" font-weight="600" opacity="0.9">Code Search</text>
+    <line x1="15" y1="118" x2="97" y2="118" stroke="#00BFFF" stroke-opacity="0.15" stroke-width="1"/>
+    <rect x="18" y="124" width="76" height="16" rx="8" fill="#00BFFF" fill-opacity="0.1" stroke="#00BFFF" stroke-width="0.6" stroke-opacity="0.3"/>
+    <text x="56" y="135" text-anchor="middle" font-family="monospace" font-size="8" fill="#00BFFF" opacity="0.7" font-weight="600">ast-grep</text>
+  </g>
+
+  <!-- GATE 1: Pass/Fail -->
+  <g transform="translate(254, 155)">
+    <rect x="0" y="0" width="26" height="40" rx="4" fill="#0d1117" stroke="#444444" stroke-width="0.8"/>
+    <text x="13" y="15" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#00CC66" font-weight="700" opacity="0.8">PASS</text>
+    <line x1="3" y1="20" x2="23" y2="20" stroke="#444444" stroke-width="0.5" opacity="0.5"/>
+    <text x="13" y="33" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#FF3366" font-weight="700" opacity="0.8">FAIL</text>
+  </g>
+  <!-- Fail arrow down -->
+  <path d="M267,198 L267,250" fill="none" stroke="#FF3366" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arrowFail)" opacity="0.5"/>
+  <!-- Pass arrow right -->
+  <path d="M282,175 L296,175" fill="none" stroke="#00CC66" stroke-width="1.8" marker-end="url(#arrowPass)" opacity="0.6"/>
+  <circle r="1.2" fill="#00CC66" opacity="0.6">
+    <animateMotion dur="1.2s" repeatCount="indefinite" path="M282,175 L296,175"/>
+  </circle>
+
+  <!-- ===== STEP 3: SECURITY SCAN ===== -->
+  <g transform="translate(300, 100)">
+    <rect x="0" y="0" width="112" height="150" rx="10" fill="url(#orangeGrad)" stroke="#FF9900" stroke-width="1.2" stroke-opacity="0.5"/>
+    <rect x="0" y="0" width="112" height="24" rx="10" fill="#FF9900" fill-opacity="0.15"/>
+    <rect x="0" y="12" width="112" height="12" fill="#FF9900" fill-opacity="0.15"/>
+    <!-- Shield icon -->
+    <g transform="translate(8, 5)">
+      <path d="M7,2 L12,0 L17,2 L17,9 Q17,14 12,16 Q7,14 7,9Z" fill="#FF9900" fill-opacity="0.2" stroke="#FF9900" stroke-width="0.8" opacity="0.7"/>
+      <line x1="12" y1="5" x2="12" y2="10" stroke="#FF9900" stroke-width="1" opacity="0.8"/>
+      <circle cx="12" cy="12.5" r="0.8" fill="#FF9900" opacity="0.8"/>
+    </g>
+    <text x="56" y="17" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8" fill="#FF9900" font-weight="700" letter-spacing="1">SECURITY SCAN</text>
+    <!-- Scan radar icon -->
+    <g transform="translate(28, 34)">
+      <circle cx="28" cy="25" r="22" fill="none" stroke="#FF9900" stroke-width="0.8" opacity="0.2"/>
+      <circle cx="28" cy="25" r="15" fill="none" stroke="#FF9900" stroke-width="0.8" opacity="0.3"/>
+      <circle cx="28" cy="25" r="8" fill="none" stroke="#FF9900" stroke-width="0.8" opacity="0.4"/>
+      <circle cx="28" cy="25" r="2" fill="#FF9900" opacity="0.6"/>
+      <line x1="28" y1="25" x2="46" y2="12" stroke="#FF9900" stroke-width="1" opacity="0.5"/>
+      <path d="M28,25 L42,14" fill="none" stroke="#FF9900" stroke-width="6" opacity="0.08"/>
+      <!-- Detected dots -->
+      <circle cx="20" cy="18" r="2" fill="#FF3366" opacity="0.6">
+        <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="38" cy="32" r="1.5" fill="#00CC66" opacity="0.5"/>
+    </g>
+    <text x="56" y="98" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#ffffff" font-weight="600" opacity="0.9">Policy-as-Code</text>
+    <text x="56" y="110" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#ffffff" font-weight="600" opacity="0.9">Vuln Detection</text>
+    <line x1="15" y1="118" x2="97" y2="118" stroke="#FF9900" stroke-opacity="0.15" stroke-width="1"/>
+    <rect x="18" y="124" width="76" height="16" rx="8" fill="#FF9900" fill-opacity="0.1" stroke="#FF9900" stroke-width="0.6" stroke-opacity="0.3"/>
+    <text x="56" y="135" text-anchor="middle" font-family="monospace" font-size="8" fill="#FF9900" opacity="0.7" font-weight="600">Semgrep</text>
+  </g>
+
+  <!-- GATE 2 -->
+  <g transform="translate(416, 155)">
+    <rect x="0" y="0" width="26" height="40" rx="4" fill="#0d1117" stroke="#444444" stroke-width="0.8"/>
+    <text x="13" y="15" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#00CC66" font-weight="700" opacity="0.8">PASS</text>
+    <line x1="3" y1="20" x2="23" y2="20" stroke="#444444" stroke-width="0.5" opacity="0.5"/>
+    <text x="13" y="33" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#FF3366" font-weight="700" opacity="0.8">FAIL</text>
+  </g>
+  <path d="M429,198 L429,250" fill="none" stroke="#FF3366" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arrowFail)" opacity="0.5"/>
+  <path d="M444,175 L458,175" fill="none" stroke="#00CC66" stroke-width="1.8" marker-end="url(#arrowPass)" opacity="0.6"/>
+  <circle r="1.2" fill="#00CC66" opacity="0.6">
+    <animateMotion dur="1.2s" repeatCount="indefinite" path="M444,175 L458,175"/>
+  </circle>
+
+  <!-- ===== STEP 4: FORMAL VERIFICATION ===== -->
+  <g transform="translate(462, 100)">
+    <rect x="0" y="0" width="112" height="150" rx="10" fill="url(#blueGrad2)" stroke="#00BFFF" stroke-width="1.2" stroke-opacity="0.4"/>
+    <rect x="0" y="0" width="112" height="24" rx="10" fill="#00BFFF" fill-opacity="0.12"/>
+    <rect x="0" y="12" width="112" height="12" fill="#00BFFF" fill-opacity="0.12"/>
+    <!-- Shield icon -->
+    <g transform="translate(8, 5)">
+      <path d="M7,2 L12,0 L17,2 L17,9 Q17,14 12,16 Q7,14 7,9Z" fill="#00BFFF" fill-opacity="0.2" stroke="#00BFFF" stroke-width="0.8" opacity="0.7"/>
+      <text x="12" y="11" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#00BFFF" opacity="0.8" font-weight="700">Z</text>
+    </g>
+    <text x="60" y="17" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7.5" fill="#00BFFF" font-weight="700" letter-spacing="0.8">VERIFICATION</text>
+    <!-- Math/logic symbols -->
+    <g transform="translate(20, 34)">
+      <rect x="0" y="0" width="72" height="50" rx="5" fill="#0d1117" stroke="#00BFFF" stroke-width="0.7" opacity="0.5"/>
+      <text x="36" y="16" text-anchor="middle" font-family="serif" font-size="11" fill="#00BFFF" opacity="0.6" font-style="italic">&#x2200;x &#x2208; P(x)</text>
+      <text x="36" y="30" text-anchor="middle" font-family="serif" font-size="10" fill="#00BFFF" opacity="0.5" font-style="italic">&#x2203;y : Q(y)</text>
+      <text x="36" y="43" text-anchor="middle" font-family="serif" font-size="10" fill="#00CC66" opacity="0.4" font-style="italic">&#x22A2; &#x22A4;</text>
+    </g>
+    <text x="56" y="98" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#ffffff" font-weight="600" opacity="0.9">Symbolic</text>
+    <text x="56" y="110" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#ffffff" font-weight="600" opacity="0.9">Execution</text>
+    <line x1="15" y1="118" x2="97" y2="118" stroke="#00BFFF" stroke-opacity="0.15" stroke-width="1"/>
+    <rect x="8" y="124" width="52" height="16" rx="8" fill="#00BFFF" fill-opacity="0.1" stroke="#00BFFF" stroke-width="0.5" stroke-opacity="0.3"/>
+    <text x="34" y="135" text-anchor="middle" font-family="monospace" font-size="7" fill="#00BFFF" opacity="0.7" font-weight="600">CrossHair</text>
+    <rect x="64" y="124" width="40" height="16" rx="8" fill="#00BFFF" fill-opacity="0.1" stroke="#00BFFF" stroke-width="0.5" stroke-opacity="0.3"/>
+    <text x="84" y="135" text-anchor="middle" font-family="monospace" font-size="7" fill="#00BFFF" opacity="0.7" font-weight="600">Z3</text>
+  </g>
+
+  <!-- GATE 3 -->
+  <g transform="translate(578, 155)">
+    <rect x="0" y="0" width="26" height="40" rx="4" fill="#0d1117" stroke="#444444" stroke-width="0.8"/>
+    <text x="13" y="15" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#00CC66" font-weight="700" opacity="0.8">PASS</text>
+    <line x1="3" y1="20" x2="23" y2="20" stroke="#444444" stroke-width="0.5" opacity="0.5"/>
+    <text x="13" y="33" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#FF3366" font-weight="700" opacity="0.8">FAIL</text>
+  </g>
+  <path d="M591,198 L591,250" fill="none" stroke="#FF3366" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arrowFail)" opacity="0.5"/>
+  <path d="M606,175 L620,175" fill="none" stroke="#00CC66" stroke-width="1.8" marker-end="url(#arrowPass)" opacity="0.6"/>
+  <circle r="1.2" fill="#00CC66" opacity="0.6">
+    <animateMotion dur="1.2s" repeatCount="indefinite" path="M606,175 L620,175"/>
+  </circle>
+
+  <!-- ===== STEP 5: PR REVIEW ===== -->
+  <g transform="translate(624, 100)">
+    <rect x="0" y="0" width="104" height="150" rx="10" fill="url(#greenGrad)" stroke="#00CC66" stroke-width="1.2" stroke-opacity="0.5"/>
+    <rect x="0" y="0" width="104" height="24" rx="10" fill="#00CC66" fill-opacity="0.15"/>
+    <rect x="0" y="12" width="104" height="12" fill="#00CC66" fill-opacity="0.15"/>
+    <!-- Shield icon -->
+    <g transform="translate(8, 5)">
+      <path d="M7,2 L12,0 L17,2 L17,9 Q17,14 12,16 Q7,14 7,9Z" fill="#00CC66" fill-opacity="0.2" stroke="#00CC66" stroke-width="0.8" opacity="0.7"/>
+      <path d="M10,7 L12,9 L15,5" fill="none" stroke="#00CC66" stroke-width="1" opacity="0.8"/>
+    </g>
+    <text x="56" y="17" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#00CC66" font-weight="700" letter-spacing="1">PR REVIEW</text>
+    <!-- AI Review icon -->
+    <g transform="translate(20, 34)">
+      <rect x="0" y="0" width="64" height="50" rx="5" fill="#0d1117" stroke="#00CC66" stroke-width="0.7" opacity="0.5"/>
+      <!-- PR merge icon -->
+      <circle cx="16" cy="12" r="4" fill="none" stroke="#00CC66" stroke-width="1" opacity="0.6"/>
+      <line x1="16" y1="16" x2="16" y2="30" stroke="#00CC66" stroke-width="1" opacity="0.5"/>
+      <circle cx="16" cy="34" r="4" fill="none" stroke="#00CC66" stroke-width="1" opacity="0.6"/>
+      <path d="M32,12 Q24,22 16,30" fill="none" stroke="#00CC66" stroke-width="1" opacity="0.5"/>
+      <circle cx="32" cy="12" r="4" fill="none" stroke="#00CC66" stroke-width="1" opacity="0.6"/>
+      <!-- AI sparkle -->
+      <text x="50" y="18" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#00CC66" opacity="0.5">AI</text>
+      <line x1="44" y1="28" x2="56" y2="28" stroke="#00CC66" stroke-width="0.5" opacity="0.3"/>
+      <rect x="42" y="32" width="14" height="2" rx="1" fill="#00CC66" opacity="0.2"/>
+      <rect x="42" y="37" width="10" height="2" rx="1" fill="#00CC66" opacity="0.2"/>
+      <rect x="42" y="42" width="12" height="2" rx="1" fill="#00CC66" opacity="0.2"/>
+    </g>
+    <text x="52" y="98" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#ffffff" font-weight="600" opacity="0.9">AI-Powered</text>
+    <text x="52" y="110" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#ffffff" font-weight="600" opacity="0.9">Code Review</text>
+    <line x1="12" y1="118" x2="92" y2="118" stroke="#00CC66" stroke-opacity="0.15" stroke-width="1"/>
+    <rect x="12" y="124" width="80" height="16" rx="8" fill="#00CC66" fill-opacity="0.1" stroke="#00CC66" stroke-width="0.6" stroke-opacity="0.3"/>
+    <text x="52" y="135" text-anchor="middle" font-family="monospace" font-size="8" fill="#00CC66" opacity="0.7" font-weight="600">PR-Agent</text>
+  </g>
+
+  <!-- GATE 4 -->
+  <g transform="translate(732, 155)">
+    <rect x="0" y="0" width="26" height="40" rx="4" fill="#0d1117" stroke="#444444" stroke-width="0.8"/>
+    <text x="13" y="15" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#00CC66" font-weight="700" opacity="0.8">PASS</text>
+    <line x1="3" y1="20" x2="23" y2="20" stroke="#444444" stroke-width="0.5" opacity="0.5"/>
+    <text x="13" y="33" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#FF3366" font-weight="700" opacity="0.8">FAIL</text>
+  </g>
+  <path d="M745,198 L745,250" fill="none" stroke="#FF3366" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arrowFail)" opacity="0.5"/>
+  <path d="M760,175 L774,175" fill="none" stroke="#00CC66" stroke-width="1.8" marker-end="url(#arrowPass)" opacity="0.6"/>
+  <circle r="1.2" fill="#00CC66" opacity="0.6">
+    <animateMotion dur="1.2s" repeatCount="indefinite" path="M760,175 L774,175"/>
+  </circle>
+
+  <!-- ===== STEP 6: OBSERVABILITY ===== -->
+  <g transform="translate(778, 100)">
+    <rect x="0" y="0" width="104" height="150" rx="10" fill="url(#greenGrad2)" stroke="#00CC66" stroke-width="1.2" stroke-opacity="0.4"/>
+    <rect x="0" y="0" width="104" height="24" rx="10" fill="#00CC66" fill-opacity="0.12"/>
+    <rect x="0" y="12" width="104" height="12" fill="#00CC66" fill-opacity="0.12"/>
+    <text x="52" y="17" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7.5" fill="#00CC66" font-weight="700" letter-spacing="0.8">OBSERVABILITY</text>
+    <!-- Trace/metrics icon -->
+    <g transform="translate(18, 34)">
+      <polyline points="0,40 10,30 20,35 30,15 40,22 50,5 60,12 68,2" fill="none" stroke="#00CC66" stroke-width="1.5" opacity="0.6"/>
+      <polyline points="0,45 10,42 20,44 30,38 40,40 50,32 60,35 68,28" fill="none" stroke="#00CC66" stroke-width="0.8" opacity="0.3"/>
+      <circle cx="30" cy="15" r="2.5" fill="#00CC66" opacity="0.5"/>
+      <circle cx="50" cy="5" r="2.5" fill="#00CC66" opacity="0.5"/>
+      <circle cx="68" cy="2" r="2.5" fill="#00CC66" opacity="0.5"/>
+      <!-- Trace spans -->
+      <rect x="5" y="50" width="28" height="4" rx="2" fill="#00CC66" opacity="0.25"/>
+      <rect x="15" y="56" width="20" height="4" rx="2" fill="#00CC66" opacity="0.2"/>
+      <rect x="10" y="62" width="30" height="4" rx="2" fill="#00CC66" opacity="0.15"/>
+    </g>
+    <text x="52" y="108" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#ffffff" font-weight="600" opacity="0.9">Distributed</text>
+    <text x="52" y="120" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#ffffff" font-weight="600" opacity="0.9">Tracing</text>
+    <line x1="12" y1="128" x2="92" y2="128" stroke="#00CC66" stroke-opacity="0.15" stroke-width="1"/>
+    <rect x="12" y="132" width="80" height="14" rx="7" fill="#00CC66" fill-opacity="0.1" stroke="#00CC66" stroke-width="0.5" stroke-opacity="0.3"/>
+    <text x="52" y="142" text-anchor="middle" font-family="monospace" font-size="8" fill="#00CC66" opacity="0.7" font-weight="600">Langfuse</text>
+  </g>
+
+  <!-- ARROW to Supply Chain -->
+  <path d="M884,175 L898,175" fill="none" stroke="#00CC66" stroke-width="1.8" marker-end="url(#arrowWhite)" opacity="0.6"/>
+  <circle r="1.2" fill="#00CC66" opacity="0.6">
+    <animateMotion dur="1.2s" repeatCount="indefinite" path="M884,175 L898,175"/>
+  </circle>
+
+  <!-- ===== STEP 7: SUPPLY CHAIN ===== -->
+  <g transform="translate(902, 100)">
+    <rect x="0" y="0" width="112" height="150" rx="10" fill="url(#orangeGrad2)" stroke="#FF9900" stroke-width="1.2" stroke-opacity="0.4"/>
+    <rect x="0" y="0" width="112" height="24" rx="10" fill="#FF9900" fill-opacity="0.12"/>
+    <rect x="0" y="12" width="112" height="12" fill="#FF9900" fill-opacity="0.12"/>
+    <!-- Shield icon -->
+    <g transform="translate(8, 5)">
+      <path d="M7,2 L12,0 L17,2 L17,9 Q17,14 12,16 Q7,14 7,9Z" fill="#FF9900" fill-opacity="0.2" stroke="#FF9900" stroke-width="0.8" opacity="0.7"/>
+      <rect x="10" y="5" width="4" height="3" rx="1" fill="none" stroke="#FF9900" stroke-width="0.7" opacity="0.7"/>
+      <line x1="12" y1="8" x2="12" y2="12" stroke="#FF9900" stroke-width="0.7" opacity="0.7"/>
+    </g>
+    <text x="60" y="17" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7.5" fill="#FF9900" font-weight="700" letter-spacing="0.8">SUPPLY CHAIN</text>
+    <!-- Chain/package icons -->
+    <g transform="translate(10, 32)">
+      <rect x="0" y="0" width="42" height="18" rx="9" fill="#FF9900" fill-opacity="0.1" stroke="#FF9900" stroke-width="0.6" stroke-opacity="0.4"/>
+      <text x="21" y="12.5" text-anchor="middle" font-family="monospace" font-size="7" fill="#FF9900" opacity="0.7">cosign</text>
+      <rect x="48" y="0" width="52" height="18" rx="9" fill="#FF9900" fill-opacity="0.1" stroke="#FF9900" stroke-width="0.6" stroke-opacity="0.4"/>
+      <text x="74" y="12.5" text-anchor="middle" font-family="monospace" font-size="7" fill="#FF9900" opacity="0.7">Syft SBOM</text>
+      <rect x="0" y="24" width="42" height="18" rx="9" fill="#FF9900" fill-opacity="0.1" stroke="#FF9900" stroke-width="0.6" stroke-opacity="0.4"/>
+      <text x="21" y="36.5" text-anchor="middle" font-family="monospace" font-size="7" fill="#FF9900" opacity="0.7">Trivy</text>
+      <rect x="48" y="24" width="52" height="18" rx="9" fill="#FF9900" fill-opacity="0.1" stroke="#FF9900" stroke-width="0.6" stroke-opacity="0.4"/>
+      <text x="74" y="36.5" text-anchor="middle" font-family="monospace" font-size="7" fill="#FF9900" opacity="0.7">OpenSSF</text>
+    </g>
+    <!-- Lock icon -->
+    <g transform="translate(38, 82)">
+      <rect x="0" y="8" width="20" height="16" rx="3" fill="none" stroke="#FF9900" stroke-width="1" opacity="0.5"/>
+      <path d="M4,8 L4,5 Q4,0 10,0 Q16,0 16,5 L16,8" fill="none" stroke="#FF9900" stroke-width="1" opacity="0.5"/>
+      <circle cx="10" cy="16" r="2" fill="#FF9900" opacity="0.4"/>
+      <line x1="10" y1="18" x2="10" y2="21" stroke="#FF9900" stroke-width="0.8" opacity="0.4"/>
+    </g>
+    <text x="56" y="118" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#ffffff" font-weight="600" opacity="0.9">Integrity &amp;</text>
+    <text x="56" y="130" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8.5" fill="#ffffff" font-weight="600" opacity="0.9">Provenance</text>
+    <line x1="15" y1="138" x2="97" y2="138" stroke="#FF9900" stroke-opacity="0.15" stroke-width="1"/>
+  </g>
+
+  <!-- GATE 5 (final) -->
+  <g transform="translate(1018, 155)">
+    <rect x="0" y="0" width="26" height="40" rx="4" fill="#0d1117" stroke="#444444" stroke-width="0.8"/>
+    <text x="13" y="15" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#00CC66" font-weight="700" opacity="0.8">PASS</text>
+    <line x1="3" y1="20" x2="23" y2="20" stroke="#444444" stroke-width="0.5" opacity="0.5"/>
+    <text x="13" y="33" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#FF3366" font-weight="700" opacity="0.8">FAIL</text>
+  </g>
+  <path d="M1031,198 L1031,250" fill="none" stroke="#FF3366" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arrowFail)" opacity="0.5"/>
+  <path d="M1046,175 L1056,175" fill="none" stroke="#00CC66" stroke-width="1.8" marker-end="url(#arrowPass)" opacity="0.6"/>
+  <circle r="1.2" fill="#00CC66" opacity="0.6">
+    <animateMotion dur="1.2s" repeatCount="indefinite" path="M1046,175 L1056,175"/>
+  </circle>
+
+  <!-- ===== STEP 8: APPROVED & DEPLOYED (OUTPUT) ===== -->
+  <g transform="translate(1058, 120)">
+    <rect x="-3" y="-3" width="42" height="116" rx="12" fill="#00FF66" fill-opacity="0.03" filter="url(#glowGreen)"/>
+    <rect x="0" y="0" width="36" height="110" rx="10" fill="url(#outputGrad)" stroke="#00FF66" stroke-width="1.5" stroke-opacity="0.6"/>
+    <rect x="0" y="0" width="36" height="110" rx="10" fill="none" stroke="#00FF66" stroke-width="1" stroke-opacity="0.3">
+      <animate attributeName="stroke-opacity" values="0.3;0.7;0.3" dur="2.5s" repeatCount="indefinite"/>
+    </rect>
+    <!-- Checkmark -->
+    <g transform="translate(6, 8)">
+      <circle cx="12" cy="12" r="10" fill="#00FF66" fill-opacity="0.12" stroke="#00FF66" stroke-width="1.2" opacity="0.7"/>
+      <path d="M6,12 L10,16 L18,7" fill="none" stroke="#00FF66" stroke-width="2" opacity="0.9"/>
+    </g>
+    <text x="18" y="42" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#00FF66" font-weight="700" opacity="0.9" letter-spacing="0.5">OK</text>
+    <line x1="5" y1="48" x2="31" y2="48" stroke="#00FF66" stroke-opacity="0.2" stroke-width="0.5"/>
+    <text x="18" y="60" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#00FF66" font-weight="600" opacity="0.8">Approved</text>
+    <text x="18" y="72" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#00FF66" font-weight="600" opacity="0.8">&amp;</text>
+    <text x="18" y="84" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#00FF66" font-weight="600" opacity="0.8">Deployed</text>
+    <!-- Deploy arrow -->
+    <g transform="translate(10, 90)">
+      <path d="M6,0 L6,8 L2,8 L8,14 L14,8 L10,8 L10,0Z" fill="#00FF66" fill-opacity="0.3" stroke="#00FF66" stroke-width="0.5" opacity="0.5"/>
+    </g>
+  </g>
+
+  <!-- ===== FAIL ZONE (bottom) ===== -->
+  <g transform="translate(200, 260)">
+    <rect x="0" y="0" width="860" height="44" rx="8" fill="#FF3366" fill-opacity="0.04" stroke="#FF3366" stroke-width="0.8" stroke-opacity="0.15" stroke-dasharray="4,4"/>
+    <text x="430" y="18" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#FF3366" font-weight="600" opacity="0.5" letter-spacing="2">REJECTION ZONE</text>
+    <text x="430" y="34" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#FF3366" opacity="0.35" font-style="italic">Failed checks are returned to code generation for remediation</text>
+    <!-- Return arrow -->
+    <path d="M10,22 Q-30,22 -30,-60 Q-30,-130 -120,-130" fill="none" stroke="#FF3366" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrowFail)" opacity="0.3"/>
+  </g>
+
+  <!-- STEP NUMBERS along bottom -->
+  <g opacity="0.3">
+    <text x="63" y="340" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#888888" letter-spacing="1">1</text>
+    <text x="194" y="340" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#00BFFF" letter-spacing="1">2</text>
+    <text x="356" y="340" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#FF9900" letter-spacing="1">3</text>
+    <text x="518" y="340" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#00BFFF" letter-spacing="1">4</text>
+    <text x="676" y="340" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#00CC66" letter-spacing="1">5</text>
+    <text x="830" y="340" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#00CC66" letter-spacing="1">6</text>
+    <text x="958" y="340" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#FF9900" letter-spacing="1">7</text>
+    <text x="1076" y="340" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#00FF66" letter-spacing="1">8</text>
+  </g>
+
+  <!-- AMBIENT PARTICLES -->
+  <g opacity="0.12">
+    <circle cx="100" cy="60" r="0.7" fill="#00BFFF"><animate attributeName="opacity" values="0.1;0.4;0.1" dur="3.5s" repeatCount="indefinite"/></circle>
+    <circle cx="280" cy="80" r="0.5" fill="#FF9900"><animate attributeName="opacity" values="0.1;0.3;0.1" dur="4s" repeatCount="indefinite"/></circle>
+    <circle cx="450" cy="55" r="0.8" fill="#00BFFF"><animate attributeName="opacity" values="0.1;0.35;0.1" dur="3s" repeatCount="indefinite" begin="0.5s"/></circle>
+    <circle cx="620" cy="70" r="0.6" fill="#00CC66"><animate attributeName="opacity" values="0.1;0.3;0.1" dur="3.8s" repeatCount="indefinite" begin="1s"/></circle>
+    <circle cx="800" cy="60" r="0.7" fill="#00CC66"><animate attributeName="opacity" values="0.1;0.4;0.1" dur="2.8s" repeatCount="indefinite"/></circle>
+    <circle cx="950" cy="75" r="0.5" fill="#FF9900"><animate attributeName="opacity" values="0.1;0.3;0.1" dur="4.2s" repeatCount="indefinite" begin="1.5s"/></circle>
+    <circle cx="1050" cy="55" r="0.6" fill="#00FF66"><animate attributeName="opacity" values="0.05;0.3;0.05" dur="3.2s" repeatCount="indefinite"/></circle>
+    <circle cx="180" cy="370" r="0.5" fill="#FF3366"><animate attributeName="opacity" values="0.05;0.2;0.05" dur="4.5s" repeatCount="indefinite"/></circle>
+    <circle cx="550" cy="360" r="0.6" fill="#FF3366"><animate attributeName="opacity" values="0.05;0.2;0.05" dur="3.5s" repeatCount="indefinite" begin="0.8s"/></circle>
+    <circle cx="900" cy="365" r="0.4" fill="#FF3366"><animate attributeName="opacity" values="0.05;0.2;0.05" dur="4s" repeatCount="indefinite" begin="1.2s"/></circle>
+  </g>
+
+  <!-- FOOTER -->
+  <text x="550" y="380" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="8" fill="#ffffff" opacity="0.18" letter-spacing="1">Super-Goose  |  Security &amp; Governance Pipeline</text>
+  <text x="550" y="393" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6.5" fill="#ffffff" opacity="0.1">github.com/Ghenghis/Super-Goose</text>
+</svg>

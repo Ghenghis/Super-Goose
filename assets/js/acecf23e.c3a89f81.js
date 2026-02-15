@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkgoose=globalThis.webpackChunkgoose||[]).push([[1903],{1912(o){o.exports=JSON.parse('{"blogBasePath":"/Super-Goose/blog","blogTitle":"Blog","authorsListPath":"/Super-Goose/blog/authors"}')}}]);

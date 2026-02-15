@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 300" width="1100" height="300">
+  <defs>
+    <filter id="cardShadow" x="-5%" y="-5%" width="115%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="glowBlue" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0  0 0.75 1 0 0  0 0 1 0 0  0 0 0 0.15 0" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowPurple" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0.6 0 0 0 0  0 0.4 0 0 0  0 0 1 0 0  0 0 0 0.15 0" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowPink" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 0.2 0 0 0  0 0 0.4 0 0  0 0 0 0.15 0" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowOrange" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 0.4 0 0 0  0 0 0 0 0  0 0 0 0.15 0" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>
+      .card-title { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 700; fill: #e6edf3; letter-spacing: 0.3px; }
+      .card-desc { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 10.5px; fill: #8b949e; }
+      .card-metric { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-weight: 800; font-size: 22px; }
+      .card-metric-label { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 9px; fill: #484f58; text-transform: uppercase; letter-spacing: 1px; }
+    </style>
+  </defs>
+  <rect width="1100" height="300" rx="8" fill="#0d1117"/>
+  <g filter="url(#glowBlue)" transform="translate(20, 16)">
+    <rect width="248" height="268" rx="10" fill="#161b22" filter="url(#cardShadow)"/>
+    <rect width="248" height="4" rx="10" fill="#00BFFF"/>
+    <rect y="264" width="248" height="1" rx="0.5" fill="#00BFFF" opacity="0.1"/>
+    <g transform="translate(124, 62)">
+      <polygon points="0,-22 21,-7 13,18 -13,18 -21,-7" fill="none" stroke="#00BFFF" stroke-width="1.5" opacity="0.4"/>
+      <line x1="0" y1="-22" x2="13" y2="18" stroke="#00BFFF" stroke-width="0.8" opacity="0.2"/>
+      <line x1="0" y1="-22" x2="-13" y2="18" stroke="#00BFFF" stroke-width="0.8" opacity="0.2"/>
+      <line x1="21" y1="-7" x2="-13" y2="18" stroke="#00BFFF" stroke-width="0.8" opacity="0.2"/>
+      <line x1="-21" y1="-7" x2="13" y2="18" stroke="#00BFFF" stroke-width="0.8" opacity="0.2"/>
+      <line x1="21" y1="-7" x2="-21" y2="-7" stroke="#00BFFF" stroke-width="0.8" opacity="0.2"/>
+      <circle cx="0" cy="-22" r="4" fill="#00BFFF"/>
+      <circle cx="21" cy="-7" r="4" fill="#00BFFF" opacity="0.85"/>
+      <circle cx="13" cy="18" r="4" fill="#00BFFF" opacity="0.7"/>
+      <circle cx="-13" cy="18" r="4" fill="#00BFFF" opacity="0.85"/>
+      <circle cx="-21" cy="-7" r="4" fill="#00BFFF" opacity="0.7"/>
+      <circle cx="0" cy="0" r="3" fill="#00BFFF" opacity="0.35"/>
+    </g>
+    <text x="124" y="112" text-anchor="middle" class="card-title">ALMAS Team Coordination</text>
+    <text x="124" y="132" text-anchor="middle" class="card-desc">5 specialist roles with RBAC enforcement</text>
+    <line x1="40" y1="150" x2="208" y2="150" stroke="#21262d" stroke-width="1"/>
+    <text x="124" y="200" text-anchor="middle" class="card-metric" fill="#00BFFF">5 Roles</text>
+    <text x="124" y="218" text-anchor="middle" class="card-metric-label">Agent Specializations</text>
+  </g>
+  <g filter="url(#glowPurple)" transform="translate(288, 16)">
+    <rect width="248" height="268" rx="10" fill="#161b22" filter="url(#cardShadow)"/>
+    <rect width="248" height="4" rx="10" fill="#9966FF"/>
+    <rect y="264" width="248" height="1" rx="0.5" fill="#9966FF" opacity="0.1"/>
+    <g transform="translate(124, 60)">
+      <path d="M-12,-28 C-12,-18 12,-14 12,-4 C12,6 -12,10 -12,20" fill="none" stroke="#9966FF" stroke-width="2" stroke-linecap="round" opacity="0.9"/>
+      <path d="M12,-28 C12,-18 -12,-14 -12,-4 C-12,6 12,10 12,20" fill="none" stroke="#9966FF" stroke-width="2" stroke-linecap="round" opacity="0.9"/>
+      <line x1="-6" y1="-23" x2="6" y2="-23" stroke="#9966FF" stroke-width="1.2" opacity="0.4"/>
+      <line x1="-10" y1="-16" x2="10" y2="-16" stroke="#9966FF" stroke-width="1.2" opacity="0.35"/>
+      <line x1="-5" y1="-9" x2="5" y2="-9" stroke="#9966FF" stroke-width="1.2" opacity="0.4"/>
+      <line x1="-10" y1="-2" x2="10" y2="-2" stroke="#9966FF" stroke-width="1.2" opacity="0.35"/>
+      <line x1="-5" y1="5" x2="5" y2="5" stroke="#9966FF" stroke-width="1.2" opacity="0.4"/>
+      <line x1="-10" y1="12" x2="10" y2="12" stroke="#9966FF" stroke-width="1.2" opacity="0.35"/>
+      <path d="M0,-32 L-5,-26 M0,-32 L5,-26" fill="none" stroke="#9966FF" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+      <circle cx="-8" cy="-20" r="1.5" fill="#9966FF" opacity="0.5"/>
+      <circle cx="9" cy="-6" r="1.5" fill="#9966FF" opacity="0.5"/>
+      <circle cx="-7" cy="8" r="1.5" fill="#9966FF" opacity="0.5"/>
+    </g>
+    <text x="124" y="112" text-anchor="middle" class="card-title">Overnight Evolution</text>
+    <text x="124" y="132" text-anchor="middle" class="card-desc">DSPy optimizes prompts while you sleep</text>
+    <line x1="40" y1="150" x2="208" y2="150" stroke="#21262d" stroke-width="1"/>
+    <text x="124" y="196" text-anchor="middle" class="card-metric" fill="#9966FF" font-size="20">90%</text>
+    <text x="124" y="214" text-anchor="middle" style="font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; font-weight: 600; fill: #9966FF; opacity: 0.7; letter-spacing: 0.5px;">Token Savings</text>
+  </g>
+  <g filter="url(#glowPink)" transform="translate(556, 16)">
+    <rect width="248" height="268" rx="10" fill="#161b22" filter="url(#cardShadow)"/>
+    <rect width="248" height="4" rx="10" fill="#FF3366"/>
+    <rect y="264" width="248" height="1" rx="0.5" fill="#FF3366" opacity="0.1"/>
+    <g transform="translate(124, 60)">
+      <path d="M0,-28 L20,-18 L20,2 C20,14 10,24 0,28 C-10,24 -20,14 -20,2 L-20,-18 Z" fill="none" stroke="#FF3366" stroke-width="2" opacity="0.8"/>
+      <path d="M0,-24 L17,-15 L17,1 C17,12 8,20 0,24 C-8,20 -17,12 -17,1 L-17,-15 Z" fill="#FF3366" opacity="0.1"/>
+      <path d="M-8,0 L-3,6 L9,-6" fill="none" stroke="#FF3366" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="24" y1="-12" x2="28" y2="-14" stroke="#FF3366" stroke-width="1" opacity="0.3" stroke-linecap="round"/>
+      <line x1="24" y1="0" x2="28" y2="0" stroke="#FF3366" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+      <line x1="-24" y1="-12" x2="-28" y2="-14" stroke="#FF3366" stroke-width="1" opacity="0.3" stroke-linecap="round"/>
+      <line x1="-24" y1="0" x2="-28" y2="0" stroke="#FF3366" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+    </g>
+    <text x="124" y="112" text-anchor="middle" class="card-title">Coach/Player QA</text>
+    <text x="124" y="132" text-anchor="middle" class="card-desc">3-cycle adversarial review on every output</text>
+    <line x1="40" y1="150" x2="208" y2="150" stroke="#21262d" stroke-width="1"/>
+    <text x="124" y="196" text-anchor="middle" class="card-metric" fill="#FF3366" font-size="20">3</text>
+    <text x="124" y="214" text-anchor="middle" style="font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; font-weight: 600; fill: #FF3366; opacity: 0.7; letter-spacing: 0.5px;">Review Cycles</text>
+  </g>
+  <g filter="url(#glowOrange)" transform="translate(824, 16)">
+    <rect width="248" height="268" rx="10" fill="#161b22" filter="url(#cardShadow)"/>
+    <rect width="248" height="4" rx="10" fill="#FF6600"/>
+    <rect y="264" width="248" height="1" rx="0.5" fill="#FF6600" opacity="0.1"/>
+    <g transform="translate(124, 58)">
+      <rect x="-6" y="-22" width="12" height="24" rx="6" fill="none" stroke="#FF6600" stroke-width="2" opacity="0.9"/>
+      <line x1="-4" y1="-16" x2="4" y2="-16" stroke="#FF6600" stroke-width="0.8" opacity="0.3"/>
+      <line x1="-4" y1="-12" x2="4" y2="-12" stroke="#FF6600" stroke-width="0.8" opacity="0.3"/>
+      <line x1="-4" y1="-8" x2="4" y2="-8" stroke="#FF6600" stroke-width="0.8" opacity="0.3"/>
+      <path d="M-14,0 C-14,12 -2,20 0,20 C2,20 14,12 14,0" fill="none" stroke="#FF6600" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/>
+      <line x1="0" y1="20" x2="0" y2="26" stroke="#FF6600" stroke-width="1.8" opacity="0.7"/>
+      <line x1="-6" y1="26" x2="6" y2="26" stroke="#FF6600" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/>
+      <path d="M18,-14 C22,-10 22,0 18,4" fill="none" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+      <path d="M24,-18 C30,-12 30,4 24,8" fill="none" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+      <path d="M-18,-14 C-22,-10 -22,0 -18,4" fill="none" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+      <path d="M-24,-18 C-30,-12 -30,4 -24,8" fill="none" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+    </g>
+    <text x="124" y="112" text-anchor="middle" class="card-title">Conscious Voice AI</text>
+    <text x="124" y="132" text-anchor="middle" class="card-desc">Speech-to-speech with emotion detection</text>
+    <line x1="40" y1="150" x2="208" y2="150" stroke="#21262d" stroke-width="1"/>
+    <text x="124" y="196" text-anchor="middle" class="card-metric" fill="#FF6600" font-size="19">&lt;200ms</text>
+    <text x="124" y="214" text-anchor="middle" style="font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; font-weight: 600; fill: #FF6600; opacity: 0.7; letter-spacing: 0.5px;">Latency</text>
+  </g>
+</svg>
