@@ -34,9 +34,9 @@ graph TB
         EP["Electron Main Process<br/>(Node.js)"]
         RP["React Renderer<br/>(Vite + TypeScript)"]
         PV["Pipeline Visualization"]
-        SG["Super-Goose Panel<br/>(8-Panel Sidebar)"]
+        SG["Super-Goose Panel<br/>(16-Panel Sidebar)"]
         TW["TimeWarp Bar"]
-        PS["Panel System<br/>(react-resizable-panels)"]
+        PS["Panel System<br/>(shadcn Sidebar + CSS transitions)"]
     end
 
     subgraph "Rust Backend"
@@ -92,7 +92,7 @@ graph TB
 | Layer | Technology | Details |
 |-------|-----------|---------|
 | **Backend** | Rust (edition 2021) | Workspace with 7 crates, async via Tokio |
-| **Frontend** | Electron + React 18 | TypeScript, Vite bundler, Tailwind CSS |
+| **Frontend** | Electron + React 19 | TypeScript, Vite bundler, Tailwind CSS v4 |
 | **Communication** | SSE / REST | Real-time streaming from backend to UI |
 | **Database** | SQLite (via sqlx + rusqlite) | ExperienceStore, SkillLibrary, AuditLog, ReflectionStore, TimeWarpEventStore |
 | **AI Protocol** | MCP + ACP | Model Context Protocol and Agent Communication Protocol |
@@ -541,7 +541,8 @@ The `goose-server` exposes 28 route modules via Axum. Located in `crates/goose-s
 |--------|-----------|---------|
 | **reply** | `POST /reply` | Main SSE streaming endpoint for agent replies |
 | **agent** | Agent management | Agent lifecycle, configuration |
-| **agent_stream** | `GET /agent/stream` | SSE stream for real-time agent events |
+| **ag_ui_stream** | `GET /ag-ui/stream` | AG-UI protocol SSE stream (24 event types, broadcast channel) |
+| **agent_stream** | `GET /agent/stream` | Legacy SSE stream for agent events |
 | **session** | Session CRUD | Create, list, delete sessions |
 | **settings** | `GET/POST/DELETE /settings/*` | Backend settings with SSE change notifications |
 | **learning** | `GET /learning/*` | Experience stats, insights, skills queries |
@@ -563,6 +564,7 @@ The `goose-server` exposes 28 route modules via Axum. Located in `crates/goose-s
 | **action_required** | User prompts | Actions requiring user confirmation |
 | **mcp_app_proxy** | MCP proxy | MCP server proxy for app connections |
 | **mcp_ui_proxy** | MCP proxy | MCP server proxy for UI connections |
+| **system** | `GET /system/gpu` | GPU detection via nvidia-smi parsing |
 | **errors** | Error handling | Shared error response types |
 
 ### Settings SSE
@@ -582,14 +584,14 @@ Frontend panels subscribe to the SSE stream and update reactively when backend s
 
 ## 10. Frontend Architecture
 
-The frontend is an Electron + React 18 application using TypeScript, Vite, and Tailwind CSS.
+The frontend is an Electron + React 19 application using TypeScript, Vite, and Tailwind CSS v4.
 
 ### Component Structure
 
 ```
 ui/desktop/src/
   components/
-    super/                    # Super-Goose 8-panel sidebar
+    super/                    # Super-Goose 16-panel sidebar
       DashboardPanel.tsx      # System overview, metrics
       StudiosPanel.tsx        # Workspace management
       AgentsPanel.tsx         # Active agent monitoring
@@ -629,8 +631,13 @@ ui/desktop/src/
     pipeline/                 # Pipeline visualization (4 source files)
     tools/                    # Tool management
       ToolsBridgePanel.tsx
+  ag-ui/                      # AG-UI protocol
+    types.ts                  # 24 event types (601 lines)
+    useAgUi.ts                # SSE hook for AG-UI events (1001 lines)
+    verifyEvents.ts           # Event verification
+    index.ts                  # Barrel export
   hooks/
-    useAgentStream.ts         # SSE subscription to /agent/stream
+    useAgentStream.ts         # SSE subscription to /agent/stream (legacy)
     useSuperGooseData.ts      # Polling for super-goose panel data
     useTimeWarpEvents.ts      # TimeWarp event subscription
     useCostTracking.ts        # Cost tracking hook
@@ -645,7 +652,7 @@ ui/desktop/src/
 ### State Management
 
 - **React Context**: TimeWarpProvider, AgentPanelProvider, CLIProvider, SidebarProvider, PanelSystemProvider
-- **SSE Streams**: `useAgentStream` for real-time agent events, settings SSE for reactive config updates
+- **SSE Streams**: `useAgUi` for AG-UI protocol events, `useAgentStream` (legacy), settings SSE for reactive config updates
 - **localStorage**: Panel layout persistence, feature toggle state (migrating to backend)
 
 ### Design System
@@ -834,9 +841,9 @@ sequenceDiagram
 | OTA Self-Build | 198 | All passing |
 | Autonomous Daemon | 86 | All passing |
 | TimeWarp | 8 | All passing |
-| Frontend Vitest | 2,278 | All passing |
+| Frontend Vitest | 3,378 | All passing |
 | Playwright E2E | 291 passed, 68 skipped | Zero failures |
-| Rust Backend | 1,862 passed | 9 pre-existing failures (JWT crypto) |
+| Rust Backend | 1,754+ | 3 pre-existing evolution failures |
 | TypeScript (tsc) | Clean | Zero errors |
 
 ---
