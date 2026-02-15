@@ -26,11 +26,30 @@ WORKDIR /build
 COPY rust-toolchain.toml .
 RUN rustup show
 
-# Copy source code
+# Copy only Cargo manifests first for dependency caching.
+# This layer is only invalidated when dependencies change, not when source code changes.
+COPY Cargo.toml Cargo.lock ./
+COPY crates/goose/Cargo.toml crates/goose/Cargo.toml
+COPY crates/goose-cli/Cargo.toml crates/goose-cli/Cargo.toml
+COPY crates/goose-server/Cargo.toml crates/goose-server/Cargo.toml
+
+# Create stub source files so cargo can resolve the dependency tree
+RUN mkdir -p crates/goose/src crates/goose-cli/src crates/goose-server/src && \
+    echo "fn main() {}" > crates/goose-cli/src/main.rs && \
+    echo "fn main() {}" > crates/goose-server/src/main.rs && \
+    touch crates/goose/src/lib.rs
+
+# Pre-build dependencies (cached unless Cargo.toml/Cargo.lock change)
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+RUN cargo build --release --package goose-cli --package goose-server 2>/dev/null || true
+
+# Now copy full source code
 COPY . .
 
+# Touch source files to ensure they're newer than the stub files
+RUN find crates -name "*.rs" -exec touch {} +
+
 # Build release binaries with optimizations
-ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 ENV CARGO_PROFILE_RELEASE_LTO=true
 ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
 ENV CARGO_PROFILE_RELEASE_OPT_LEVEL=z
@@ -82,7 +101,6 @@ CMD ["--help"]
 
 # Labels for metadata
 LABEL org.opencontainers.image.title="Super-Goose"
-LABEL org.opencontainers.image.version="1.25.0"
 LABEL org.opencontainers.image.description="Super-Goose — AI Agent Platform with 6 agent cores and OTA self-improvement"
 LABEL org.opencontainers.image.vendor="Ghenghis"
 LABEL org.opencontainers.image.source="https://github.com/Ghenghis/Super-Goose"

@@ -9,6 +9,9 @@ on:
     paths:
       - 'documentation/**'
 
+permissions:
+  contents: write
+
 # Use same concurrency group as PR preview workflow to prevent race conditions
 concurrency:
   group: pr-preview
@@ -17,6 +20,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Only run on the canonical repo (forks don't have gh-pages permissions)
     if: github.repository == 'Ghenghis/Super-Goose'
     permissions:
@@ -29,7 +33,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
         with:
-          node-version: 20
+          node-version: '22'
 
       - name: Cache Node.js modules (documentation)
         uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7  # v5.0.2

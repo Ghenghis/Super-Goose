@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import BaseChat from '../BaseChat';
@@ -213,6 +213,10 @@ const defaultProps = () => ({
   sessionId: 'sess-1',
   isActiveSession: true,
   suppressEmptyState: false,
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function renderBaseChat(props = {}) {

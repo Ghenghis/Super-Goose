@@ -88,7 +88,6 @@ const PairRouteWrapper = ({
     sessionId: string;
     initialMessage?: UserInput;
   }>;
-  setActiveSessions: (sessions: Array<{ sessionId: string; initialMessage?: UserInput }>) => void;
 }) => {
   const { extensionsList } = useConfig();
   const location = useLocation();
@@ -679,7 +678,6 @@ export function AppInner() {
                 element={
                   <PairRouteWrapper
                     activeSessions={activeSessions}
-                    setActiveSessions={setActiveSessions}
                   />
                 }
               />

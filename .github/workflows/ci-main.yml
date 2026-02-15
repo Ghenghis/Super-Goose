@@ -328,6 +328,7 @@ jobs:
   semgrep-policy:
     name: Semgrep Stage 6 Policy
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.repository == 'Ghenghis/Super-Goose'
     continue-on-error: true
     steps:

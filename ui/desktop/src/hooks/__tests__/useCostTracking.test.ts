@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useCostTracking } from '../useCostTracking';
 
@@ -25,6 +25,10 @@ describe('useCostTracking', () => {
       currentModel: 'gpt-4',
       currentProvider: 'openai',
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   const defaultProps = {

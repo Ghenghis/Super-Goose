@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { OllamaSetup } from './OllamaSetup';
 import * as ollamaDetection from '../utils/ollamaDetection';
@@ -30,6 +30,10 @@ describe('OllamaSetup', () => {
     // Default mocks
     vi.mocked(ollamaDetection.getPreferredModel).mockReturnValue('gpt-oss:20b');
     vi.mocked(ollamaDetection.getOllamaDownloadUrl).mockReturnValue('https://ollama.com/download');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('when Ollama is not detected', () => {

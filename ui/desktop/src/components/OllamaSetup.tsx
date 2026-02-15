@@ -19,7 +19,6 @@ interface OllamaSetupProps {
 }
 
 export function OllamaSetup({ onSuccess, onCancel }: OllamaSetupProps) {
-  //const { addExtension, getExtensions, upsert } = useConfig();
   const { upsert } = useConfig();
   const [isChecking, setIsChecking] = useState(true);
   const [ollamaDetected, setOllamaDetected] = useState(false);

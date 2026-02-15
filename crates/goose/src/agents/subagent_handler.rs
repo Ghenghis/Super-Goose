@@ -229,7 +229,7 @@ async fn build_subagent_prompt(
         &SubagentPromptContext {
             max_turns: task_config
                 .max_turns
-                .expect("TaskConfig always sets max_turns"),
+                .unwrap_or(crate::agents::subagent_task_config::DEFAULT_SUBAGENT_MAX_TURNS),
             subagent_id: session_id.to_string(),
             task_instructions: system_instructions,
             tool_count: tools.len(),

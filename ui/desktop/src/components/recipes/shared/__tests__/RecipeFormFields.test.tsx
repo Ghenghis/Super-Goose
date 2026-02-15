@@ -30,7 +30,7 @@ describe('RecipeFormFields', () => {
     return useForm({
       defaultValues,
       onSubmit: async ({ value }) => {
-        console.log('Form submitted:', value);
+        console.debug('Form submitted:', value);
       },
     });
   };
@@ -277,7 +277,7 @@ describe('RecipeFormFields', () => {
             jsonSchema: '',
           } as RecipeFormData,
           onSubmit: async ({ value }) => {
-            console.log('Form submitted:', value);
+            console.debug('Form submitted:', value);
           },
         });
 
@@ -370,7 +370,7 @@ describe('RecipeFormFields', () => {
             jsonSchema: '',
           } as RecipeFormData,
           onSubmit: async ({ value }) => {
-            console.log('Form submitted:', value);
+            console.debug('Form submitted:', value);
           },
         });
 
@@ -537,7 +537,7 @@ describe('RecipeFormFields', () => {
             jsonSchema: '',
           } as RecipeFormData,
           onSubmit: async ({ value }) => {
-            console.log('Form submitted:', value);
+            console.debug('Form submitted:', value);
           },
         });
 
@@ -610,7 +610,7 @@ describe('RecipeFormFields', () => {
             jsonSchema: '',
           } as RecipeFormData,
           onSubmit: async ({ value }) => {
-            console.log('Form submitted:', value);
+            console.debug('Form submitted:', value);
           },
         });
 

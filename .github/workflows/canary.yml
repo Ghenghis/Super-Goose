@@ -26,6 +26,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     # Only run on the canonical repo to prevent fork failures
     if: github.repository == 'Ghenghis/Super-Goose'
     outputs:
@@ -61,6 +62,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [build-cli]
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -111,6 +113,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [build-cli, install-script, bundle-desktop, bundle-desktop-linux, bundle-desktop-windows]
     permissions:
       contents: write

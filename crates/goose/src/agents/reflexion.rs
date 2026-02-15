@@ -507,7 +507,10 @@ impl ReflexionAgent {
     pub fn start_attempt(&mut self, task: impl Into<String>) -> &mut TaskAttempt {
         self.current_attempt = Some(TaskAttempt::new(task));
         self.attempt_count += 1;
-        self.current_attempt.as_mut().unwrap()
+        // Safety: we just assigned `Some(...)` on the line above, so this is infallible.
+        self.current_attempt
+            .as_mut()
+            .expect("BUG: current_attempt was just set to Some")
     }
 
     /// Get the current attempt

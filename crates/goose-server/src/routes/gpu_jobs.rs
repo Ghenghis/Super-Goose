@@ -227,7 +227,7 @@ async fn detect_ollama_models() -> (bool, Vec<LocalModel>) {
         .unwrap_or_default();
 
     // Check Ollama API tags endpoint
-    let resp = match client.get("http://127.0.0.1:11434/api/tags").send().await {
+    let resp = match client.get(format!("{}/api/tags", ollama_base_url())).send().await {
         Ok(r) => r,
         Err(_) => return (false, Vec::new()),
     };
@@ -282,7 +282,13 @@ fn format_bytes(bytes: u64) -> String {
 // Background job execution
 // ---------------------------------------------------------------------------
 
-const OLLAMA_BASE: &str = "http://127.0.0.1:11434";
+/// Base URL for the local Ollama API.
+///
+/// Reads `OLLAMA_HOST` at runtime (matching the env var Ollama itself uses).
+/// Falls back to `http://127.0.0.1:11434` if unset.
+fn ollama_base_url() -> String {
+    std::env::var("OLLAMA_HOST").unwrap_or_else(|_| "http://127.0.0.1:11434".to_string())
+}
 
 /// Build a `reqwest::Client` with a reasonable timeout for ollama interactions.
 fn ollama_client(timeout_secs: u64) -> Result<reqwest::Client, String> {
@@ -297,14 +303,14 @@ fn ollama_client(timeout_secs: u64) -> Result<reqwest::Client, String> {
 async fn check_ollama_available() -> Result<Vec<String>, String> {
     let client = ollama_client(5)?;
     let resp = client
-        .get(format!("{}/api/tags", OLLAMA_BASE))
+        .get(format!("{}/api/tags", ollama_base_url()))
         .send()
         .await
         .map_err(|e| {
             format!(
                 "Ollama is not running or unreachable at {}: {}. \
                  Please install/start Ollama first (https://ollama.com).",
-                OLLAMA_BASE, e
+                ollama_base_url(), e
             )
         })?;
 
@@ -363,7 +369,7 @@ async fn ensure_model_pulled(
 
     let client = ollama_client(600)?; // models can be large; generous timeout
     let resp = client
-        .post(format!("{}/api/pull", OLLAMA_BASE))
+        .post(format!("{}/api/pull", ollama_base_url()))
         .json(&serde_json::json!({ "name": model, "stream": false }))
         .send()
         .await
@@ -561,7 +567,7 @@ async fn run_inference_job(
     let (url, body) = if use_chat {
         let messages = config["messages"].clone();
         (
-            format!("{}/api/chat", OLLAMA_BASE),
+            format!("{}/api/chat", ollama_base_url()),
             serde_json::json!({
                 "model": model,
                 "messages": messages,
@@ -574,7 +580,7 @@ async fn run_inference_job(
             .unwrap_or("Hello, who are you?")
             .to_string();
         (
-            format!("{}/api/generate", OLLAMA_BASE),
+            format!("{}/api/generate", ollama_base_url()),
             serde_json::json!({
                 "model": model,
                 "prompt": prompt,
@@ -675,7 +681,7 @@ async fn run_benchmark_job(
         });
 
         let resp = tokio::select! {
-            r = client.post(format!("{}/api/generate", OLLAMA_BASE)).json(&body).send() => {
+            r = client.post(format!("{}/api/generate", ollama_base_url())).json(&body).send() => {
                 r.map_err(|e| format!("Ollama request failed: {}. Is Ollama running?", e))?
             }
             _ = cancel_token.cancelled() => {

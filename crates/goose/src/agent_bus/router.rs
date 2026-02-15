@@ -107,12 +107,12 @@ impl MessageRouter {
     // -- topic management ---------------------------------------------------
 
     pub fn subscribe(&self, topic: &str, agent: AgentId) {
-        let mut topics = self.topics.lock().unwrap();
+        let mut topics = self.topics.lock().unwrap_or_else(|e| e.into_inner());
         topics.subscribe(topic, agent);
     }
 
     pub fn unsubscribe(&self, topic: &str, agent: &AgentId) {
-        let mut topics = self.topics.lock().unwrap();
+        let mut topics = self.topics.lock().unwrap_or_else(|e| e.into_inner());
         topics.unsubscribe(topic, agent);
     }
 
@@ -160,7 +160,7 @@ impl MessageRouter {
             }
             MessageTarget::Topic(topic) => {
                 let subs = {
-                    let topics = self.topics.lock().unwrap();
+                    let topics = self.topics.lock().unwrap_or_else(|e| e.into_inner());
                     topics.subscribers(topic)
                 };
                 self.route_to_many(&msg, &subs, registry)
@@ -172,13 +172,13 @@ impl MessageRouter {
 
     /// Retrieve the next message for an agent (highest priority first).
     pub fn receive(&self, agent: &AgentId) -> Option<AgentMessage> {
-        let mut mailboxes = self.mailboxes.lock().unwrap();
+        let mut mailboxes = self.mailboxes.lock().unwrap_or_else(|e| e.into_inner());
         mailboxes.get_mut(&agent.0).and_then(|mb| mb.pop())
     }
 
     /// Drain all pending messages for an agent.
     pub fn receive_all(&self, agent: &AgentId) -> Vec<AgentMessage> {
-        let mut mailboxes = self.mailboxes.lock().unwrap();
+        let mut mailboxes = self.mailboxes.lock().unwrap_or_else(|e| e.into_inner());
         mailboxes
             .get_mut(&agent.0)
             .map(|mb| mb.drain_all())
@@ -187,7 +187,7 @@ impl MessageRouter {
 
     /// Number of pending messages for an agent.
     pub fn pending_count(&self, agent: &AgentId) -> usize {
-        let mailboxes = self.mailboxes.lock().unwrap();
+        let mailboxes = self.mailboxes.lock().unwrap_or_else(|e| e.into_inner());
         mailboxes.get(&agent.0).map_or(0, |mb| mb.len())
     }
 
@@ -302,7 +302,7 @@ impl MessageRouter {
     }
 
     fn enqueue(&self, agent: &AgentId, msg: AgentMessage) {
-        let mut mailboxes = self.mailboxes.lock().unwrap();
+        let mut mailboxes = self.mailboxes.lock().unwrap_or_else(|e| e.into_inner());
         mailboxes
             .entry(agent.0.clone())
             .or_default()

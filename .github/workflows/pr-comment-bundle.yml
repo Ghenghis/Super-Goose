@@ -27,6 +27,7 @@ jobs:
       (github.event.issue.pull_request && contains(github.event.comment.body, '.bundle'))
     name: Trigger on ".bundle" PR comment
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       continue: 'true'
       pr_number: ${{ steps.command.outputs.issue_number || github.event.inputs.pr_number }}
@@ -115,6 +116,7 @@ jobs:
   pr-comment-arm64:
     name: PR Comment with macOS ARM64 App
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [trigger-on-command, bundle-desktop]
     permissions:
       pull-requests: write

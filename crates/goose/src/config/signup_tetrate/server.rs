@@ -46,17 +46,7 @@ async fn handle_callback(
     >,
 ) -> impl IntoResponse {
     if let Some(error) = params.error {
-        let mut env = Environment::new();
-        let template_content = TEMPLATES_DIR
-            .get_file("error.html")
-            .expect("error.html template not found")
-            .contents_utf8()
-            .expect("error.html is not valid UTF-8");
-
-        env.add_template("error", template_content).unwrap();
-        let tmpl = env.get_template("error").unwrap();
-        let rendered = tmpl.render(context! { error => error }).unwrap();
-
+        let rendered = render_embedded_template("error.html", Some(&error));
         return (StatusCode::BAD_REQUEST, Html(rendered));
     }
 
@@ -66,20 +56,36 @@ async fn handle_callback(
             let _ = tx.send(code);
         }
 
-        let success_html = TEMPLATES_DIR
-            .get_file("success.html")
-            .expect("success.html template not found")
-            .contents_utf8()
-            .expect("success.html is not valid UTF-8");
-
-        return (StatusCode::OK, Html(success_html.to_string()));
+        let success_html = render_embedded_template("success.html", None);
+        return (StatusCode::OK, Html(success_html));
     }
 
-    let invalid_html = TEMPLATES_DIR
-        .get_file("invalid.html")
-        .expect("invalid.html template not found")
-        .contents_utf8()
-        .expect("invalid.html is not valid UTF-8");
+    let invalid_html = render_embedded_template("invalid.html", None);
+    (StatusCode::BAD_REQUEST, Html(invalid_html))
+}
 
-    (StatusCode::BAD_REQUEST, Html(invalid_html.to_string()))
+/// Render an embedded template file, with an optional `error` context variable.
+///
+/// Returns a safe fallback HTML string if any step fails (file not found,
+/// invalid UTF-8, template rendering error) instead of panicking.
+fn render_embedded_template(filename: &str, error_ctx: Option<&str>) -> String {
+    let Some(file) = TEMPLATES_DIR.get_file(filename) else {
+        return format!("<html><body><p>Template {} not found</p></body></html>", filename);
+    };
+    let Some(content) = file.contents_utf8() else {
+        return format!("<html><body><p>Template {} is not valid UTF-8</p></body></html>", filename);
+    };
+
+    if let Some(error) = error_ctx {
+        let mut env = Environment::new();
+        if env.add_template("tpl", content).is_err() {
+            return content.to_string();
+        }
+        match env.get_template("tpl") {
+            Ok(tmpl) => tmpl.render(context! { error => error }).unwrap_or_else(|_| content.to_string()),
+            Err(_) => content.to_string(),
+        }
+    } else {
+        content.to_string()
+    }
 }

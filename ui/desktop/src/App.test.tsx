@@ -358,8 +358,7 @@ describe('App Component - Brand New State', () => {
 
   it('should handle config recovery gracefully', async () => {
     // Mock config error that triggers recovery
-    const { readAllConfig, recoverConfig } = await import('./api');
-    console.log(recoverConfig);
+    const { readAllConfig } = await import('./api');
     vi.mocked(readAllConfig).mockRejectedValueOnce(new Error('Config read error'));
 
     mockElectron.getConfig.mockReturnValue({

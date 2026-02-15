@@ -8,6 +8,13 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
 jobs:
   bundle-desktop-unsigned:
     uses: ./.github/workflows/bundle-desktop.yml

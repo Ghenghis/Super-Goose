@@ -124,3 +124,8 @@ test_empty_command.rs
 # Playwright test artifacts
 ui/desktop/test-screenshots/
 ui/desktop/test-scripts/
+ui/desktop/test-results/
+ui/desktop/playwright-report/
+
+# ESLint report
+ui/desktop/eslint-report.json

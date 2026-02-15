@@ -5,7 +5,7 @@ All notable changes to Super-Goose will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.25.0] - 2026-02-13
+## [1.25.0] - 2026-02-15
 
 ### Added
 
@@ -108,17 +108,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `usePipelineBridge` wiring ChatState to pipeline context
 - Pipeline toggle in settings with localStorage persistence
 
-#### Resizable Layout System
-- `react-resizable-panels` integration with 4 zones (Left, Center, Right, Bottom)
-- 5 layout presets: Focus, Standard, Full, Agent, Custom
-- 9 registered panels with zone assignments
-- Keyboard shortcuts for panel toggling
-- Persistent layout state via localStorage
+#### Layout System
+- Upstream shadcn `Sidebar` + `SidebarInset` pattern with CSS `transition-[width,min-width]`
+- Left sidebar: collapsible offcanvas with Agent/Settings tabs
+- Right panel: CSS transition with 20rem fixed width for Super-Goose panels
+- `sg-*` design tokens scoped to `.super-goose-panel` (255 CSS custom properties)
 
 #### Testing
 - 87 agent core tests, 52 learning engine tests, 198 OTA tests, 86 autonomous tests
 - 8 TimeWarp event store tests
-- 3,122+ Vitest frontend tests across 231 files
+- 3,378 Vitest frontend tests across 239 files
 - 291 Playwright E2E tests (68 conditional skips for CI environments)
 - TypeScript compilation: zero errors (`tsc --noEmit` clean)
 
@@ -179,6 +178,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 33 Vitest runtime failures across 11 test files resolved
 - 291 Playwright E2E tests fixed with conditional skip pattern for CI
 - CI workflow failures in ci-main.yml resolved
+
+#### Session 8 — 5-Agent Audit (2026-02-14)
+- Vite CJS interop: added 9 packages to `optimizeDeps.include` for pre-bundling
+- SQL injection fix: parameterized `LIMIT` clause in ExperienceStore queries
+- `active_core()` changed from `.unwrap()` panic to `Result<>` with proper error propagation
+- `recommend_core()` deterministic tiebreaker: secondary sort by core name prevents random selection
+- Swarm false success: `SwarmCore` now checks individual task results, not just that execution completed
+- Reflexion negative duration: added `Duration::max(0)` guard for time calculation
+- CI: Node.js 20 → 22 across all workflow files
+- CI: `npm run build` → `npx tsc --noEmit` (build requires goosed binary, tsc does not)
+- Test setup: `vi.spyOn` used instead of direct property assignment for mock stability
+- AgentsPanel: added error boundary and loading state handling
+
+#### Session 9 — 8-Agent Hardening Sweep (2026-02-15)
+- RwLock poison handling in `builtin_extension.rs`, `permission.rs` (~15 locations) — match-based recovery
+- SSE response builder panic→fallback in 4 route handlers (`ag_ui_stream`, `agent_stream`, `reply`, `settings`)
+- `render_template().expect()` → `.map_err()` with `ErrorResponse` in `agent.rs`
+- `socket_addr()` panic → fallback to `127.0.0.1:3000` in `configuration.rs`
+- `list_extensions()`/`list_prompts()` `.unwrap()` → empty collection fallback in `agent.rs`
+- `adversarial/review.rs` `.last().unwrap()` → match guard for empty feedback vector
+- `context_mgmt/mod.rs` `.last().unwrap()` → `if let Some` pattern
+- `health_checker.rs` hardcoded port → `env::var("GOOSE_SERVER__PORT")` with fallback
+- SHA-pinned all GitHub Actions across 6 workflow files for supply chain security
+- Top-level `permissions: contents: read` on all CI workflows (least-privilege)
+- Dockerfile: `rust-toolchain.toml` copy-first step, healthcheck changed to `/status` endpoint
+- `release-all-platforms.yml`: `timeout-minutes: 60`, `libdbus-1-dev` for Linux
+- `ci-main.yml` summary rewritten with FAILED counter approach (cleaner logic)
+- `console.log` → `console.debug` in 30+ production renderer files
+- `settingsBridge.ts`: `useRef` for SSE callback stability (prevents reconnect loops)
+- `GPUPanel.tsx`: extracted constants, ARIA `tablist`/`tabpanel`, DRY form styles
+- `ConnectionsPanel.tsx`: ARIA `role=tablist`, `role=tab`, `aria-selected`
+- `SGApprovalGate.tsx`: extracted `hoverHandlers` + `actionButtonBase`, removed duplicate export
+- `AgentsPanel.tsx`: removed BOM byte from first line
+- Test hygiene: `afterEach(() => vi.restoreAllMocks())` in 8 enterprise/feature test files
+- `OllamaSetup.test.tsx`: `describe.skip` → `describe.todo`, removed 60 lines dead code
+- `GuardrailsPanel.test.tsx`: `expect.fail()` → `throw new Error()` (Vitest compatibility)
+- Node engine requirement relaxed: `^24.10.0` → `>=22.0.0`, npm `^11.6.1` → `>=10.0.0`
+
+#### Session 9 Round 2 — Deep Hardening (2026-02-15)
+- Mutex poison recovery: `unwrap()` → `unwrap_or_else(|e| e.into_inner())` across `Config`, `MessageRouter`, `declarative_providers` (12 locations)
+- `subagent_handler.rs`: `.expect("TaskConfig always sets max_turns")` → `.unwrap_or(DEFAULT_SUBAGENT_MAX_TURNS)` fallback
+- `reflexion.rs`: `self.current_attempt.as_mut().unwrap()` → `.expect("BUG: ...")` with safety comment
+- `notification_events.rs`: `serde_json::to_value(self).expect()` → match with fallback JSON error object
+- `signup_openrouter/server.rs` + `signup_tetrate/server.rs`: extracted `render_embedded_template()` helper, eliminated 6 `.expect()` panics per file with graceful fallback HTML
+- `gpu_jobs.rs`: hardcoded `OLLAMA_BASE` constant → `ollama_base_url()` function reading `OLLAMA_HOST` env var (matches Ollama convention)
+- `App.tsx`, `OllamaSetup.tsx`: removed unused `React` imports (JSX transform handles automatically)
+- `main.ts`: `console.log` → `console.debug` for 8 remaining production log statements
+- Test hardening: added `afterEach(() => vi.restoreAllMocks())` to 6 test files preventing mock leakage
+- `RecipeFormFields.test.tsx`: fixed unsafe `vi.spyOn` on frozen module → `vi.mock` with factory function
+- `OllamaSetup.test.tsx`: removed 60 lines dead code, `describe.skip` → `describe.todo`
+- `.dockerignore`: added `target/`, `node_modules/`, `*.log`, `audits/` for smaller build context
+- `.gitignore`: added `audits/session*` temp files, Playwright artifacts
 
 ---
 

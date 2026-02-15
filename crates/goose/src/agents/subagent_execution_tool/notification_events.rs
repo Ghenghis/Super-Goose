@@ -90,9 +90,23 @@ impl TaskExecutionNotificationEvent {
         }
     }
 
-    /// Convert event to JSON format for MCP notification
+    /// Convert event to JSON format for MCP notification.
+    ///
+    /// # Panics
+    /// This method will not panic — serialization of `TaskExecutionNotificationEvent`
+    /// is infallible because all fields are JSON-safe primitives. If serialization
+    /// somehow fails, a minimal fallback JSON object is returned.
     pub fn to_notification_data(&self) -> serde_json::Value {
-        let mut event_data = serde_json::to_value(self).expect("Failed to serialize event");
+        let mut event_data = match serde_json::to_value(self) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!("Failed to serialize TaskExecutionNotificationEvent: {}", e);
+                return serde_json::json!({
+                    "type": "task_execution",
+                    "error": format!("serialization failed: {}", e),
+                });
+            }
+        };
 
         // Add the type field at the root level
         if let serde_json::Value::Object(ref mut map) = event_data {

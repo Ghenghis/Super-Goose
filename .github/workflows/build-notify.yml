@@ -20,6 +20,7 @@ jobs:
         github.event.workflow_run.event == 'merge_group'
       )
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
       - name: Notify Discord
         env:

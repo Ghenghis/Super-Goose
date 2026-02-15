@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GuardrailsPanel from '../GuardrailsPanel';
@@ -9,6 +9,10 @@ vi.mock('../../Layout/MainPanelLayout', () => ({
 }));
 
 describe('GuardrailsPanel', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe('Rendering', () => {
     it('renders the Guardrails heading', () => {
       render(<GuardrailsPanel />);

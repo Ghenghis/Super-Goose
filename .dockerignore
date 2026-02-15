@@ -113,6 +113,18 @@ ehthumbs.db
 *.jsonl
 sessions/
 
+# Playwright test artifacts
+ui/desktop/test-results/
+ui/desktop/test-screenshots/
+ui/desktop/playwright-report/
+
 # Generated files
 ui/desktop/openapi.json
 ui/desktop/src/api/
+
+# Coverage reports
+ui/desktop/coverage/
+
+# Build output directories
+build-output/
+gooseselftest/

@@ -71,7 +71,7 @@ pub struct LoadedProvider {
 static ID_GENERATION_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 pub fn generate_id(display_name: &str) -> String {
-    let _guard = ID_GENERATION_LOCK.lock().unwrap();
+    let _guard = ID_GENERATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
     let normalized = display_name.to_lowercase().replace(' ', "_");
     let base_id = format!("custom_{}", normalized);

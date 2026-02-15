@@ -15,11 +15,16 @@ name: Live Provider Tests (DISABLED)
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-fork:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       has-secrets: ${{ steps.check.outputs.has-secrets }}
     # Skip entire workflow for fork PRs and dependabot PRs (they don't have access to secrets)
@@ -42,6 +47,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: check-fork
     outputs:
       code: ${{ steps.filter.outputs.code }}
@@ -66,6 +72,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [changes, check-fork]
     # Skip expensive build if no secrets available (smoke tests would be skipped anyway)
     if: |
@@ -103,6 +110,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [build-binary, check-fork]
     # Only run when secrets are actually available (skips gracefully otherwise)
     if: github.repository == 'Ghenghis/Super-Goose' && needs.check-fork.outputs.has-secrets == 'true'
@@ -183,6 +191,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [build-binary, check-fork]
     # Only run when secrets are actually available (skips gracefully otherwise)
     if: github.repository == 'Ghenghis/Super-Goose' && needs.check-fork.outputs.has-secrets == 'true'
@@ -225,6 +234,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: build-binary
     steps:
       - name: Checkout Code

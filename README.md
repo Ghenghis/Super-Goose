@@ -6,9 +6,9 @@
 
 **Fork of [Block's Goose](https://github.com/block/goose) with enterprise-grade enhancements.**
 
-[![Version](https://img.shields.io/badge/v1.24.06-stable-FF6600?style=for-the-badge)](https://github.com/Ghenghis/Super-Goose/releases/tag/v1.24.06)
-[![Tests](https://img.shields.io/badge/Tests-5,017_passing-00CC66?style=for-the-badge)](https://github.com/Ghenghis/Super-Goose/actions)
-[![CI](https://img.shields.io/github/actions/workflow/status/Ghenghis/Super-Goose/ci.yml?branch=main&style=for-the-badge&label=CI&color=00CC66)](https://github.com/Ghenghis/Super-Goose/actions)
+[![Version](https://img.shields.io/badge/v1.25.0-stable-FF6600?style=for-the-badge)](https://github.com/Ghenghis/Super-Goose/releases/tag/v1.25.0)
+[![Tests](https://img.shields.io/badge/Tests-5,423_passing-00CC66?style=for-the-badge)](https://github.com/Ghenghis/Super-Goose/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/Ghenghis/Super-Goose/ci-main.yml?branch=feat/resizable-layout&style=for-the-badge&label=CI&color=00CC66)](https://github.com/Ghenghis/Super-Goose/actions)
 [![License](https://img.shields.io/badge/License-Apache_2.0-FF6600.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/Ghenghis/Super-Goose/pkgs/container/super-goose)
 [![Docs](https://img.shields.io/badge/Docs-GitHub_Pages-00CC66?style=for-the-badge&logo=github&logoColor=white)](https://ghenghis.github.io/Super-Goose/)
@@ -81,21 +81,21 @@ All counts verified. Zero failures across all suites.
 |:--|--:|:--|
 | **Rust Core (Agent + Learning)** | 139 | All passing |
 | **Rust Total** | 1,754 | All passing |
-| **Vitest (Frontend)** | 3,263 | All passing (234 files) |
+| **Vitest (Frontend)** | 3,378 | All passing (239 files) |
 | **Playwright E2E** | 291 | All passing (68 skipped: backend/CDP) |
 | **TypeScript** | 0 errors | `tsc --noEmit` clean |
 | **Cargo Check** | 0 warnings | Both `goose` and `goose-server` crates |
-| **Total** | **5,017+** | **Zero failures** |
+| **Total** | **5,423+** | **Zero failures** |
 
 ---
 
 ## Quick Start
 
-See [BUILD_AND_DEPLOY.md](docs/BUILD_AND_DEPLOY.md) for full build instructions, including Rust backend compilation, Electron desktop packaging, Docker images, and platform-specific notes.
+See [BUILD_AND_DEPLOY.md](docs/archive/sessions/BUILD_AND_DEPLOY.md) for full build instructions, including Rust backend compilation, Electron desktop packaging, Docker images, and platform-specific notes.
 
 | Platform | CLI | Desktop |
 |:--|:--|:--|
-| **Docker** | `ghcr.io/ghenghis/super-goose:v1.24.06` | -- |
+| **Docker** | `ghcr.io/ghenghis/super-goose:v1.25.0` | -- |
 | **Windows x64** | `goose-x86_64-pc-windows-msvc.zip` | `Super-Goose-win32-x64.zip` |
 | **macOS ARM** | `goose-aarch64-apple-darwin.tar.bz2` | `Super-Goose.dmg` |
 | **macOS Intel** | `goose-x86_64-apple-darwin.tar.bz2` | `Super-Goose-intel.dmg` |
