@@ -107,6 +107,9 @@ export default defineConfig({
       '@radix-ui/react-radio-group',
       '@radix-ui/react-avatar',
       '@radix-ui/react-icons',
+      // --- HTML/Style parsing (CJS) ---
+      'style-to-js',
+      'html-react-parser',
     ],
   },
 });
