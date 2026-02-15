@@ -1,7 +1,7 @@
 # Session 10 — Roadmap & Complete Issue Tracker
 
 **Date**: 2026-02-15
-**Version**: v1.24.07
+**Version**: v1.24.7
 **Branch**: `feat/resizable-layout`
 
 ---
@@ -65,7 +65,7 @@ X [ERROR] Could not resolve "./_lib/normalizeDates.js"
 
 ### 4. Version Mismatch
 
-- Was tagged as `v1.25.0` but should be `v1.24.07`
+- Was tagged as `v1.25.0` but should be `v1.24.7`
 - Fixed in Cargo.toml, package.json, README.md, CHANGELOG.md
 - Old tag deleted from local and remote
 
@@ -136,10 +136,10 @@ X [ERROR] Could not resolve "./_lib/normalizeDates.js"
 | `crates/goose/src/ota/integration_tests.rs` | Removed unused imports |
 | `crates/goose/src/agents/core/orchestrator_core.rs` | Fixed useless u64 comparison |
 | `ui/desktop/vite.renderer.config.mts` | Added react() plugin, fixed optimizeDeps (removed ESM packages), added comprehensive safeguard comments |
-| `Cargo.toml` | Version 1.25.0 → 1.24.07 |
-| `ui/desktop/package.json` | Version 1.25.0 → 1.24.07 |
-| `README.md` | Version badge 1.25.0 → 1.24.07 |
-| `CHANGELOG.md` | Header 1.25.0 → 1.24.07 |
+| `Cargo.toml` | Version 1.25.0 → 1.24.7 |
+| `ui/desktop/package.json` | Version 1.25.0 → 1.24.7 |
+| `README.md` | Version badge 1.25.0 → 1.24.7 |
+| `CHANGELOG.md` | Header 1.25.0 → 1.24.7 |
 | `Cargo.lock` | zip 7.4.0 → 7.2.0 (yanked crate fix) |
 
 ---
@@ -194,11 +194,11 @@ date-fns, uuid, react-resizable-panels, react-markdown
 
 ---
 
-## Release Checklist for v1.24.07
+## Release Checklist for v1.24.7
 
 - [x] Fix CI compilation errors
 - [x] Fix Vite CJS pre-bundling (4th time)
-- [x] Fix version references (1.25.0 → 1.24.07)
+- [x] Fix version references (1.25.0 → 1.24.7)
 - [x] Fix Cargo.lock yanked zip crate
 - [x] Delete incorrect v1.25.0 tag
 - [x] Clear .vite cache
@@ -206,12 +206,12 @@ date-fns, uuid, react-resizable-panels, react-markdown
 - [ ] Push to remote
 - [ ] Verify CI passes (all workflows)
 - [ ] Verify app starts with `npm run start-gui`
-- [ ] Tag v1.24.07
+- [ ] Tag v1.24.7
 - [ ] Push tag to trigger release workflow
 
 ---
 
-## Test Counts (v1.24.07)
+## Test Counts (v1.24.7)
 
 | Suite | Files | Tests | Status |
 |-------|-------|-------|--------|

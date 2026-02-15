@@ -68,7 +68,7 @@ export default defineConfig({
     // VERIFIED CJS (must be listed):
     //   react, react-dom, react-router-dom, react-toastify, react-select,
     //   react-syntax-highlighter, lucide-react, cronstrue, shell-quote,
-    //   lodash, clsx, class-variance-authority, tailwind-merge,
+    //   lodash, lodash/kebabCase, lodash/debounce, clsx, class-variance-authority, tailwind-merge,
     //   compare-versions, @radix-ui/*
     //
     // VERIFIED ESM (must NOT be listed):
@@ -90,6 +90,8 @@ export default defineConfig({
       'cronstrue',
       'shell-quote',
       'lodash',
+      'lodash/kebabCase',
+      'lodash/debounce',
       'clsx',
       'class-variance-authority',
       'tailwind-merge',
