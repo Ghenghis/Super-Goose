@@ -14,12 +14,12 @@ These documents are **not current documentation** -- they are preserved for refe
 
 For up-to-date project information, see:
 
-- [`docs/CURRENT_STATUS.md`](../CURRENT_STATUS.md) -- project status and test counts
+- [`docs/README.md`](../README.md) -- documentation index
 - [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) -- system architecture overview
-- [`docs/CHANGELOG.md`](../CHANGELOG.md) -- release history
-- [`docs/FEATURES.md`](../FEATURES.md) -- feature documentation
-- [`docs/ENTERPRISE.md`](../ENTERPRISE.md) -- enterprise features
 - [`docs/TESTING.md`](../TESTING.md) -- testing strategy and tools
+- [`docs/AG-UI-PROTOCOL.md`](../AG-UI-PROTOCOL.md) -- AG-UI protocol reference
+- [`CHANGELOG.md`](../../CHANGELOG.md) -- release history
+- [`FEATURES.md`](../../FEATURES.md) -- feature documentation
 
 ## Why Archive Instead of Delete?
 
@@ -27,4 +27,4 @@ Session logs capture decision rationale and debugging context that may be valuab
 for understanding past choices. Moving them here keeps the active docs directory clean
 while preserving history.
 
-*Last updated: 2026-02-13*
+*Last updated: 2026-02-15*

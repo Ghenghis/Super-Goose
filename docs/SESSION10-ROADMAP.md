@@ -202,8 +202,8 @@ date-fns, uuid, react-resizable-panels, react-markdown
 - [x] Fix Cargo.lock yanked zip crate
 - [x] Delete incorrect v1.25.0 tag
 - [x] Clear .vite cache
-- [ ] Commit all fixes
-- [ ] Push to remote
+- [x] Commit all fixes
+- [x] Push to remote
 - [ ] Verify CI passes (all workflows)
 - [ ] Verify app starts with `npm run start-gui`
 - [ ] Tag v1.24.7
